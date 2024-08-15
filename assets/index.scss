@@ -54,28 +54,37 @@ h2 > a:hover::after {
 }
 
 div.stat {
+  box-sizing: border-box;
   overflow: hidden;
   min-width: 5rem;
-  border-radius: var(--mdui-shape-corner-full);
+  border-radius: var(--mdui-shape-corner-medium);
+  display: flex;
+  min-width: 10rem;
+}
+
+div.stat mdui-button{
+  min-height: 40px;
+  height: auto;
+}
+
+div.stat label {
+  padding: 0 0.5rem;
+  transition: background-color 0.2s ease-in-out;
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: background-color 0.2s ease-in-out;
+  text-align: center;
 }
 
-div.stat > label{
-  padding: 0 0.5rem;
-}
-
-div.stat.pending{
+div.stat.pending label{
   background-color: #ab5810;
 }
 
-div.stat.success{
+div.stat.success label{
   background-color: #124116;
 }
 
-div.stat.fail{
+div.stat.fail label{
   background-color: #801313;
 }
 
@@ -99,6 +108,16 @@ mdui-tab-panel > .container {
   justify-content: center;
   flex-flow: row wrap;
 }
+
+div.container {
+  max-height: 70vh;
+  min-height: 10rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-flow: row wrap;
+}
+
 /*
 mdui-tab-panel {
   display: block;

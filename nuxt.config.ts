@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   routeRules: {
     "/bili/api/**": {
       proxy: {
-        to: "https://api.bilibili.com/x/",
+        to: "https://api.bilibili.com/x/**",
         fetchOptions: {
           ignoreResponseError: true,
           headers: {
@@ -21,7 +21,7 @@ export default defineNuxtConfig({
     },
     "/bili/i0/**": {
       proxy: {
-        to: "https://i0.hdslb.com/",
+        to: "https://i0.hdslb.com/**",
         fetchOptions: {
           ignoreResponseError: true,
           headers: {
@@ -56,6 +56,12 @@ export default defineNuxtConfig({
       isCustomElement: (tag) => tag.startsWith('mdui-')
     }
   },
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false
+    }
+  ],
   app: {
     head: {
       title: "Collection Down",

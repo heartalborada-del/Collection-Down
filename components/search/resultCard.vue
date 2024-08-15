@@ -8,10 +8,12 @@ const props = defineProps<{
 </script>
 
 <template>
-  <mdui-card @click="onClick">
-    <img src="{{imageURL}}" loading="lazy" alt="data">
-    <label>{{name}}</label>
-    <label>{{type}}</label>
+  <mdui-card @click="onClick" class="result" clickable>
+    <img :src="props.imageURL" loading="lazy" alt="data">
+    <div class="data">
+      <label>{{ props.name }}</label>
+      <label>{{ props.type }}</label>
+    </div>
   </mdui-card>
 </template>
 
@@ -25,6 +27,7 @@ mdui-card.result {
   margin: 0.5rem;
   width: 140px;
   max-height: 480px;
+  min-height: 140px;
 }
 
 mdui-card.result > img{
@@ -53,10 +56,6 @@ mdui-card.result > .data > label {
   user-select: none;
   -webkit-user-select: none;
   text-align: center;
-}
-
-mdui-card.result[hover]{
-  /*width: 200px;*/
 }
 
 mdui-card.result[hover] > .data {

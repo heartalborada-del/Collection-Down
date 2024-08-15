@@ -3375,6 +3375,11 @@ jsonfile@^6.0.1:
   optionalDependencies:
     graceful-fs "^4.1.6"
 
+jsqr@^1.4.0:
+  version "1.4.0"
+  resolved "https://registry.npmmirror.com/jsqr/-/jsqr-1.4.0.tgz#8efb8d0a7cc6863cb6d95116b9069123ce9eb2d1"
+  integrity sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==
+
 kleur@^3.0.3:
   version "3.0.3"
   resolved "https://registry.npmmirror.com/kleur/-/kleur-3.0.3.tgz#a79c9ecc86ee1ce3fa6206d1216c501f147fc07e"
@@ -4379,6 +4384,13 @@ protocols@^2.0.0, protocols@^2.0.1:
   version "2.0.1"
   resolved "https://registry.npmmirror.com/protocols/-/protocols-2.0.1.tgz#8f155da3fc0f32644e83c5782c8e8212ccf70a86"
   integrity sha512-/XJ368cyBJ7fzLMwLKv1e4vLxOju2MNAIokcr7meSaNcVbWz/CPcW22cP04mwxOErdA5mwjA8Q6w/cdAQxVn7Q==
+
+qrcode-decoder@^0.3.4:
+  version "0.3.4"
+  resolved "https://registry.npmmirror.com/qrcode-decoder/-/qrcode-decoder-0.3.4.tgz#fef3742b506b5112471972b0a46b9123d14ac1e2"
+  integrity sha512-T5JDQe8u+jDk8UHjHvgK+jap8mz0dJlhci1sPuS0e3e1k3VE3TFWvS4l8in/pQgrn3Cf5Tq1pIlSUr3BK4DWjQ==
+  dependencies:
+    jsqr "^1.4.0"
 
 queue-microtask@^1.2.2:
   version "1.2.3"

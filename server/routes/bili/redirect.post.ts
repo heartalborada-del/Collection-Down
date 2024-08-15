@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
             };
         return {
             code: 0,
-            URL: headers.get('location')
+            rurl: headers.get('location')
         };
     } catch {
         return {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import 'mdui';
 import 'mdui/mdui.css';
-import 'mdui-vui';
 import { ref } from 'vue';
 const drawer = ref<HTMLInputElement | null>(null);
 
@@ -32,7 +31,7 @@ const toggleDrawer = () => {
         order="-1"
     >
     </mdui-navigation-drawer>
-    <mdui-layout-main style="min-height: 200vh" class="mdui-prose">
+    <mdui-layout-main style="min-height: 100vh" class="mdui-prose">
       <main>
         <NuxtLayout>
           <NuxtPage/>

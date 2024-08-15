@@ -57,7 +57,7 @@ function searchSubmit() {
         <mdui-button-icon class="without radius" variant="filled" icon="arrow_forward" style="height: auto" type="submit"></mdui-button-icon>
       </form>
       <mdui-divider></mdui-divider>
-      <div class="container"></div>
+      <div class="container" ref="searchResult"></div>
     </mdui-tab-panel>
   </mdui-tabs>
   <mdui-divider></mdui-divider>
@@ -65,4 +65,9 @@ function searchSubmit() {
       :value="input.resolvedURL"
       @input="input.resolvedURL = $event.target.value"
       icon="link" variant="outlined" label="URL"></mdui-text-field>
+  <h2 id="metadata">
+    <a href="#metadata">Step 2</a>
+  </h2>
+  <p>获取该收藏集/装扮详情数据</p>
+
 </template>

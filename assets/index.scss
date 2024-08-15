@@ -70,12 +70,15 @@ div.stat > label{
 div.stat.pending{
   background-color: #ab5810;
 }
+
 div.stat.success{
   background-color: #124116;
 }
+
 div.stat.fail{
   background-color: #801313;
 }
+
 .without.radius {
   border-radius: var(--mdui-shape-corner-none);
 }

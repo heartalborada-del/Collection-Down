@@ -5,6 +5,47 @@ export default defineNuxtConfig({
     '@nuxtjs/i18n'
   ],
   routeRules: {
+    "/bili/api/**": {
+      proxy: {
+        to: "https://api.bilibili.com/x/",
+        fetchOptions: {
+          ignoreResponseError: true,
+          headers: {
+            'referer': 'https://www.bilibili.com/',
+            'host': 'www.bilibili.com',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+          },
+        }
+      },
+      cors: true,
+    },
+    "/bili/i0/**": {
+      proxy: {
+        to: "https://i0.hdslb.com/",
+        fetchOptions: {
+          ignoreResponseError: true,
+          headers: {
+            'referer': 'https://www.bilibili.com/',
+            'host': 'www.bilibili.com',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+          },
+        }
+      },
+      cors: true,
+    },
+    "/bili/upos/**": {
+      proxy: {
+        to: "https://upos-sz-mirrorali.bilivideo.com/**",
+        fetchOptions: {
+          headers: {
+            'referer': 'https://www.bilibili.com/',
+            'host': 'www.bilibili.com',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+          },
+        },
+      },
+      cors: true,
+    },
   },
   i18n: {
     //vueI18n: '@i18n.config.ts',

@@ -1,11 +1,11 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import vue from '@vitejs/plugin-vue'
-
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
   modules: [
-      '@nuxtjs/i18n'
+    '@nuxtjs/i18n'
   ],
+  routeRules: {
+  },
   i18n: {
     //vueI18n: '@i18n.config.ts',
   },

@@ -1,0 +1,17 @@
+{
+    "configurations": [
+    {
+        "name": "Development",
+        "request": "launch",
+        "runtimeArgs": [
+            "run-script",
+            "dev"
+        ],
+        "runtimeExecutable": "npm",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "node"
+    }
+    ]
+}

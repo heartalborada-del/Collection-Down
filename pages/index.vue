@@ -41,7 +41,7 @@ function searchSubmit() {
           name: node['name'],
           type: String(node["properties"]["type"]) === "dlc_act" ? "收藏集" : "装扮",
           onClick: () => {
-            console.log(1)
+            input.value.resolvedURL = node['properties']['jump_url']
           }
         })
         resultCardList.value.push(VNode);

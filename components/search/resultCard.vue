@@ -9,7 +9,7 @@ const props = defineProps<{
 
 <template>
   <mdui-card @click="onClick" class="result" clickable>
-    <img :src="props.imageURL" loading="lazy" alt="data">
+    <img :src="props.imageURL" alt="data">
     <div class="data">
       <label>{{ props.name }}</label>
       <label>{{ props.type }}</label>

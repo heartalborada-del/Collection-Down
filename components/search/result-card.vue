@@ -70,4 +70,12 @@ mdui-card.result[pressed] > .data {
 mdui-card.result[focused] {
   border: 0.15rem solid #2196f3;
 }
+
+img[src=""],img:not([src]){
+    opacity:0;
+}
+
+img:has([src]){
+    opacity:1;
+}
 </style>

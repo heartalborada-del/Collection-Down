@@ -3,6 +3,10 @@ body {
   margin: 0;
 }
 
+* {
+  scroll-behavior: smooth;
+}
+
 main {
   padding:0.5rem 1rem;
 }

@@ -2,7 +2,7 @@
 import 'mdui';
 import 'mdui/mdui.css';
 import { ref } from 'vue';
-const drawer = ref<HTMLInputElement | null>(null);
+const drawer = ref<HTMLElement | null>(null);
 
 const toggleDrawer = () => {
   if(drawer.value)
@@ -30,7 +30,7 @@ const toggleDrawer = () => {
         close-on-overlay-click
     >
     </mdui-navigation-drawer>
-    <mdui-layout-main style="min-height: 100vh" class="mdui-prose">
+    <mdui-layout-main style="min-height: 100vh;" class="mdui-prose">
       <main>
         <NuxtLayout>
           <NuxtPage/>

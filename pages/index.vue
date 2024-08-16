@@ -5,7 +5,10 @@
 import { createVNode, ref, render, type VNode } from 'vue';
 import QrcodeDecoder from 'qrcode-decoder';
 import { snackbar } from 'mdui';
-import ResultCard from '~/components/search/resultCard.vue';
+import ResultCard from '~/components/search/result-card.vue';
+
+const QRInput = ref<HTMLInputElement | null>(null);
+const resultContainer = ref<HTMLDivElement | null>(null);
 
 let input = ref({
   search: "",
@@ -19,15 +22,32 @@ let labels = ref({
   }
 });
 
-const QRInput = ref<HTMLInputElement | null>(null);
 
-const resultCardList = ref(new Array<VNode>);
+const resultCardList = ref({
+  list: new Array<VNode>,
+  page: 1
+});
+
+const flags = {
+  scrollable: true
+};
+
+function checkScrollable(element: HTMLElement | null) {
+  if (!element) return false;
+  const scrollHeight = element.scrollHeight;
+  const clientHeight = element.clientHeight;
+  return scrollHeight > clientHeight;
+}
 
 function searchSubmit() {
-  resultCardList.value = []
-  fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=1`)
+  resultCardList.value = {
+    list: new Array<VNode>,
+    page: 1
+  }
+  flags.scrollable = true
+  fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=${resultCardList.value.page}`)
     .then(resp => resp.json())
-    .then(data => {
+    .then(async data => {
       if (data.code !== 0 || !data.data.list) {
         return snackbar({
           message: "搜索时遇到了一些问题",
@@ -44,8 +64,70 @@ function searchSubmit() {
             input.value.resolvedURL = node['jump_link']
           }
         })
-        resultCardList.value.push(VNode);
+        resultCardList.value.list.push(VNode);
       }
+      while (!checkScrollable(resultContainer.value)) {
+        resultCardList.value.page++;
+        const data = await fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=${resultCardList.value.page}`).then(res => res.json())
+        for (const node of data.data.list) {
+          const VNode = createVNode(ResultCard, {
+            imageURL: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
+            name: node['name'],
+            type: String(node["properties"]["type"]) === "dlc_act" ? "收藏集" : "装扮",
+            onClick: () => {
+              input.value.resolvedURL = node['jump_link']
+            }
+          })
+          resultCardList.value.list.push(VNode);
+        }
+      }
+    }).catch(err => {
+      snackbar({
+        message: "搜索时遇到了一些问题",
+        closeOnOutsideClick: true,
+        autoCloseDelay: 1000,
+      })
+      return console.log(err)
+    })
+}
+
+function searchScroll(e: Event) {
+  const scrollTop = (<HTMLElement><any>e.target)?.scrollTop; // 已经滚动的距离
+  const scrollHeight = (<HTMLElement><any>e.target)?.scrollHeight; // 整个内容的高度
+  const clientHeight = (<HTMLElement><any>e.target)?.clientHeight; // 可见区域的高度
+  const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+  console.log(scrollPercentage)
+  if (!flags.scrollable || scrollPercentage <= 0.97) return;
+  flags.scrollable = false
+  fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=${++resultCardList.value.page}`)
+    .then(resp => resp.json())
+    .then(async data => {
+      if (data.code !== 0 || !data.data.list) {
+        return snackbar({
+          message: "搜索时遇到了一些问题",
+          closeOnOutsideClick: true,
+          autoCloseDelay: 1000,
+        })
+      }
+      for (const node of data.data.list) {
+        const VNode = createVNode(ResultCard, {
+          imageURL: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
+          name: node['name'],
+          type: String(node["properties"]["type"]) === "dlc_act" ? "收藏集" : "装扮",
+          onClick: () => {
+            input.value.resolvedURL = node['jump_link']
+          }
+        })
+        resultCardList.value.list.push(VNode);
+      }
+      flags.scrollable = true
+    }).catch(err => {
+      snackbar({
+        message: "搜索时遇到了一些问题",
+        closeOnOutsideClick: true,
+        autoCloseDelay: 1000,
+      })
+      return console.log(err)
     })
 }
 
@@ -86,6 +168,7 @@ function qrUpload(e: Event) {
     labels.value.QR.text = '你是否选择了文件?'
   }
 }
+
 </script>
 <template>
   <h1>让我们开始吧</h1>
@@ -120,10 +203,10 @@ function qrUpload(e: Event) {
         </div>
       </div>
     </mdui-tab-panel>
-    <mdui-tab-panel slot="panel" value="search">
+    <mdui-tab-panel slot="panel" value="search" style="overflow: hidden;">
       <form
           @submit.prevent="searchSubmit"
-          style="display: flex;justify-content: center;align-items: stretch; border-radius: var(--mdui-shape-corner-small); overflow: hidden; border-bottom: 0;">
+          style="display: flex;justify-content: center;align-items: stretch; border-radius: var(--mdui-shape-corner-small); overflow: hidden; margin-bottom: 0;">
         <mdui-text-field
             :value="input.search"
             @input="input.search = $event.target.value"
@@ -131,8 +214,8 @@ function qrUpload(e: Event) {
         <mdui-button-icon class="without radius" variant="filled" icon="arrow_forward" style="height: auto" type="submit"></mdui-button-icon>
       </form>
       <mdui-divider></mdui-divider>
-      <div class="container">
-        <div v-for="node in resultCardList">
+      <div class="container" style="overflow: auto;" @scroll="searchScroll" ref="resultContainer">
+        <div v-for="node in resultCardList.list">
           <component :is="node"></component>
         </div>
       </div>
@@ -147,4 +230,5 @@ function qrUpload(e: Event) {
     <a href="#metadata">Step 2</a>
   </h2>
   <p>获取该收藏集/装扮详情数据</p>
+  
 </template>

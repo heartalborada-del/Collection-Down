@@ -2,10 +2,11 @@
 @use 'assets/index.scss';
 </style>
 <script setup lang="ts">
-import { createVNode, ref, render, type VNode } from 'vue';
+import { createVNode, ref, type VNode } from 'vue';
 import QrcodeDecoder from 'qrcode-decoder';
 import { snackbar } from 'mdui';
-import ResultCard from '~/components/search/result-card.vue';
+import InfoCard from "~/components/info/info-card.vue";
+import {getAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
 
 const QRInput = ref<HTMLInputElement | null>(null);
 const resultContainer = ref<HTMLDivElement | null>(null);
@@ -28,23 +29,12 @@ const resultCardList = ref({
   page: 1
 });
 
-const flags = {
-  scrollable: true
-};
-
-function checkScrollable(element: HTMLElement | null) {
-  if (!element) return false;
-  const scrollHeight = element.scrollHeight;
-  const clientHeight = element.clientHeight;
-  return scrollHeight > clientHeight;
-}
 
 function searchSubmit() {
   resultCardList.value = {
     list: new Array<VNode>,
     page: 1
   }
-  flags.scrollable = true
   fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=${resultCardList.value.page}`)
     .then(resp => resp.json())
     .then(async data => {
@@ -56,71 +46,26 @@ function searchSubmit() {
         })
       }
       for (const node of data.data.list) {
-        const VNode = createVNode(ResultCard, {
-          imageURL: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-          name: node['name'],
-          type: String(node["properties"]["type"]) === "dlc_act" ? "收藏集" : "装扮",
-          onClick: () => {
-            input.value.resolvedURL = node['jump_link']
-          }
-        })
-        resultCardList.value.list.push(VNode);
-      }
-      while (!checkScrollable(resultContainer.value)) {
-        resultCardList.value.page++;
-        const data = await fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=${resultCardList.value.page}`).then(res => res.json())
-        for (const node of data.data.list) {
-          const VNode = createVNode(ResultCard, {
-            imageURL: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-            name: node['name'],
-            type: String(node["properties"]["type"]) === "dlc_act" ? "收藏集" : "装扮",
-            onClick: () => {
-              input.value.resolvedURL = node['jump_link']
-            }
+        let api = getAPIUrl(node['jump_link'])
+        let type = isCollection(node['jump_link'])
+        if(!api || typeof type !== 'boolean') {
+          return snackbar({
+            message: "搜索时遇到了一些问题",
+            closeOnOutsideClick: true,
+            autoCloseDelay: 1000,
           })
-          resultCardList.value.list.push(VNode);
         }
-      }
-    }).catch(err => {
-      snackbar({
-        message: "搜索时遇到了一些问题",
-        closeOnOutsideClick: true,
-        autoCloseDelay: 1000,
-      })
-      return console.log(err)
-    })
-}
-
-function searchScroll(e: Event) {
-  const scrollTop = (<HTMLElement><any>e.target)?.scrollTop; // 已经滚动的距离
-  const scrollHeight = (<HTMLElement><any>e.target)?.scrollHeight; // 整个内容的高度
-  const clientHeight = (<HTMLElement><any>e.target)?.clientHeight; // 可见区域的高度
-  const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
-  console.log(scrollPercentage)
-  if (!flags.scrollable || scrollPercentage <= 0.97) return;
-  flags.scrollable = false
-  fetch(`/bili/api/garb/v2/mall/home/search?key_word=${input.value.search}&pn=${++resultCardList.value.page}`)
-    .then(resp => resp.json())
-    .then(async data => {
-      if (data.code !== 0 || !data.data.list) {
-        return snackbar({
-          message: "搜索时遇到了一些问题",
-          closeOnOutsideClick: true,
-          autoCloseDelay: 1000,
-        })
-      }
-      for (const node of data.data.list) {
-        const VNode = createVNode(ResultCard, {
-          imageURL: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-          name: node['name'],
-          type: String(node["properties"]["type"]) === "dlc_act" ? "收藏集" : "装扮",
+        let data = await fetch(api).then(resp => resp.json())
+        console.log(data)
+        const VNode = createVNode(InfoCard, {
+          imageUrl: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
+          kv: parseRespInfoData(type,data.data),
           onClick: () => {
             input.value.resolvedURL = node['jump_link']
           }
         })
         resultCardList.value.list.push(VNode);
       }
-      flags.scrollable = true
     }).catch(err => {
       snackbar({
         message: "搜索时遇到了一些问题",
@@ -196,7 +141,7 @@ function qrUpload(e: Event) {
             @change="qrUpload"
           >
           <label>{{labels.QR.text}}</label>
-          <mdui-button variant="elevated" class="without radius" @click="if (QRInput != null) QRInput.click();">
+          <mdui-button variant="elevated" class="without radius" @click="if(QRInput !== null) QRInput.click();">
             选择图片
             <mdui-icon slot="end-icon" name="attach_file"></mdui-icon>
           </mdui-button>
@@ -214,10 +159,8 @@ function qrUpload(e: Event) {
         <mdui-button-icon class="without radius" variant="filled" icon="arrow_forward" style="height: auto" type="submit"></mdui-button-icon>
       </form>
       <mdui-divider></mdui-divider>
-      <div class="container" style="overflow: auto;" @scroll="searchScroll" ref="resultContainer">
-        <div v-for="node in resultCardList.list">
-          <component :is="node"></component>
-        </div>
+      <div class="container" style="overflow: auto" ref="resultContainer">
+          <component v-for="node in resultCardList.list" :is="node"></component>
       </div>
     </mdui-tab-panel>
   </mdui-tabs>
@@ -230,5 +173,4 @@ function qrUpload(e: Event) {
     <a href="#metadata">Step 2</a>
   </h2>
   <p>获取该收藏集/装扮详情数据</p>
-  
 </template>

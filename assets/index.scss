@@ -60,7 +60,6 @@ h2 > a:hover::after {
 div.stat {
   box-sizing: border-box;
   overflow: hidden;
-  min-width: 5rem;
   border-radius: var(--mdui-shape-corner-medium);
   display: flex;
   min-width: 10rem;
@@ -108,52 +107,11 @@ mdui-tab-panel > .container {
   max-height: 70vh;
   min-height: 10rem;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   flex-flow: row wrap;
 }
 
-div.container {
-  max-height: 70vh;
-  min-height: 10rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-flow: row wrap;
+mdui-divider {
+  margin: .5rem 0 ;
 }
-
-/*
-mdui-tab-panel {
-  display: block;
-}
-
-mdui-tab-panel {
-  animation: fadeIn 0.3s ease;
-}
-
-mdui-tab-panel:not([active]) {
-  animation: fadeOut 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-    transform: translateY(0px);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
- */

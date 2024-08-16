@@ -5,11 +5,12 @@ const props = defineProps<{
   type: string,
   onClick: () => void,
 }>();
+const src = ref(props.imageURL)
 </script>
 
 <template>
   <mdui-card @click="onClick" class="result" clickable>
-    <img :src="props.imageURL" alt="data">
+    <img :src="src" alt="data" @error="src = `${props.imageURL}?${Math.random()}`">
     <div class="data">
       <label>{{ props.name }}</label>
       <label>{{ props.type }}</label>

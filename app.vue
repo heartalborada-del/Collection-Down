@@ -28,7 +28,6 @@ const toggleDrawer = () => {
         ref="drawer"
         close-on-esc
         close-on-overlay-click
-        order="-1"
     >
     </mdui-navigation-drawer>
     <mdui-layout-main style="min-height: 100vh" class="mdui-prose">

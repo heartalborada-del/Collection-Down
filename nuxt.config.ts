@@ -1,3 +1,17 @@
+import type { ProxyServerOptions } from "httpxy";
+
+const proxy: ProxyServerOptions  = {
+  changeOrigin: true,
+  headers: {
+    'referer': 'https://www.bilibili.com/',
+    'host': 'www.bilibili.com',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
+  },
+  xfwd: false,
+  autoRewrite: true,
+  selfHandleResponse: true,
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2024-04-03',
@@ -15,7 +29,7 @@ export default defineNuxtConfig({
             'host': 'www.bilibili.com',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36'
           },
-        }
+        },
       },
       cors: true,
     },
@@ -31,6 +45,7 @@ export default defineNuxtConfig({
           },
         }
       },
+      swr: 60*60,
       cors: true,
     },
     "/bili/upos/**": {
@@ -44,6 +59,7 @@ export default defineNuxtConfig({
           },
         },
       },
+      swr: 60*15,
       cors: true,
     },
   },

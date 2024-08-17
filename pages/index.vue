@@ -2,10 +2,10 @@
 @use 'assets/index.scss';
 </style>
 <script setup lang="ts">
-import { createVNode, ref, type VNode } from 'vue';
+import { watch, createVNode, ref, type VNode } from 'vue';
 import QrcodeDecoder from 'qrcode-decoder';
 import { snackbar } from 'mdui';
-import InfoCard from "~/components/info/info-card.vue";
+import InfoCard from "~/components/info-card.vue";
 import {getAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
 
 const QRInput = ref<HTMLInputElement | null>(null);
@@ -114,6 +114,10 @@ function qrUpload(e: Event) {
   }
 }
 
+watch(() => input.value.resolvedURL, (newValue, oldValue) => {
+  console.log(`Value changed from ${oldValue} to ${newValue}`);
+});
+
 </script>
 <template>
   <h1>让我们开始吧</h1>
@@ -173,4 +177,6 @@ function qrUpload(e: Event) {
     <a href="#metadata">Step 2</a>
   </h2>
   <p>获取该收藏集/装扮详情数据</p>
+  <mdui-divider></mdui-divider>
+  <stat></stat>
 </template>

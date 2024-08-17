@@ -15,7 +15,7 @@ const toggleDrawer = () => {
   }
 </style>
 <template>
-  <mdui-layout style="position: relative; overflow: hidden;">
+  <mdui-layout style="overflow: visible;">
     <mdui-top-app-bar scroll-behavior="elevate" variant="small">
       <mdui-button-icon
           @click="toggleDrawer"
@@ -30,7 +30,7 @@ const toggleDrawer = () => {
         close-on-overlay-click
     >
     </mdui-navigation-drawer>
-    <mdui-layout-main style="min-height: 100vh;" class="mdui-prose">
+    <mdui-layout-main style="min-height: 100vh;overflow: visible" class="mdui-prose">
       <main>
         <NuxtLayout>
           <NuxtPage/>

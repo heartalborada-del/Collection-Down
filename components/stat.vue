@@ -1,10 +1,13 @@
 <script setup lang="ts">
-
+const props = defineProps<{
+  classes: string[],
+  message: string
+}>();
 </script>
 
 <template>
-  <div class="stat-card error">
-    <div class="message">awa</div>
+  <div class="stat-card" :class="props.classes">
+    <div class="message">{{ props.message }}</div>
   </div>
 </template>
 
@@ -16,15 +19,13 @@
       text-align: center;
     }
     & {
-      --shape-corner: var(--mdui-shape-corner-extra-small);
-      --z-index: 2400;
-      position: fixed;
-      z-index: var(--z-index);
+      transition: background-color 0.5s ease-in,
+                  color 0.5s ease-in,
+                  opacity 2s ease-in;
       align-items: center;
       flex-wrap: wrap;
-      border-radius: var(--shape-corner);
+      border-radius: var(--mdui-shape-corner-extra-small);
       min-width: 20rem;
-      max-width: 36rem;
       padding: 0.25rem 0;
       box-shadow: var(--mdui-elevation-level3);
       background-color: rgb(var(--mdui-color-inverse-surface));
@@ -38,5 +39,11 @@
   .stat-card.error {
     color: rgb(var(--mdui-color-on-error));
     background-color: rgb(var(--mdui-color-error));
+    opacity: 1;
+  }
+  .stat-card.success {
+    color: #FFFFFF;
+    background-color: #005F01;
+    opacity: 0;
   }
 </style>

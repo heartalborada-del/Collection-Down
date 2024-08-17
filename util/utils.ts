@@ -31,6 +31,14 @@ function isCollection(jumpLink: string) {
     }
 }
 
+function buildJumpLink(node: any) {
+    if(node['properties']['type'] === "ip") {
+        return `https://www.bilibili.com/h5/mall/suit/detail?id=${node['item_id']}`
+    } else if(node['properties']['type'] === "dlc_act") {
+        return `https://www.bilibili.com/h5/mall/digital-card/home?act_id=${node['properties']['dlc_act_id']}&lottery_id=${node['properties']['dlc_lottery_id']}`
+    }
+}
+
 function parseRespInfoData(isCollection: boolean, data:any) {
     let m = new Map<string,string>
     if(isCollection) {
@@ -57,4 +65,4 @@ function formatDateWithDefaultOffset(date: Date, offset: string = '+0800'): stri
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}${offset}`;
 }
 
-export {getAPIUrl, isCollection, parseRespInfoData}
+export {getAPIUrl, buildJumpLink, isCollection, parseRespInfoData}

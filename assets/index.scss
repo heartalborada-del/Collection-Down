@@ -3,6 +3,12 @@ body {
   margin: 0;
 }
 
+mdui-navigation-drawer {
+  position: fixed!important;
+  mdui-list {
+    padding: unset;
+  }
+}
 * {
   scroll-behavior: smooth;
 }
@@ -114,4 +120,21 @@ mdui-tab-panel > .container {
 
 mdui-divider {
   margin: .5rem 0 ;
+}
+
+mdui-card.float-card {
+  mdui-collapse > mdui-collapse-item::part(header) {
+    position: sticky;
+    top: 0;
+    background-color: rgb(var(--mdui-color-on-secondary));
+    opacity: 1;
+    z-index: 1;
+  }
+  mdui-list-item::part(container) {
+    min-height: 2.5rem;
+    padding: 0 1rem;
+  }
+  mdui-list-item::part(headline) {
+    display: inherit;
+  }
 }

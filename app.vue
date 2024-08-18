@@ -29,8 +29,20 @@ const toggleDrawer = () => {
         close-on-esc
         close-on-overlay-click
     >
+      <mdui-list>
+        <mdui-collapse accordion value="start">
+          <mdui-collapse-item value="start">
+            <mdui-list-item slot="header" icon="near_me">主页</mdui-list-item>
+            <div style="margin-left: 2.5rem">
+              <mdui-list-item href="/#search">Step 1</mdui-list-item>
+              <mdui-list-item href="/#metadata">Step 2</mdui-list-item>
+            </div>
+          </mdui-collapse-item>
+          <mdui-list-item icon="info" href="/about">关于</mdui-list-item>
+        </mdui-collapse>
+      </mdui-list>
     </mdui-navigation-drawer>
-    <mdui-layout-main style="min-height: 100vh;overflow: visible" class="mdui-prose">
+    <mdui-layout-main style="overflow: visible" class="mdui-prose">
       <main>
         <NuxtLayout>
           <NuxtPage/>

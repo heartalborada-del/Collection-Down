@@ -1,5 +1,5 @@
 <style lang="scss">
-@use 'assets/index.scss';
+@use 'assets/index';
 </style>
 <script setup lang="ts">
 import {createVNode, ref, type VNode, watch} from 'vue';
@@ -273,20 +273,13 @@ watch(() => input.value.resolvedURL, (newValue, oldValue) => {
   <p>该收藏集/装扮详情数据</p>
   <mdui-divider></mdui-divider>
   <div style="display: block; position: relative;">
-    <stat style="position: absolute; top: 0; width: 100%; z-index: 1;" :classes="labels.urlStat.classes"
-          :message="labels.urlStat.text"></stat>
+    <div style="height: 100%;width: 100%;position: absolute">
+      <stat style="position: sticky; top: 4.25rem; width: 100%; z-index: 1;" :classes="labels.urlStat.classes"
+            :message="labels.urlStat.text"></stat>
+    </div>
     <div style="display: flex; justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
-      <mdui-card style="width: 100%;min-height: 20rem" clickable>
-
-      </mdui-card>
-      <div style="width: 100%; display: flex; position: static; flex-direction: column">
-        <mdui-tabs placement="top" style="width: 100%; position: sticky; top: 100px;">
-          <mdui-tab value="1">11</mdui-tab>
-          <mdui-tab-panel slot="panel" value="1">
-            111
-          </mdui-tab-panel>
-        </mdui-tabs>
-        <div>
+      <div style="width: 100%; display: flex; position: static;">
+        <div style="width: 100%">
           content<br/>
           content<br/>
           content<br/>
@@ -336,7 +329,133 @@ watch(() => input.value.resolvedURL, (newValue, oldValue) => {
           content<br/>
           content<br/>
         </div>
-
+        <div
+            style="flex-direction: column; position: sticky; box-sizing: border-box; height: calc(100vh - 6rem); top: 6rem; width: 17.25rem; min-width: 17.25rem; margin: 1.5rem 0 1rem 1.5rem;">
+          <mdui-card style="min-height: 20rem; max-height: calc(100vh - 8rem); width: 100%; box-shadow: var(--mdui-elevation-level5); " class="float-card">
+            <mdui-list style="padding: unset;min-height: 20rem; max-height: calc(100vh - 8rem); overflow: auto">
+              <mdui-collapse value="item-1">
+                <mdui-collapse-item value="item-1">
+                  <mdui-list-item slot="header" icon="near_me">Item 1</mdui-list-item>
+                  <div style="margin-left: 2.5rem">
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                  </div>
+                </mdui-collapse-item>
+                <mdui-collapse-item value="item-2">
+                  <mdui-list-item slot="header" icon="near_me">Item 2</mdui-list-item>
+                  <div style="margin-left: 2.5rem">
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>111</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>222</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>333</mdui-checkbox>
+                    </mdui-list-item>
+                    <mdui-list-item>
+                      <mdui-checkbox>444</mdui-checkbox>
+                    </mdui-list-item>
+                  </div>
+                </mdui-collapse-item>
+              </mdui-collapse>
+            </mdui-list>
+          </mdui-card>
+        </div>
       </div>
     </div>
   </div>

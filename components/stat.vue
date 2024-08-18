@@ -12,6 +12,14 @@ const props = defineProps<{
 </template>
 
 <style scoped lang="scss">
+  @keyframes widthR {
+    0% {}
+    99% {}
+    100% {
+      height: 0;
+    }
+  }
+
   .stat-card {
     > .message {
       display: block;

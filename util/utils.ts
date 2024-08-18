@@ -20,9 +20,9 @@ function isCollection(jumpLink: string) {
         return null;
     try {
         let params = new URL(jumpLink).searchParams
-        if(params.has("act_id")) {
+        if(params.has("act_id") && params.get("act_id") !== "") {
             return true
-        } else if (params.has("id")) {
+        } else if (params.has("id") && params.get("id") !== "") {
             return false
         }
         return null;

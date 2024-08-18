@@ -32,13 +32,13 @@ const toggleDrawer = () => {
       <mdui-list>
         <mdui-collapse accordion value="start">
           <mdui-collapse-item value="start">
-            <mdui-list-item slot="header" icon="near_me">主页</mdui-list-item>
+            <mdui-list-item slot="header" icon="near_me" rounded>主页</mdui-list-item>
             <div style="margin-left: 2.5rem">
-              <mdui-list-item href="/#search">Step 1</mdui-list-item>
-              <mdui-list-item href="/#metadata">Step 2</mdui-list-item>
+              <mdui-list-item href="/#search" rounded>Step 1</mdui-list-item>
+              <mdui-list-item href="/#metadata" rounded>Step 2</mdui-list-item>
             </div>
           </mdui-collapse-item>
-          <mdui-list-item icon="info" href="/about">关于</mdui-list-item>
+          <mdui-list-item icon="info" href="/about" rounded>关于</mdui-list-item>
         </mdui-collapse>
       </mdui-list>
     </mdui-navigation-drawer>

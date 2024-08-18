@@ -6,7 +6,7 @@ body {
 mdui-navigation-drawer {
   position: fixed!important;
   mdui-list {
-    padding: unset;
+    margin: 0 .5rem;
   }
 }
 * {
@@ -136,5 +136,11 @@ mdui-card.float-card {
   }
   mdui-list-item::part(headline) {
     display: inherit;
+  }
+}
+
+@media (min-width: 840px) {
+  div#data-result {
+    display: block!important;
   }
 }

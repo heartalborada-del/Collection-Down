@@ -42,10 +42,11 @@ function buildJumpLink(node: any) {
 function parseRespInfoData(isCollection = false,data:any) {
     let m = new Map<string,string>
     m.set('名称',data['name'])
-    if(isCollection)
-        m.set('开售时间', formatDateWithDefaultOffset(new Date(parseInt(data['properties']['dlc_sale_start_time'],10)*1000),"", false))
-    else
-        m.set('开售时间', formatDateWithDefaultOffset(new Date(parseInt(data['properties']['sale_time_begin'],10)*1000),"", false))
+    if(isCollection) {
+        m.set('开售时间', formatDateWithDefaultOffset(new Date(parseInt(data['properties']['dlc_sale_start_time'], 10) * 1000), "", false))
+    } else {
+        m.set('开售时间', formatDateWithDefaultOffset(new Date(parseInt(data['properties']['sale_time_begin'], 10) * 1000), "", false))
+    }
     return m
 }
 
@@ -60,8 +61,8 @@ function formatDateWithDefaultOffset(date: Date, offset: string = '+0800', isSho
     const minutes = padZero(date.getMinutes());
     const seconds = padZero(date.getSeconds());
     if(isShowHour)
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}${offset}`;
-    return `${year}-${month}-${day}`;
+        return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}${offset}`;
+    return `${year}/${month}/${day}`;
 }
 
 export {getAPIUrl, buildJumpLink, isCollection, parseRespInfoData}

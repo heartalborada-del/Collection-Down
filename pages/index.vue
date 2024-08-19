@@ -36,66 +36,16 @@ let flags = {
 
 const resultCardList = ref({
   list: new Array<VNode>,
-  page: 1
+  page: 0
 });
 
 function searchSubmit() {
-  if (!flags.search.is) {
-    return snackbar({
-      message: "上一个搜索任务正在进行中",
-      closeOnOutsideClick: true,
-      autoCloseDelay: 1000,
-    })
-  }
   flags.search.key = input.value.search
-  flags.search.is = false
   resultCardList.value = {
     list: new Array<VNode>,
-    page: 1
+    page: 0
   }
-  fetch(`/bili/api/garb/v2/mall/home/search?key_word=${flags.search.key}&pn=${resultCardList.value.page}`)
-      .then(resp => resp.json())
-      .then(async data => {
-        if (data.code !== 0 || !data.data.list) {
-          flags.search.is = true
-          return snackbar({
-            message: "搜索时遇到了一些问题",
-            closeOnOutsideClick: true,
-            autoCloseDelay: 1000,
-          })
-        }
-        for (const node of data.data.list) {
-          let jumpLink = node['jump_link']
-          if (!jumpLink)
-            jumpLink = buildJumpLink(node)
-          let type = isCollection(jumpLink)
-          if (typeof type !== 'boolean') {
-            flags.search.is = true
-            return snackbar({
-              message: "搜索时遇到了一些问题",
-              closeOnOutsideClick: true,
-              autoCloseDelay: 1000,
-            })
-          }
-          const VNode = createVNode(InfoCard, {
-            imageUrl: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-            kv: parseRespInfoData(type,node),
-            onClick: () => {
-              input.value.resolvedURL = jumpLink
-            }
-          })
-          resultCardList.value.list.push(VNode);
-        }
-        flags.search.is = true
-      }).catch(err => {
-    snackbar({
-      message: "搜索时遇到了一些问题",
-      closeOnOutsideClick: true,
-      autoCloseDelay: 1000,
-    })
-    flags.search.is = true
-    return console.log(err)
-  })
+  loadMoreSearchData()
 }
 
 function loadMoreSearchData() {
@@ -132,8 +82,8 @@ function loadMoreSearchData() {
             })
           }
           const VNode = createVNode(InfoCard, {
-            imageUrl: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-            kv: parseRespInfoData(document.body.clientWidth >= 840, node),
+            imageUrl: `${String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/")}@progressive_80q_.jpeg`,
+            kv: parseRespInfoData(type, node),
             onClick: () => {
               input.value.resolvedURL = jumpLink
             }
@@ -234,7 +184,7 @@ watch(() => input.value.resolvedURL, (newValue, oldValue) => {
               @change="qrUpload"
           >
           <label>{{ labels.QR.text }}</label>
-          <mdui-button variant="elevated" class="without radius" @click="if(QRInput !== null) QRInput.click();">
+          <mdui-button variant="elevated" class="without radius" @click="() => {if(QRInput !== null) QRInput.click();}">
             选择图片
             <mdui-icon slot="end-icon" name="attach_file"></mdui-icon>
           </mdui-button>

@@ -4,13 +4,23 @@ export default defineEventHandler(async (event) => {
         return
     }
     let range = event.headers.get('range')
-    return await fetch(
+    if (range)
+        return fetch(
+            `https://i0.hdslb.com/${path}`,
+            {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183',
+                    'Referer': 'https://www.bilibili.com/',
+                    'Range': range ? range : ""
+                },
+            }
+        );
+    return fetch(
         `https://i0.hdslb.com/${path}`,
         {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183',
                 'Referer': 'https://www.bilibili.com/',
-                'Range': range ? range : ""
             },
         }
     );

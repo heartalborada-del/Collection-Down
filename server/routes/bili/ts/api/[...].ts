@@ -3,7 +3,7 @@ export default defineEventHandler(async (event) => {
     if(!path) {
         return
     }
-    return await $fetch(
+    return $fetch(
         `https://api.bilibili.com/x/${path}`,
         {
             headers: {

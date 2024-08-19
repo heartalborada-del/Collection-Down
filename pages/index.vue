@@ -68,9 +68,8 @@ function searchSubmit() {
           let jumpLink = node['jump_link']
           if (!jumpLink)
             jumpLink = buildJumpLink(node)
-          let api = getAPIUrl(jumpLink)
           let type = isCollection(jumpLink)
-          if (!api || typeof type !== 'boolean') {
+          if (typeof type !== 'boolean') {
             flags.search.is = true
             return snackbar({
               message: "搜索时遇到了一些问题",
@@ -78,10 +77,9 @@ function searchSubmit() {
               autoCloseDelay: 1000,
             })
           }
-          let data = await fetch(api).then(resp => resp.json())
           const VNode = createVNode(InfoCard, {
             imageUrl: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-            kv: parseRespInfoData(type, data.data),
+            kv: parseRespInfoData(type,node),
             onClick: () => {
               input.value.resolvedURL = jumpLink
             }
@@ -124,9 +122,8 @@ function loadMoreSearchData() {
           let jumpLink = node['jump_link']
           if (!jumpLink)
             jumpLink = buildJumpLink(node)
-          let api = getAPIUrl(jumpLink)
           let type = isCollection(jumpLink)
-          if (!api || typeof type !== 'boolean') {
+          if (typeof type !== 'boolean') {
             flags.search.is = true
             return snackbar({
               message: "搜索时遇到了一些问题",
@@ -134,10 +131,9 @@ function loadMoreSearchData() {
               autoCloseDelay: 1000,
             })
           }
-          let data = await fetch(api).then(resp => resp.json())
           const VNode = createVNode(InfoCard, {
             imageUrl: String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/"),
-            kv: parseRespInfoData(type, data.data),
+            kv: parseRespInfoData(document.body.clientWidth >= 840, node),
             onClick: () => {
               input.value.resolvedURL = jumpLink
             }
@@ -285,7 +281,7 @@ watch(() => input.value.resolvedURL, (newValue, oldValue) => {
             :message="labels.urlStat.text"></stat>
     </div>
     <div style="height: 100%;width: 100%;position: absolute; display: flex; justify-content: flex-end; align-items: center ;flex-direction: column; ">
-      <mdui-fab style="z-index: 1;position: sticky;bottom: 1rem;right: 1rem" extended icon="edit">Compose</mdui-fab>
+      <mdui-fab style="position: sticky;bottom: 1rem;right: 1rem" extended icon="edit">Settings</mdui-fab>
     </div>
     <div style="justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
       <div style="width: 100%; display: flex; position: static;">

@@ -12,12 +12,12 @@ mdui-card.info {
   min-height: 14rem;
   display: flex;
   align-items: center;
-  align-content: center;
+  justify-content: flex-start;
   margin: 0.5rem !important;
   > .image {
     max-width: 8rem;
     min-width: 100px;
-    margin: 10px 2.5rem;
+    margin: 1rem 1rem;
     box-shadow: var(--mdui-elevation-level5);
     > img {
       object-fit: contain;
@@ -31,7 +31,7 @@ mdui-card.info {
     display: grid;
     grid-template-columns: auto auto;
     align-items: center;
-    gap: .1rem 1rem;
+    gap: .1rem .5rem;
     .key, .value {
       min-width: 4rem;
       display: block;
@@ -39,7 +39,6 @@ mdui-card.info {
       word-wrap: break-word;
     }
     .value {
-      text-align: center;
     }
   }
 }
@@ -73,6 +72,5 @@ mdui-card.info {
         <label class="value">{{ value }}</label>
       </template>
     </div>
-    <div style="flex: 1;min-width: 1rem"></div>
   </mdui-card>
 </template>

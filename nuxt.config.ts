@@ -93,7 +93,7 @@ export default defineNuxtConfig({
       link:[
           {
             rel: "stylesheet",
-            href: "https://fonts.googleapis.com/icon?family=Material+Icons"
+            href: "https://fonts.font.im/icon?family=Material+Icons"
           },
       ],
       bodyAttrs: {

@@ -39,19 +39,17 @@ function buildJumpLink(node: any) {
     }
 }
 
-function parseRespInfoData(isCollection: boolean, data:any) {
+function parseRespInfoData(isCollection = false,data:any) {
     let m = new Map<string,string>
-    if(isCollection) {
-        m.set('名称',data['act_title'])
-        m.set('开售时间', formatDateWithDefaultOffset(new Date(data['start_time']*1000),""))
-    } else {
-        m.set('名称',data['name'])
-        m.set('开售时间', formatDateWithDefaultOffset(new Date(Date.now() + data['sale_left_time']*1000),""))
-    }
+    m.set('名称',data['name'])
+    if(isCollection)
+        m.set('开售时间', formatDateWithDefaultOffset(new Date(parseInt(data['properties']['dlc_sale_start_time'],10)*1000),"", false))
+    else
+        m.set('开售时间', formatDateWithDefaultOffset(new Date(parseInt(data['properties']['sale_time_begin'],10)*1000),"", false))
     return m
 }
 
-function formatDateWithDefaultOffset(date: Date, offset: string = '+0800'): string {
+function formatDateWithDefaultOffset(date: Date, offset: string = '+0800', isShowHour = true): string {
     const padZero = (num: number) => num.toString().padStart(2, '0');
 
     const year = date.getFullYear();
@@ -61,8 +59,9 @@ function formatDateWithDefaultOffset(date: Date, offset: string = '+0800'): stri
     const hours = padZero(date.getHours());
     const minutes = padZero(date.getMinutes());
     const seconds = padZero(date.getSeconds());
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}${offset}`;
+    if(isShowHour)
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}${offset}`;
+    return `${year}-${month}-${day}`;
 }
 
 export {getAPIUrl, buildJumpLink, isCollection, parseRespInfoData}

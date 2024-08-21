@@ -70,11 +70,11 @@ async function optimizeUPOS() {
 
 export default async () => {
   let UPOS = await optimizeUPOS()
-  console.info("Target UPOS URL: %s",UPOS)
+  console.info("Target UPOS URL: %s",UPOS.replace("/**",""))
   return defineNuxtConfig({
     runtimeConfig: {
       public: {
-        UPOS: UPOS.replace("/**","")
+        UPOS: UPOS.replace("https://","").replace("/**","")
       }
     },
     compatibilityDate: '2024-04-03',

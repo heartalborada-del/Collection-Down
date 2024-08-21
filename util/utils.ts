@@ -1,13 +1,13 @@
-function getAPIUrl(jumpLink: string) {
+function getAPIUrl(jumpLink: string,apiPrefix = "/bili/ts/api/") {
     if(!jumpLink.startsWith("https://www.bilibili.com/h5/mall/"))
         return null;
     try {
         let params = new URL(jumpLink).searchParams
         let type = isCollection(jumpLink)
         if(typeof type === "boolean" && type) {
-            return `/bili/api/vas/dlc_act/act/basic?act_id=${params.get("act_id")}`
+            return `${apiPrefix}/api/vas/dlc_act/act/basic?act_id=${params.get("act_id")}`
         } else if (typeof type === "boolean" && !type) {
-            return `/bili/api/garb/v2/mall/suit/detail?item_id=${params.get("id")}`
+            return `${apiPrefix}/api/garb/v2/mall/suit/detail?item_id=${params.get("id")}`
         }
         return null;
     } catch (e) {
@@ -15,6 +15,12 @@ function getAPIUrl(jumpLink: string) {
     }
 }
 
+function getCollectionAPIUrl(jumpLink: string, lottery: string, apiPrefix = "/bili/ts/api/") {
+    let target = getAPIUrl(jumpLink)
+    if (!target) return null;
+    let params = new URL(jumpLink).searchParams
+    return `${apiPrefix}/api/vas/dlc_act/lottery_home_detail?act_id=${params.get("act_id")}&lottery_id=${lottery}`
+}
 function isCollection(jumpLink: string) {
     if(!jumpLink.startsWith("https://www.bilibili.com/h5/mall/"))
         return null;
@@ -65,4 +71,4 @@ function formatDateWithDefaultOffset(date: Date, offset: string = '+0800', isSho
     return `${year}/${month}/${day}`;
 }
 
-export {getAPIUrl, buildJumpLink, isCollection, parseRespInfoData}
+export {getAPIUrl, getCollectionAPIUrl, buildJumpLink, isCollection, parseRespInfoData}

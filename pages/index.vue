@@ -6,8 +6,16 @@ import {createVNode, ref, type VNode, watch} from 'vue';
 import QrcodeDecoder from 'qrcode-decoder';
 import {snackbar} from 'mdui';
 import InfoCard from "~/components/info-card.vue";
-import {buildJumpLink, getAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
+import {buildJumpLink, getAPIUrl, getCollectionAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
+import {
+  type DataElement,
+  generateCardList, generateCollectList,
+  generateEmojiList,
+  generateSkinList,
+  generateSpaceBackgroundList
+} from "~/util/generate";
 
+const APIPrefix = '/bili/ts/'
 const QRInput = ref<HTMLInputElement | null>(null);
 const resultContainer = ref<HTMLDivElement | null>(null);
 
@@ -57,7 +65,7 @@ function loadMoreSearchData() {
     })
   }
   flags.search.is = false
-  fetch(`/bili/api/garb/v2/mall/home/search?key_word=${flags.search.key}&pn=${++resultCardList.value.page}`)
+  fetch(`${APIPrefix}/api/garb/v2/mall/home/search?key_word=${flags.search.key}&pn=${++resultCardList.value.page}`)
       .then(resp => resp.json())
       .then(async data => {
         if (data.code !== 0 || !data.data.list) {
@@ -82,7 +90,7 @@ function loadMoreSearchData() {
             })
           }
           const VNode = createVNode(InfoCard, {
-            imageUrl: `${String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, "/bili/i0/")}@progressive_80q_.jpeg`,
+            imageUrl: `${String(node['properties']['image_cover']).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`)}@progressive_80q_150w_.jpeg`,
             kv: parseRespInfoData(type, node),
             onClick: () => {
               input.value.resolvedURL = jumpLink
@@ -140,19 +148,46 @@ function qrUpload(e: Event) {
   }
 }
 
-watch(() => input.value.resolvedURL, (newValue, oldValue) => {
+watch(() => input.value.resolvedURL,   (newValue, oldValue) => {
   let collection = isCollection(newValue)
-  let api = getAPIUrl(newValue)
+  let api = getAPIUrl(newValue,APIPrefix)
   if (collection === null || !api) {
     labels.value.urlStat.classes = ['error']
     labels.value.urlStat.text = "当前的URL未能获取到数据"
     return
   }
-  fetch(api).then(resp => resp.json()).then(json => {
-    console.log(json)
+  fetch(api).then(resp => resp.json()).then(async json => {
+    if (json.code !== 0 || !json.data) {
+      return snackbar({
+        message: "请求数据时遇到了一些问题",
+        closeOnOutsideClick: true,
+        autoCloseDelay: 1000,
+      })
+    }
+    labels.value.urlStat.classes = ['success']
+    labels.value.urlStat.text = "成功"
+    let data = new Map<string, DataElement[]>()
+    if (collection) {
+      let dataO = await Promise.all(json['data']['lottery_list'].map((out:any) => new Promise(async (resolve) => {
+        let map = new Map<string,DataElement[]>
+        let api = getCollectionAPIUrl(newValue, out['lottery_id'], APIPrefix)
+        if(!api) {
+          labels.value.urlStat.classes = ['error']
+          labels.value.urlStat.text = "请求数据时遇到了一些问题"
+          return
+        }
+        let json = await fetch(api).then(resp => resp.json())
+        map.set(`${json['data']['name']}-收藏集`, generateCardList(json.data))
+        generateCollectList(json.data,APIPrefix)
+      })))
+    } else {
+      data.set('背景', generateSpaceBackgroundList(json.data))
+      data.set('表情包', generateEmojiList(json.data))
+      data.set('主题图片', generateSkinList(json.data))
+    }
   }).catch((e) => {
     labels.value.urlStat.classes = ['error']
-    labels.value.urlStat.text = "请求数据时出现了点小问题"
+    labels.value.urlStat.text = "请求数据时遇到了一些问题"
     console.error(e)
     return
   })

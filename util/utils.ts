@@ -21,6 +21,7 @@ function getCollectionAPIUrl(jumpLink: string, lottery: string, apiPrefix = "/bi
     let params = new URL(jumpLink).searchParams
     return `${apiPrefix}/api/vas/dlc_act/lottery_home_detail?act_id=${params.get("act_id")}&lottery_id=${lottery}`
 }
+
 function isCollection(jumpLink: string) {
     if(!jumpLink.startsWith("https://www.bilibili.com/h5/mall/"))
         return null;

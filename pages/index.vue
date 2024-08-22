@@ -8,7 +8,7 @@ import {snackbar} from 'mdui';
 import InfoCard from "~/components/info-card.vue";
 import {buildJumpLink, getAPIUrl, getCollectionAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
 import {
-  type DataElement,
+  type DataElement, type DataPromiseResult,
   generateCardList, generateCollectList,
   generateEmojiList,
   generateSkinList,
@@ -166,9 +166,9 @@ watch(() => input.value.resolvedURL,   (newValue, oldValue) => {
     }
     labels.value.urlStat.classes = ['success']
     labels.value.urlStat.text = "成功"
-    let data = new Map<string, DataElement[]>()
+    let data = new Map<string, DataElement[] | Map<string,DataElement[]>>()
     if (collection) {
-      let dataO = await Promise.all(json['data']['lottery_list'].map((out:any) => new Promise(async (resolve) => {
+      let dataO = await Promise.all(json['data']['lottery_list'].map((out:any) => new Promise<DataPromiseResult>(async (resolve) => {
         let map = new Map<string,DataElement[]>
         let api = getCollectionAPIUrl(newValue, out['lottery_id'], APIPrefix)
         if(!api) {
@@ -177,9 +177,20 @@ watch(() => input.value.resolvedURL,   (newValue, oldValue) => {
           return
         }
         let json = await fetch(api).then(resp => resp.json())
-        map.set(`${json['data']['name']}-收藏集`, generateCardList(json.data))
-        generateCollectList(json.data,APIPrefix)
+        map.set(`收藏集`, generateCardList(json.data))
+        let other = await generateCollectList(json.data, APIPrefix)
+        other.forEach((value, key) => {
+            map.set(`${key.replace('{OTHER}','其他').replace('{STICKER}', '表情包')}`, value);
+        });
+        resolve({
+          name: json['data']['name'],
+          data: map
+        })
       })))
+      dataO.forEach((k:DataPromiseResult) => {
+        data.set(k.name,k.data)
+      })
+      console.log(data)
     } else {
       data.set('背景', generateSpaceBackgroundList(json.data))
       data.set('表情包', generateEmojiList(json.data))
@@ -271,6 +282,25 @@ watch(() => input.value.resolvedURL,   (newValue, oldValue) => {
     <div style="justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
       <div style="width: 100%; display: flex; position: static;">
         <div style="width: 100%">
+          <mdui-tabs value="tab-1">
+            <mdui-tab value="tab-1">Tab 1</mdui-tab>
+            <mdui-tab value="tab-2">Tab 2</mdui-tab>
+            <mdui-tab value="tab-3">Tab 3</mdui-tab>
+
+            <mdui-tab-panel slot="panel" value="tab-1">
+              <mdui-tabs value="tab-1">
+                <mdui-tab value="tab-1">Tab 1</mdui-tab>
+                <mdui-tab value="tab-2">Tab 2</mdui-tab>
+                <mdui-tab value="tab-3">Tab 3</mdui-tab>
+
+                <mdui-tab-panel slot="panel" value="tab-1">Panel 1</mdui-tab-panel>
+                <mdui-tab-panel slot="panel" value="tab-2">Panel 2</mdui-tab-panel>
+                <mdui-tab-panel slot="panel" value="tab-3">Panel 3</mdui-tab-panel>
+              </mdui-tabs>
+            </mdui-tab-panel>
+            <mdui-tab-panel slot="panel" value="tab-2">Panel 2</mdui-tab-panel>
+            <mdui-tab-panel slot="panel" value="tab-3">Panel 3</mdui-tab-panel>
+          </mdui-tabs>
           content<br/>
           content<br/>
           content<br/>

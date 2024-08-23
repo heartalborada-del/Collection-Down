@@ -30,7 +30,7 @@ let input = ref({
   resolvedURL: ""
 });
 
-watch(() => input.value.resolvedURL,   (newValue, oldValue) => {
+watch(() => input.value.resolvedURL,   (newValue) => {
   let collection = isCollection(newValue)
   let api = getAPIUrl(newValue,APIPrefix)
   if (collection === null || !api) {

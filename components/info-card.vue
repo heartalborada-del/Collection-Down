@@ -7,16 +7,16 @@ const props = defineProps<{
 </script>
 <style lang="scss">
 mdui-card.info {
-  transition: width 0.2s ease-in-out;
+  transition: width 0.2s ease-in-out,min-height 0.2s ease-in-out;
   width: 100%;
-  min-height: 14rem;
+  min-height: 5rem;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   margin: 0.5rem !important;
   > .image {
-    max-width: 8rem;
-    min-width: 100px;
+    max-width: 4rem;
+    min-width: 40px;
     margin: 1rem 1rem;
     box-shadow: var(--mdui-elevation-level5);
     > img {
@@ -33,12 +33,14 @@ mdui-card.info {
     align-items: center;
     gap: .1rem .5rem;
     .key, .value {
+      line-height: var(--mdui-typescale-body-medium-line-height);
+      font-size: var(--mdui-typescale-body-medium-size);
+      letter-spacing: var(--mdui-typescale-body-medium-tracking);
+      font-weight: var(--mdui-typescale-body-medium-weight);
       min-width: 4rem;
       display: block;
       white-space: normal;
       word-wrap: break-word;
-    }
-    .value {
     }
   }
 }
@@ -46,12 +48,28 @@ mdui-card.info {
 @media (min-width: 1080px) {
   mdui-card.info {
     width: 45%;
+    min-height: 9rem;
+    > .image {
+      max-width: 8rem;
+    }
+    > .data {
+      .value,.key {
+        line-height: var(--mdui-typescale-body-large-line-height);
+        font-size: var(--mdui-typescale-body-large-size);
+        letter-spacing: var(--mdui-typescale-body-large-tracking);
+        font-weight: var(--mdui-typescale-body-large-weight);
+      }
+    }
   }
 }
 
 @media (min-width: 1440px) {
   mdui-card.info {
     width: 30%;
+    min-height: 12rem;
+    > .image {
+      max-width: 10rem;
+    }
   }
 }
 

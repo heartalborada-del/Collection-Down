@@ -1,47 +1,40 @@
 <script setup lang="ts">
 import 'mdui';
 import 'mdui/mdui.css';
-import { ref } from 'vue';
-const drawer = ref<HTMLElement | null>(null);
+import {watch} from "vue";
 
-const toggleDrawer = () => {
-  if(drawer.value)
-    drawer.value.open = !drawer.value.open;
-};
+const route = useRoute()
+
+const router = useRouter()
+
+const r = ref<string>("")
+
+let f = route.path.split('/')[1]
+r.value = f === "" ? "index" : f
+
+watch(() => route.path,(newValue) => {
+  let f = newValue.split('/')[1]
+  r.value = f === "" ? "index" : f
+})
 </script>
 <style lang="css">
-  mdui-top-app-bar {
+  mdui-top-app-bar,mdui-navigation-rail {
     position: fixed !important;
   }
 </style>
 <template>
   <mdui-layout style="overflow: visible;">
     <mdui-top-app-bar scroll-behavior="elevate" variant="small">
-      <mdui-button-icon
-          @click="toggleDrawer"
-          icon="menu"></mdui-button-icon>
-      <mdui-top-app-bar-title>
+      <mdui-top-app-bar-title style="margin-left: 45px">
         Collection Down
       </mdui-top-app-bar-title>
     </mdui-top-app-bar>
-    <mdui-navigation-drawer
-        ref="drawer"
-        close-on-esc
-        close-on-overlay-click
-    >
-      <mdui-list>
-        <mdui-collapse accordion value="start">
-          <mdui-collapse-item value="start">
-            <mdui-list-item slot="header" icon="near_me" rounded>主页</mdui-list-item>
-            <div style="margin-left: 2.5rem">
-              <mdui-list-item href="/#search" rounded>Step 1</mdui-list-item>
-              <mdui-list-item href="/#metadata" rounded>Step 2</mdui-list-item>
-            </div>
-          </mdui-collapse-item>
-          <mdui-list-item icon="info" href="/about" rounded>关于</mdui-list-item>
-        </mdui-collapse>
-      </mdui-list>
-    </mdui-navigation-drawer>
+    <mdui-navigation-rail :value="r">
+      <mdui-navigation-rail-item icon="account_circle--outlined" value="index" @click="router.push('/')">Index</mdui-navigation-rail-item>
+      <mdui-navigation-rail-item icon="search--outlined" value="search" @click="router.push('/search')">Search</mdui-navigation-rail-item>
+      <mdui-navigation-rail-item icon="file_download--outlined" value="metadata" @click="router.push('/metadata')">Metadata</mdui-navigation-rail-item>
+      <mdui-navigation-rail-item icon="info--outlined" value="about" @click="router.push('/about')">About</mdui-navigation-rail-item>
+    </mdui-navigation-rail>
     <mdui-layout-main style="overflow: visible" class="mdui-prose">
       <main>
         <NuxtLayout>

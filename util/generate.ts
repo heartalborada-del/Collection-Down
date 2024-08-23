@@ -164,7 +164,7 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                         }
                     }
                     resolve(new Map([
-                        [`${o['data']['name']} - {STICKER}`, result]
+                        [`${o['data']['name']}{STICKER}`, result]
                     ]))
                     return
                 }

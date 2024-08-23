@@ -161,6 +161,10 @@ export default async () => {
             rel: "stylesheet",
             href: "https://fonts.font.im/icon?family=Material+Icons"
           },
+          {
+            rel: "stylesheet",
+            href: "https://fonts.font.im/icon?family=Material+Icons+Outlined"
+          },
         ],
         bodyAttrs: {
           class: 'mdui-theme-auto'

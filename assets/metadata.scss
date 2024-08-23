@@ -1,0 +1,8 @@
+@media (min-width: 1200px) {
+  div#data-select {
+    display: block!important;
+  }
+  div#data-result {
+    width: calc(100% - 17.25rem);
+  }
+}

@@ -153,18 +153,17 @@ function confirmJump(turl:string) {
     onCancel: () => {},
   });
 }
-
 </script>
 <template>
   <p>进行关键词搜索或进行二维码识别</p>
   <mdui-tabs value="qr">
     <mdui-tab value="qr">
       二维码扫描
-      <mdui-icon slot="icon" name="qr_code"></mdui-icon>
+      <mdui-icon slot="icon" name="qr_code_scanner--outlined"></mdui-icon>
     </mdui-tab>
     <mdui-tab value="search">
       关键词搜索
-      <mdui-icon slot="icon" name="search"></mdui-icon>
+      <mdui-icon slot="icon" name="search--outlined"></mdui-icon>
     </mdui-tab>
     <mdui-tab-panel slot="panel" value="qr">
       <div style="display: flex;justify-content: center;">
@@ -179,7 +178,7 @@ function confirmJump(turl:string) {
           <label>{{ labels.QR.text }}</label>
           <mdui-button variant="elevated" class="without radius" @click="() => {if(QRInput !== null) QRInput.click();}">
             选择图片
-            <mdui-icon slot="end-icon" name="attach_file"></mdui-icon>
+            <mdui-icon slot="end-icon" name="attach_file--outlined"></mdui-icon>
           </mdui-button>
         </div>
       </div>
@@ -201,7 +200,7 @@ function confirmJump(turl:string) {
         <div style="width: 100%; display: flex; justify-items: center; align-items: center; flex-direction: column"
              v-if="resultCardList.list.length > 0">
           <mdui-button style="width: 90%; max-width: 25rem" @click="loadMoreSearchData">
-            <mdui-icon slot="icon" name="expand_more"></mdui-icon>
+            <mdui-icon slot="icon" name="expand_more--outlined"></mdui-icon>
             戳我加载更多
           </mdui-button>
         </div>

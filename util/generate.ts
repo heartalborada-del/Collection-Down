@@ -36,8 +36,8 @@ function generateSpaceBackgroundList(data: any) {
     for (const pack of bgList) {
         for (let i = 1; pack['properties'].hasOwnProperty(`image${i}_portrait`); i++) {
             result.push({
-                name: `background-${i}`,
-                url: pack[`image${i}_portrait`],
+                name: `${pack['name']}-background-${i}`,
+                url: pack['properties'][`image${i}_portrait`],
             })
         }
     }

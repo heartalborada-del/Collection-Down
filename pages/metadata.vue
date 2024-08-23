@@ -1,5 +1,6 @@
 <style lang="scss">
 @use 'assets/index';
+@use 'assets/metadata';
 </style>
 
 <script setup lang="ts">
@@ -27,7 +28,8 @@ let labels = ref({
 });
 
 let input = ref({
-  resolvedURL: ""
+  resolvedURL: "",
+  select: ""
 });
 
 watch(() => input.value.resolvedURL,   (newValue) => {
@@ -73,7 +75,7 @@ watch(() => input.value.resolvedURL,   (newValue) => {
         k.data.forEach((v,ke) => {
           let key = null;
           if(ke.includes("{MAIN}")) {
-            key = `${k.name}{MAIN}`
+            key = `${k.name}{COLLECTION}`
           } else if (ke.includes("{OTHER}")) {
             key = `${k.name}{OTHER}`
           } else if (ke.includes("{STICKER}")) {
@@ -83,9 +85,10 @@ watch(() => input.value.resolvedURL,   (newValue) => {
         })
       })
     } else {
-      data.set('背景', generateSpaceBackgroundList(json.data))
-      data.set('表情包', generateEmojiList(json.data))
-      data.set('主题图片', generateSkinList(json.data))
+      data.set(`${json.data.name}{BACKGROUND}`, generateSpaceBackgroundList(json.data))
+      data.set(`${json.data.name}{STICKER}`, generateEmojiList(json.data))
+      data.set(`${json.data.name}{THEME}`, generateSkinList(json.data))
+      console.log(data)
     }
     DetailData.value = data
   }).catch((e) => {
@@ -121,24 +124,33 @@ if(route.query.hasOwnProperty("url")) {
     </div>
     <div style="justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
       <div style="width: 100%; display: flex; position: static;">
-        <div style="width: 100%; min-height: 30rem">
-          <mdui-select class="rotate-icon">
+        <div id="data-result" style="width: 100%; min-height: 30rem">
+          <mdui-select class="rotate-icon" :value="input.select" @change="input.select = $event.target.value">
             <template v-for="key in DetailData.keys()">
               <mdui-menu-item :value="key">
                 <p style="text-align: center">
                   <strong>{{ key.replaceAll(/{[a-zA-Z]+}/g,"") }}</strong>
-                  <template v-if="key.includes('{MAIN}')"> - 收藏集</template>
+                  <template v-if="key.includes('{COLLECTION}')"> - 收藏集</template>
                   <template v-else-if="key.includes('{STICKER}')"> - 表情包</template>
-                  <template v-if="key.includes('{OTHER}')"> - 其他</template>
+                  <template v-else-if="key.includes('{THEME}')"> - 主题图片</template>
+                  <template v-else-if="key.includes('{OTHER}')"> - 其他</template>
+                  <template v-else-if="key.includes('{BACKGROUND}')"> - 背景</template>
                 </p>
               </mdui-menu-item>
             </template>
             <mdui-button-icon slot="end-icon" icon="keyboard_arrow_down" disabled></mdui-button-icon>
           </mdui-select>
+          <div v-if="DetailData.has(input.select)">
+            <div v-for="val in DetailData.get(input.select)">
+              Name: {{ val.name }}
+              <br>
+              Url:{{ val.url }}
+            </div>
+          </div>
         </div>
         <div
-            id="data-result"
-            style="display: none; width: 17.25rem; min-width: 17.25rem; margin: 1.5rem 0 1rem 1.5rem; position: sticky; box-sizing: border-box; height: calc(100vh - 12rem); top: 6rem;">
+            id="data-select"
+            style="display: none; width: 17.25rem; min-width: 17.25rem; margin: .5rem 0 1rem 1.5rem; position: sticky; box-sizing: border-box; height: calc(100vh - 12rem); top: 6rem;">
           <mdui-card style="min-height: 20rem; max-height: calc(100vh - 12rem); width: 100%; box-shadow: var(--mdui-elevation-level5); " class="float-card">
             <mdui-list style="padding: unset;min-height: 20rem; max-height: calc(100vh - 12rem); overflow: auto">
               <mdui-collapse value="item-1">

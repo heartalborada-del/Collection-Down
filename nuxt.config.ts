@@ -81,6 +81,9 @@ export default async () => {
     modules: [
       '@nuxtjs/i18n'
     ],
+    plugins: [
+        '~/plugins/portal.ts'
+    ],
     routeRules: {
       "/bili/api/**": {
         proxy: {

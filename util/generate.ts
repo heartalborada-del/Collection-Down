@@ -139,7 +139,6 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                     resolve(new Map([
                         ["{OTHER}",[{name: data['redeem_item_name'], url: data['redeem_item_image']}]]
                     ]))
-                    console.log(1)
                     return
                 case 2:
                 case 15: {

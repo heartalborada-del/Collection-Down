@@ -1,11 +1,11 @@
-<style lang="scss">
+<style scoped lang="scss">
 @use 'assets/index';
 @use 'assets/metadata';
 </style>
 
 <script setup lang="ts">
-import {ref, watch} from "vue";
-import {getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
+import {createVNode, ref, type VNode, watch} from "vue";
+import {getAPIUrl, getCollectionAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
 import {snackbar} from "mdui";
 import {
   type DataElement,
@@ -15,10 +15,14 @@ import {
   generateSpaceBackgroundList
 } from "~/util/generate";
 import {APIPrefix} from "~/util/global";
+import DownloadCard from "~/components/download-card.vue";
+import {Portal} from "portal-vue";
 
 const route = useRoute()
 
 let DetailData = ref<Map<string,DataElement[]>>(new Map<string,DataElement[]>)
+
+let ResultNodes = ref<Array<VNode>>(new Array<VNode>)
 
 let labels = ref({
   urlStat: {
@@ -99,6 +103,19 @@ watch(() => input.value.resolvedURL,   (newValue) => {
   })
 });
 
+watch(() => input.value.select, (newValue) => {
+  ResultNodes.value = new Array<VNode>()
+  if(!DetailData.value.has(newValue)) return
+  let o = DetailData.value.get(newValue)
+  if(!o) return;
+  for (const v of o) {
+    ResultNodes.value.push(createVNode(DownloadCard,{
+      name: v.name,
+      urls: v.url
+    }))
+  }
+});
+
 if(route.query.hasOwnProperty("url")) {
   if (typeof route.query['url'] === 'string')
     input.value.resolvedURL = atob(route.query['url'])
@@ -119,12 +136,9 @@ if(route.query.hasOwnProperty("url")) {
       <stat style="position: sticky; top: 4.25rem; width: 100%; z-index: 1; pointer-events: none;" :classes="labels.urlStat.classes"
             :message="labels.urlStat.text"></stat>
     </div>
-    <div style="height: 100%;width: 100%;position: absolute; display: flex; justify-content: flex-end; align-items: center ;flex-direction: column; ">
-      <mdui-fab style="position: sticky;bottom: 1rem;right: 1rem" extended icon="edit">Settings</mdui-fab>
-    </div>
     <div style="justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
       <div style="width: 100%; display: flex; position: static;">
-        <div id="data-result" style="width: 100%; min-height: 30rem">
+        <div id="data-result" style="width: 100%; min-height: 30rem;">
           <mdui-select class="rotate-icon" :value="input.select" @change="input.select = $event.target.value">
             <template v-for="key in DetailData.keys()">
               <mdui-menu-item :value="key">
@@ -140,12 +154,8 @@ if(route.query.hasOwnProperty("url")) {
             </template>
             <mdui-button-icon slot="end-icon" icon="keyboard_arrow_down" disabled></mdui-button-icon>
           </mdui-select>
-          <div v-if="DetailData.has(input.select)">
-            <div v-for="val in DetailData.get(input.select)">
-              Name: {{ val.name }}
-              <br>
-              Url:{{ val.url }}
-            </div>
+          <div v-if="DetailData.has(input.select)" style="gap: .5rem;display: flex; flex-wrap: wrap;justify-content: center;align-items: center;flex-direction: row;margin-top: .5rem">
+            <component v-for="node in ResultNodes" :is="node" :key="new Date().getTime()"></component>
           </div>
         </div>
         <div
@@ -279,8 +289,9 @@ if(route.query.hasOwnProperty("url")) {
       </div>
     </div>
   </div>
+  <portal to="additional">
+    <mdui-button-icon icon="settings" slot="bottom"></mdui-button-icon>
+  </portal>
 </template>
 
-<style scoped lang="scss">
 
-</style>

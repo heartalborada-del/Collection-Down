@@ -5,7 +5,7 @@ const props = defineProps<{
   onClick: () => void,
 }>();
 </script>
-<style lang="scss">
+<style scoped lang="scss">
 mdui-card.info {
   transition: width 0.2s ease-in-out,min-height 0.2s ease-in-out;
   width: 100%;
@@ -79,6 +79,7 @@ mdui-card.info {
   }
 }
 </style>
+
 <template>
   <mdui-card class="info" @click="props.onClick" clickable>
     <mdui-card class="image" variant="filled" v-if="props.imageUrl !== ''">

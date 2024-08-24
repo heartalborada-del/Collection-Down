@@ -2,6 +2,7 @@
 import 'mdui';
 import 'mdui/mdui.css';
 import {watch} from "vue";
+import {PortalTarget} from "portal-vue";
 
 const route = useRoute()
 
@@ -17,10 +18,10 @@ watch(() => route.path,(newValue) => {
   r.value = f === "" ? "index" : f
 })
 </script>
-<style lang="css">
-  mdui-top-app-bar,mdui-navigation-rail {
-    position: fixed !important;
-  }
+<style scoped lang="css">
+mdui-top-app-bar,mdui-navigation-rail {
+  position: fixed !important;
+}
 </style>
 <template>
   <mdui-layout style="overflow: visible;">
@@ -34,6 +35,9 @@ watch(() => route.path,(newValue) => {
       <mdui-navigation-rail-item icon="search--outlined" value="search" @click="router.push('/search')">Search</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="file_download--outlined" value="metadata" @click="router.push('/metadata')">Metadata</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="info--outlined" value="about" @click="router.push('/about')">About</mdui-navigation-rail-item>
+      <div slot="bottom">
+        <portal-target name="additional"/>
+      </div>
     </mdui-navigation-rail>
     <mdui-layout-main style="overflow: visible" class="mdui-prose">
       <main>

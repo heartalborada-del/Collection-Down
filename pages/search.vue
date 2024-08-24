@@ -1,4 +1,4 @@
-<style lang="scss">
+<style scoped lang="scss">
 @use 'assets/index';
 </style>
 <script setup lang="ts">
@@ -166,7 +166,7 @@ function confirmJump(turl:string) {
       <mdui-icon slot="icon" name="search--outlined"></mdui-icon>
     </mdui-tab>
     <mdui-tab-panel slot="panel" value="qr">
-      <div style="display: flex;justify-content: center;">
+      <div style="display: flex;justify-content: center; margin-top: .5rem">
         <div class="stat" :class="labels.QR.class" ref="QRLabel">
           <input
               ref="QRInput"

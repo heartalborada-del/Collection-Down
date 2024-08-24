@@ -4160,6 +4160,11 @@ pkg-types@^1.0.3, pkg-types@^1.1.1, pkg-types@^1.1.2, pkg-types@^1.1.3:
     mlly "^1.7.1"
     pathe "^1.1.2"
 
+portal-vue@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.npmmirror.com/portal-vue/-/portal-vue-3.0.0.tgz#0f60fe3540e479d18f998d32d415c50c8e17c9a9"
+  integrity sha512-9eprMxNURLx6ijbcgkWjYNcTWJYu/H8QF8nyAeBzOmk9lKCea01BW1hYBeLkgz+AestmPOvznAEOFmNuO4Adjw==
+
 postcss-calc@^10.0.1:
   version "10.0.1"
   resolved "https://registry.npmmirror.com/postcss-calc/-/postcss-calc-10.0.1.tgz#78dce1b90d04a7cb3a67ca7235c041a719762f50"

@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import {createVNode, ref, type VNode, watch} from "vue";
-import {getAPIUrl, getCollectionAPIUrl, isCollection, parseRespInfoData} from "~/util/utils";
+import {getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
 import {snackbar} from "mdui";
 import {
   type DataElement,
@@ -16,11 +16,14 @@ import {
 } from "~/util/generate";
 import {APIPrefix} from "~/util/global";
 import DownloadCard from "~/components/download-card.vue";
-import {Portal} from "portal-vue";
+import Keys from "~/components/keys.vue";
 
 const route = useRoute()
 
-let DetailData = ref<Map<string,DataElement[]>>(new Map<string,DataElement[]>)
+let Details = ref({
+  Data: new Map<string,DataElement[]>,
+  Selected: new Map<string,Map<string,DataElement>>
+})
 
 let ResultNodes = ref<Array<VNode>>(new Array<VNode>)
 
@@ -28,6 +31,14 @@ let labels = ref({
   urlStat: {
     classes: ["error"],
     text: '当前的URL未能获取到数据'
+  },
+  selectAll: {
+    indeterminate: false,
+    selected: false,
+    value: false
+  },
+  display: {
+    isRefresh: false
   }
 });
 
@@ -35,6 +46,28 @@ let input = ref({
   resolvedURL: "",
   select: ""
 });
+
+function toggleSelectDataStat(parent: string, name: string) {
+  if(!Details.value.Selected.has(parent)) {
+    Details.value.Selected.set(parent, new Map<string,DataElement>())
+  }
+  let o = Details.value.Data.get(parent)
+  if (!o) return
+  let v = Details.value.Selected.get(parent)
+  if(v?.get(name)) {
+    v?.delete(name)
+    labels.value.selectAll.selected = v !== undefined && v.size === o.length
+    labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && v.size > 0 && v.size < o.length
+    return;
+  }
+  for (let e of o) {
+    if (e.name === name) {
+      v?.set(name,e)
+      labels.value.selectAll.selected = v !== undefined && v.size === o.length
+      labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && v.size > 0 && v.size < o.length
+    }
+  }
+}
 
 watch(() => input.value.resolvedURL,   (newValue) => {
   let collection = isCollection(newValue)
@@ -94,7 +127,7 @@ watch(() => input.value.resolvedURL,   (newValue) => {
       data.set(`${json.data.name}{THEME}`, generateSkinList(json.data))
       console.log(data)
     }
-    DetailData.value = data
+    Details.value.Data = data
   }).catch((e) => {
     labels.value.urlStat.classes = ['error']
     labels.value.urlStat.text = "请求数据时遇到了一些问题"
@@ -104,15 +137,45 @@ watch(() => input.value.resolvedURL,   (newValue) => {
 });
 
 watch(() => input.value.select, (newValue) => {
-  ResultNodes.value = new Array<VNode>()
-  if(!DetailData.value.has(newValue)) return
-  let o = DetailData.value.get(newValue)
-  if(!o) return;
+  if(!Details.value.Selected.has(input.value.select) && Details.value.Data.has(newValue)) {
+    Details.value.Selected.set(input.value.select, new Map<string,DataElement>())
+  }
+  let temp = new Array<VNode>()
+  let o = Details.value.Data.get(newValue)
+  labels.value.display.isRefresh = true
+  let v = Details.value.Selected.get(newValue)
+  labels.value.selectAll.selected = v !== undefined && o !== undefined && v.size === o.length
+  labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && o !== undefined && v.size > 0 && v.size < o.length
+  if(!o) {
+    labels.value.display.isRefresh = false
+    return;
+  }
   for (const v of o) {
-    ResultNodes.value.push(createVNode(DownloadCard,{
+    temp.push(createVNode(DownloadCard,{
       name: v.name,
-      urls: v.url
+      urls: v.url,
     }))
+  }
+  nextTick(() => {
+    ResultNodes.value = temp
+    labels.value.display.isRefresh = false
+  })
+});
+
+watch(() => labels.value.selectAll.value, (newValue) => {
+  let o = Details.value.Data.get(input.value.select)
+  let v = Details.value.Selected.get(input.value.select)
+  if (!o || !v) return
+  if(newValue) {
+    for (let e of o) {
+      v?.set(e.name,e)
+    }
+    labels.value.selectAll.selected = true
+    labels.value.selectAll.indeterminate = false
+  } else {
+    v?.clear()
+    labels.value.selectAll.selected = false
+    labels.value.selectAll.indeterminate = false
   }
 });
 
@@ -139,23 +202,27 @@ if(route.query.hasOwnProperty("url")) {
     <div style="justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
       <div style="width: 100%; display: flex; position: static;">
         <div id="data-result" style="width: 100%; min-height: 30rem;">
-          <mdui-select class="rotate-icon" :value="input.select" @change="input.select = $event.target.value">
-            <template v-for="key in DetailData.keys()">
-              <mdui-menu-item :value="key">
-                <p style="text-align: center">
-                  <strong>{{ key.replaceAll(/{[a-zA-Z]+}/g,"") }}</strong>
-                  <template v-if="key.includes('{COLLECTION}')"> - 收藏集</template>
-                  <template v-else-if="key.includes('{STICKER}')"> - 表情包</template>
-                  <template v-else-if="key.includes('{THEME}')"> - 主题图片</template>
-                  <template v-else-if="key.includes('{OTHER}')"> - 其他</template>
-                  <template v-else-if="key.includes('{BACKGROUND}')"> - 背景</template>
-                </p>
-              </mdui-menu-item>
-            </template>
-            <mdui-button-icon slot="end-icon" icon="keyboard_arrow_down" disabled></mdui-button-icon>
-          </mdui-select>
-          <div v-if="DetailData.has(input.select)" style="gap: .5rem;display: flex; flex-wrap: wrap;justify-content: center;align-items: center;flex-direction: row;margin-top: .5rem">
-            <component v-for="node in ResultNodes" :is="node" :key="new Date().getTime()"></component>
+          <div style="display: flex;flex-direction: row">
+            <mdui-select class="rotate-icon" :value="input.select" @change="input.select = $event.target.value">
+              <template v-for="key in Details.Data.keys()">
+                <mdui-menu-item :value="key">
+                  <p style="text-align: center">
+                    <keys :keys="key"/>
+                  </p>
+                </mdui-menu-item>
+              </template>
+              <mdui-button-icon slot="end-icon" icon="keyboard_arrow_down" disabled></mdui-button-icon>
+            </mdui-select>
+            <mdui-checkbox v-if="!labels.display.isRefresh" :disabled="!Details.Data.has(input.select)" style="min-width: 4rem"
+                           :indeterminate="labels.selectAll.indeterminate"
+                           :checked="labels.selectAll.selected"
+                           @change="labels.selectAll.value = $event.target.checked"
+            >
+              <p style="white-space: nowrap">全选</p>
+            </mdui-checkbox>
+          </div>
+          <div v-if="Details.Data.has(input.select) && !labels.display.isRefresh" style="gap: .5rem;display: flex; flex-wrap: wrap;justify-content: center;align-items: center;flex-direction: row;margin-top: .5rem">
+            <component v-for="node in ResultNodes" :is="node" @click="toggleSelectDataStat(input.select, node.props?.name)" :aria-checked="Details.Selected.get(input.select)?.has(node.props?.name)"></component>
           </div>
         </div>
         <div
@@ -163,125 +230,21 @@ if(route.query.hasOwnProperty("url")) {
             style="display: none; width: 17.25rem; min-width: 17.25rem; margin: .5rem 0 1rem 1.5rem; position: sticky; box-sizing: border-box; height: calc(100vh - 12rem); top: 6rem;">
           <mdui-card style="min-height: 20rem; max-height: calc(100vh - 12rem); width: 100%; box-shadow: var(--mdui-elevation-level5); " class="float-card">
             <mdui-list style="padding: unset;min-height: 20rem; max-height: calc(100vh - 12rem); overflow: auto">
-              <mdui-collapse value="item-1">
-                <mdui-collapse-item value="item-1">
-                  <mdui-list-item slot="header" icon="near_me">Item 1</mdui-list-item>
-                  <div style="margin-left: 2.5rem">
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
+              <mdui-collapse accordion>
+                <template v-for="key in Details.Selected.keys()">
+                  <mdui-collapse-item v-if="Details.Selected.get(key)?.size !== 0">
+                    <mdui-list-item slot="header" icon="data_array--outlined">
+                      <p style="text-align: center">
+                        <keys :keys="key"/>
+                      </p>
                     </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                  </div>
-                </mdui-collapse-item>
-                <mdui-collapse-item value="item-2">
-                  <mdui-list-item slot="header" icon="near_me">Item 2</mdui-list-item>
-                  <div style="margin-left: 2.5rem">
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>111</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>222</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>333</mdui-checkbox>
-                    </mdui-list-item>
-                    <mdui-list-item>
-                      <mdui-checkbox>444</mdui-checkbox>
-                    </mdui-list-item>
-                  </div>
-                </mdui-collapse-item>
+                    <div style="margin-left: 2.5rem">
+                      <mdui-list-item v-for="data of Details.Selected.get(key)?.keys()">
+                        <mdui-checkbox checked @change="toggleSelectDataStat(key,data)">{{data}}</mdui-checkbox>
+                      </mdui-list-item>
+                    </div>
+                  </mdui-collapse-item>
+                </template>
               </mdui-collapse>
             </mdui-list>
           </mdui-card>
@@ -289,9 +252,6 @@ if(route.query.hasOwnProperty("url")) {
       </div>
     </div>
   </div>
-  <portal to="additional">
-    <mdui-button-icon icon="settings" slot="bottom"></mdui-button-icon>
-  </portal>
 </template>
 
 

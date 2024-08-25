@@ -35,9 +35,6 @@ mdui-top-app-bar,mdui-navigation-rail {
       <mdui-navigation-rail-item icon="search--outlined" value="search" @click="router.push('/search')">Search</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="file_download--outlined" value="metadata" @click="router.push('/metadata')">Metadata</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="info--outlined" value="about" @click="router.push('/about')">About</mdui-navigation-rail-item>
-      <div slot="bottom">
-        <portal-target name="additional"/>
-      </div>
     </mdui-navigation-rail>
     <mdui-layout-main style="overflow: visible" class="mdui-prose">
       <main>

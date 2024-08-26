@@ -79,10 +79,12 @@ export default async () => {
     },
     compatibilityDate: '2024-04-03',
     modules: [
+        '@pinia/nuxt',
+        '@pinia-plugin-persistedstate/nuxt',
       '@nuxtjs/i18n'
     ],
     plugins: [
-        '~/plugins/portal.ts'
+        '~/plugins/vueMiddleware.ts'
     ],
     routeRules: {
       "/bili/api/**": {

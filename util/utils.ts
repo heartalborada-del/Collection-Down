@@ -72,4 +72,4 @@ function formatDateWithDefaultOffset(date: Date, offset: string = '+0800', isSho
     return `${year}/${month}/${day}`;
 }
 
-export {getAPIUrl, getCollectionAPIUrl, buildJumpLink, isCollection, parseRespInfoData}
+export {getAPIUrl, getCollectionAPIUrl, buildJumpLink, isCollection, parseRespInfoData, formatDateWithDefaultOffset}

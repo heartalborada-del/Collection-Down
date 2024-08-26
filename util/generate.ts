@@ -7,7 +7,9 @@ export interface DataElement {
 export interface AnimateEmojiUrl {
     static: string,
     gif: string,
-    webp: string
+    webp: string,
+
+    [key: string]: string;
 }
 export interface DataPromiseResult {
     name: string,

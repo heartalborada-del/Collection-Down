@@ -5,18 +5,25 @@
 
 <script setup lang="ts">
 import {createVNode, ref, type VNode, watch} from "vue";
-import {getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
+import {formatDateWithDefaultOffset, getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
 import {snackbar} from "mdui";
 import {
+  type AnimateEmojiUrl,
   type DataElement,
   type DataPromiseResult,
   generateCardList,
-  generateCollectList, generateEmojiList, generateSkinList,
+  generateCollectList,
+  generateEmojiList,
+  generateSkinList,
   generateSpaceBackgroundList
 } from "~/util/generate";
 import {APIPrefix} from "~/util/global";
 import DownloadCard from "~/components/download-card.vue";
 import Keys from "~/components/keys.vue";
+import {Portal} from "portal-vue";
+import JSZip from "jszip";
+import FileSaver from "file-saver";
+import mime from 'mime/lite';
 
 const route = useRoute()
 
@@ -38,7 +45,7 @@ let labels = ref({
     value: false
   },
   display: {
-    isRefresh: false
+    isCardRefresh: false
   }
 });
 
@@ -56,15 +63,19 @@ function toggleSelectDataStat(parent: string, name: string) {
   let v = Details.value.Selected.get(parent)
   if(v?.get(name)) {
     v?.delete(name)
-    labels.value.selectAll.selected = v !== undefined && v.size === o.length
-    labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && v.size > 0 && v.size < o.length
+    if (parent === input.value.select) {
+      labels.value.selectAll.selected = v !== undefined && v.size === o.length
+      labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && v.size > 0 && v.size < o.length
+    }
     return;
   }
   for (let e of o) {
     if (e.name === name) {
       v?.set(name,e)
-      labels.value.selectAll.selected = v !== undefined && v.size === o.length
-      labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && v.size > 0 && v.size < o.length
+      if (parent === input.value.select) {
+        labels.value.selectAll.selected = v !== undefined && v.size === o.length
+        labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && v.size > 0 && v.size < o.length
+      }
     }
   }
 }
@@ -125,7 +136,6 @@ watch(() => input.value.resolvedURL,   (newValue) => {
       data.set(`${json.data.name}{BACKGROUND}`, generateSpaceBackgroundList(json.data))
       data.set(`${json.data.name}{STICKER}`, generateEmojiList(json.data))
       data.set(`${json.data.name}{THEME}`, generateSkinList(json.data))
-      console.log(data)
     }
     Details.value.Data = data
   }).catch((e) => {
@@ -142,14 +152,12 @@ watch(() => input.value.select, (newValue) => {
   }
   let temp = new Array<VNode>()
   let o = Details.value.Data.get(newValue)
-  labels.value.display.isRefresh = true
   let v = Details.value.Selected.get(newValue)
   labels.value.selectAll.selected = v !== undefined && o !== undefined && v.size === o.length
   labels.value.selectAll.indeterminate = !labels.value.selectAll.selected && v !== undefined && o !== undefined && v.size > 0 && v.size < o.length
-  if(!o) {
-    labels.value.display.isRefresh = false
-    return;
-  }
+  if (!o) return;
+  labels.value.display.isCardRefresh = true
+  labels.value.selectAll.value = false
   for (const v of o) {
     temp.push(createVNode(DownloadCard,{
       name: v.name,
@@ -158,7 +166,7 @@ watch(() => input.value.select, (newValue) => {
   }
   nextTick(() => {
     ResultNodes.value = temp
-    labels.value.display.isRefresh = false
+    labels.value.display.isCardRefresh = false
   })
 });
 
@@ -166,13 +174,13 @@ watch(() => labels.value.selectAll.value, (newValue) => {
   let o = Details.value.Data.get(input.value.select)
   let v = Details.value.Selected.get(input.value.select)
   if (!o || !v) return
-  if(newValue) {
+  if (newValue && !labels.value.display.isCardRefresh) {
     for (let e of o) {
       v?.set(e.name,e)
     }
     labels.value.selectAll.selected = true
     labels.value.selectAll.indeterminate = false
-  } else {
+  } else if (!labels.value.display.isCardRefresh) {
     v?.clear()
     labels.value.selectAll.selected = false
     labels.value.selectAll.indeterminate = false
@@ -184,12 +192,94 @@ if(route.query.hasOwnProperty("url")) {
     input.value.resolvedURL = atob(route.query['url'])
 }
 
+function download() {
+  let zip = new JSZip()
+  const promises = [] as Promise<any>[];
+  Details.value.Selected.forEach((v, k) => {
+    let n = k.replaceAll(/{[a-zA-Z]+}/g, "")
+    let m = k.match(/{[a-zA-Z]+}/g)
+    let f: JSZip | null | undefined = zip;
+    if (m) {
+      switch (m[0]) {
+        case '{COLLECTION}': {
+          f = zip.folder("收藏集")
+          break
+        }
+        case '{STICKER}': {
+          f = zip.folder("表情包")
+          break
+        }
+        case '{THEME}': {
+          f = zip.folder("主题图片")
+          break
+        }
+        case '{OTHER}': {
+          f = zip.folder("其他")
+          break
+        }
+        case '{BACKGROUND}': {
+          f = zip.folder("背景")
+          break
+        }
+      }
+    }
+    f = f?.folder(n)
+    if (!f) {
+      console.error(`Some thing went wrong, when packing '${name}'`)
+      return
+    }
+    v.forEach((v2, k2) => {
+      console.log(v2.url)
+      if (typeof v2.url === 'string') {
+        let imgF = f?.folder('png')
+        promises.push(
+            fetch(v2.url.replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`)).then(async resp => {
+              let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
+              if (!ext) ext = 'bin'
+              let binary = await resp.blob();
+              imgF?.file(`${k2}.${ext}`, binary)
+            })
+        )
+        if (v2.videoUrl) {
+          let videoF = f?.folder('video')
+          promises.push(
+              fetch(v2.videoUrl.replace(/http(s|):\/\/[a-zA-z\-]*.bilivideo.com\//, `${APIPrefix}/upos/`)).then(async resp => {
+                let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
+                if (!ext) ext = 'bin'
+                let binary = await resp.blob();
+                videoF?.file(`${k2}.${ext}`, binary)
+              })
+          )
+        }
+      } else {
+        let u = v2.url as AnimateEmojiUrl
+        for (const uKey in u) {
+          let imgF = f?.folder(uKey)
+          promises.push(
+              fetch(u[uKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`)).then(async resp => {
+                let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
+                if (!ext) ext = 'bin'
+                let binary = await resp.blob();
+                imgF?.file(`${k2}.${ext}`, binary)
+              })
+          )
+        }
+      }
+    })
+  })
+  Promise.all(promises).then(() => {
+    zip.generateAsync({type: "blob"}).then(buffer => {
+      FileSaver.saveAs(buffer, `${formatDateWithDefaultOffset(new Date(), "", true)}.zip`)
+    })
+  })
+}
 </script>
 
 <template>
   <p>该收藏集/装扮详情数据</p>
   <mdui-divider></mdui-divider>
   <mdui-text-field
+      data-v-step="URL"
       :value="input.resolvedURL"
       @input="input.resolvedURL = $event.target.value"
       icon="link" variant="outlined" label="URL"></mdui-text-field>
@@ -213,7 +303,8 @@ if(route.query.hasOwnProperty("url")) {
               </template>
               <mdui-button-icon slot="end-icon" icon="keyboard_arrow_down" disabled></mdui-button-icon>
             </mdui-select>
-            <mdui-checkbox v-if="!labels.display.isRefresh" :disabled="!Details.Data.has(input.select)" style="min-width: 4rem"
+            <mdui-checkbox v-if="!labels.display.isCardRefresh" :disabled="!Details.Data.has(input.select)"
+                           style="min-width: 4rem"
                            :indeterminate="labels.selectAll.indeterminate"
                            :checked="labels.selectAll.selected"
                            @change="labels.selectAll.value = $event.target.checked"
@@ -221,7 +312,8 @@ if(route.query.hasOwnProperty("url")) {
               <p style="white-space: nowrap">全选</p>
             </mdui-checkbox>
           </div>
-          <div v-if="Details.Data.has(input.select) && !labels.display.isRefresh" style="gap: .5rem;display: flex; flex-wrap: wrap;justify-content: center;align-items: center;flex-direction: row;margin-top: .5rem">
+          <div v-if="Details.Data.has(input.select) && !labels.display.isCardRefresh"
+               style="gap: .5rem;display: flex; flex-wrap: wrap;justify-content: center;align-items: center;flex-direction: row;margin-top: .5rem">
             <component v-for="node in ResultNodes" :is="node" @click="toggleSelectDataStat(input.select, node.props?.name)" :aria-checked="Details.Selected.get(input.select)?.has(node.props?.name)"></component>
           </div>
         </div>
@@ -240,7 +332,8 @@ if(route.query.hasOwnProperty("url")) {
                     </mdui-list-item>
                     <div style="margin-left: 2.5rem">
                       <mdui-list-item v-for="data of Details.Selected.get(key)?.keys()">
-                        <mdui-checkbox checked @change="toggleSelectDataStat(key,data)">{{data}}</mdui-checkbox>
+                        <mdui-checkbox :key="data" checked @change="toggleSelectDataStat(key,data)">{{ data }}
+                        </mdui-checkbox>
                       </mdui-list-item>
                     </div>
                   </mdui-collapse-item>
@@ -252,6 +345,10 @@ if(route.query.hasOwnProperty("url")) {
       </div>
     </div>
   </div>
+  <portal to="additional-navigation">
+    <mdui-button-icon data-v-step="download" icon='download' @click="download"></mdui-button-icon>
+    <mdui-button-icon data-v-step="setting" icon="settings"></mdui-button-icon>
+  </portal>
 </template>
 
 

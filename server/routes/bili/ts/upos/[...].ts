@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     event.node.res.setHeader("Target",String(UPOS))
     if(range)
         return fetch(
-            `${UPOS}/${path}`,
+            `https://${UPOS}/${path}`,
             {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183',
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
             }
         );
     return fetch(
-        `${UPOS}/${path}`,
+        `https://${UPOS}/${path}`,
         {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183',

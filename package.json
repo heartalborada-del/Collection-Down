@@ -11,16 +11,26 @@
   },
   "dependencies": {
     "@nuxtjs/i18n": "^8.3.3",
+    "@pinia/nuxt": "^0.5.4",
+    "file-saver": "^2.0.5",
     "http-proxy": "^1.18.1",
     "httpxy": "^0.1.5",
+    "jszip": "^3.10.1",
     "mdui": "^2.1.2",
+    "mime": "^4.0.4",
     "nuxt": "^3.12.4",
     "ping": "^0.4.4",
+    "pinia": "^2.2.2",
     "portal-vue": "^3.0.0",
     "qrcode-decoder": "^0.3.4",
     "sass": "^1.77.8",
     "undici": "^6.19.7",
-    "vue": "latest"
+    "vue": "latest",
+    "vue3-tour": "^1.0.2"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "devDependencies": {
+    "@pinia-plugin-persistedstate/nuxt": "^1.2.1",
+    "@types/file-saver": "^2.0.7"
+  }
 }

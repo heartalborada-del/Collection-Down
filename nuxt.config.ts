@@ -175,6 +175,9 @@ export default async () => {
           class: 'mdui-theme-auto'
         }
       }
+    },
+    build: {
+      transpile: ['vue3-tour']
     }
   })
 }

@@ -2,6 +2,7 @@
 import 'mdui';
 import 'mdui/mdui.css';
 import 'vue3-tour/dist/vue3-tour.css';
+import 'vue3-tour'
 
 import {getCurrentInstance, watch} from "vue";
 import {PortalTarget} from "portal-vue";

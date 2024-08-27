@@ -51,14 +51,26 @@ watch(() => route.path,(newValue) => {
 
 function startTour(isChkToured = false) {
   const {proxy} = instance;
-  if (proxy && proxy.$tours && proxy.$tours['tour'] && tour.value.steps.length !== 0) {
+  if (proxy && proxy.$tours && proxy.$tours['tour']) {
     if (!(isChkToured && store.tour[r.value])) {
+      if (tour.value.steps.length === 0) {
+        snackbar({
+          message: "当前页面没有引导数据",
+          autoCloseDelay: 1000,
+          closeable: true,
+          closeOnOutsideClick: true,
+        });
+        return
+      }
       proxy.$tours['tour'].start()
       store.tour[r.value] = true
     }
   } else {
     snackbar({
       message: "当前页面没有引导数据",
+      autoCloseDelay: 1000,
+      closeable: true,
+      closeOnOutsideClick: true,
     });
   }
 }
@@ -68,6 +80,11 @@ nextTick(() => {
 })
 </script>
 <style lang="scss" scoped>
+body {
+  font-family: Roboto, Noto Sans SC, PingFang SC, Lantinghei SC, Microsoft Yahei, Hiragino Sans GB, "Microsoft Sans Serif", WenQuanYi Micro Hei, sans-serif;
+  margin: 0;
+}
+
 mdui-top-app-bar,mdui-navigation-rail {
   position: fixed !important;
 }

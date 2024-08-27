@@ -6,3 +6,8 @@
     width: calc(100% - 17.25rem);
   }
 }
+
+mdui-dialog::part(panel) {
+  min-width: 50%;
+  max-width: 500px;
+}

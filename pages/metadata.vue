@@ -54,6 +54,9 @@ let input = ref({
   select: ""
 });
 
+const settingPanel = ref<HTMLDivElement | null>(null);
+
+
 function toggleSelectDataStat(parent: string, name: string) {
   if(!Details.value.Selected.has(parent)) {
     Details.value.Selected.set(parent, new Map<string,DataElement>())
@@ -273,6 +276,7 @@ function download() {
     })
   })
 }
+
 </script>
 
 <template>
@@ -286,7 +290,7 @@ function download() {
   <mdui-divider></mdui-divider>
   <div style="display: block; position: relative;">
     <div style="height: 100%;width: 100%;position: absolute; display: flex; flex-direction: column">
-      <stat style="position: sticky; top: 4.25rem; width: 100%; z-index: 1; pointer-events: none;" :classes="labels.urlStat.classes"
+      <stat :classes="labels.urlStat.classes" style="position: sticky; top: 4.25rem; width: 100%; z-index: 1;"
             :message="labels.urlStat.text"></stat>
     </div>
     <div style="justify-content: center; align-items: center; margin: 0 .5rem; flex-direction: column">
@@ -332,7 +336,7 @@ function download() {
                     </mdui-list-item>
                     <div style="margin-left: 2.5rem">
                       <mdui-list-item v-for="data of Details.Selected.get(key)?.keys()">
-                        <mdui-checkbox :key="data" checked @change="toggleSelectDataStat(key,data)">{{ data }}
+                        <mdui-checkbox :key="data + 'Card'" checked @change="toggleSelectDataStat(key,data)">{{ data }}
                         </mdui-checkbox>
                       </mdui-list-item>
                     </div>
@@ -345,9 +349,26 @@ function download() {
       </div>
     </div>
   </div>
+  <mdui-dialog
+      ref="settingPanel"
+      class="settings"
+      close-on-overlay-click
+      headline="Setting Panel"
+  >
+    <div style="display: flex;margin-top: 20rem;align-items: center">
+      <label style="white-space: nowrap">下载线程数量</label>
+      <mdui-slider max="8"></mdui-slider>
+    </div>
+    <mdui-button slot="action" variant="text" @click="() => {
+      if(settingPanel) settingPanel.open = false
+    }">关闭
+    </mdui-button>
+  </mdui-dialog>
   <portal to="additional-navigation">
     <mdui-button-icon data-v-step="download" icon='download' @click="download"></mdui-button-icon>
-    <mdui-button-icon data-v-step="setting" icon="settings"></mdui-button-icon>
+    <mdui-button-icon data-v-step="setting" icon="settings" @click="() => {
+      if(settingPanel) settingPanel.open = true
+    }"></mdui-button-icon>
   </portal>
 </template>
 

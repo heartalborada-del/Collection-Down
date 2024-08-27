@@ -81,7 +81,7 @@ export default async () => {
     modules: [
         '@pinia/nuxt',
         '@pinia-plugin-persistedstate/nuxt',
-      '@nuxtjs/i18n'
+      '@nuxtjs/i18n',
     ],
     plugins: [
         '~/plugins/vueMiddleware.ts'
@@ -177,7 +177,7 @@ export default async () => {
       }
     },
     build: {
-      transpile: ['vue3-tour']
+      transpile: ['vue3-tour'],
     },
     nitro: {
       vercel: {

@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "yarn install",
+  "devCommand": "nuxt dev"
+}

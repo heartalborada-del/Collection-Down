@@ -243,7 +243,7 @@ function download() {
         if (v2.videoUrl) {
           let videoF = f?.folder('video')
           promises.push(
-              fetch(v2.videoUrl.replace(/http(s|):\/\/[a-zA-z\-]*.bilivideo.com\//, `${APIPrefix}/upos/`)).then(async resp => {
+              fetch(v2.videoUrl.replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`)).then(async resp => {
                 let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
                 if (!ext) ext = 'bin'
                 let binary = await resp.blob();

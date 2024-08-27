@@ -178,6 +178,13 @@ export default async () => {
     },
     build: {
       transpile: ['vue3-tour']
+    },
+    nitro: {
+      vercel: {
+        functions: {
+          maxDuration: 30
+        }
+      }
     }
   })
 }

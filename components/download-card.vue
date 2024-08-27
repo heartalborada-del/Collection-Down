@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import {APIPrefix} from "~/util/global";
 import type {AnimateEmojiUrl} from "~/util/generate";
+
 let props = defineProps<{
   name: string
   urls: string | AnimateEmojiUrl
 }>();
 let url: string;
 if(typeof props.urls === 'string') {
-  url = String(props.urls).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`) + '@_80q_100w'
+  url = String(props.urls).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`) + '@100w'
 } else {
-  url = String(props.urls.gif).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`) + '@_80q_100w'
+  url = String(props.urls.gif).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`) + '@100w'
 }
 let cnt = 1;
 </script>

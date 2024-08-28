@@ -7,7 +7,12 @@
   }
 }
 
-mdui-dialog::part(panel) {
-  min-width: 50%;
+mdui-dialog.panel::part(panel) {
+  width: 50%;
   max-width: 500px;
+}
+
+mdui-dialog.panel.download::part(panel) {
+  width: 80%;
+  max-width: 800px;
 }

@@ -1,4 +1,4 @@
-interface ReturnData {
+export interface ReturnData {
     blob: Blob,
     type: string
 }
@@ -14,8 +14,9 @@ export class DownloadInstance {
     private readonly threadCount: number;
     private readonly onProgress?: (downloadedBytes: number, totalBytes: number) => void;
     private downloadedBytes: number = 0; // 当前下载的字节数
-    private isCanceled: boolean = false; // 下载是否被取消
+    private canceled: boolean = false; // 下载是否被取消
     private hasErrorOccurred: boolean = false; // 是否发生错误
+    private succeeded: boolean = true;
     private blobResult: Blob | null = null; // 存储下载的 Blob
 
     constructor(task: DownloadTask) {
@@ -25,14 +26,26 @@ export class DownloadInstance {
     }
 
     public cancel() {
-        this.isCanceled = true;
+        this.canceled = true;
+    }
+
+    public isCanceled() {
+        return this.canceled
+    }
+
+    public isStopped() {
+        return this.canceled || this.hasErrorOccurred || this.succeeded
+    }
+
+    public isSucceeded() {
+        return this.succeeded
     }
 
     public async start(): Promise<ReturnData> {
         try {
             return await this.download();
         } catch (err) {
-            if (this.isCanceled) {
+            if (this.canceled) {
                 throw new Error('Download was canceled');
             } else {
                 throw err;
@@ -75,12 +88,12 @@ export class DownloadInstance {
                             this.downloadedBytes += value.length; // 更新已下载字节数
 
                             // 调用进度回调
-                            if (this.onProgress && !this.isCanceled && !this.hasErrorOccurred) {
+                            if (this.onProgress && !this.canceled && !this.hasErrorOccurred) {
                                 this.onProgress(this.downloadedBytes, contentLength); // 报告当前下载的字节数和总字节数
                             }
 
                             // 检查是否被取消或发生错误
-                            if (this.isCanceled || this.hasErrorOccurred) {
+                            if (this.canceled || this.hasErrorOccurred) {
                                 throw new Error('Download canceled or an error occurred');
                             }
                         }
@@ -99,11 +112,12 @@ export class DownloadInstance {
                 }
 
                 // 检查是否被取消或发生错误
-                if (this.isCanceled || this.hasErrorOccurred) {
+                if (this.canceled || this.hasErrorOccurred) {
                     throw new Error('Download canceled or an error occurred');
                 }
             }
             await Promise.all(promises);
+            this.succeeded = true
             this.blobResult = new Blob([fileData]);
             return {
                 blob: this.blobResult,
@@ -123,12 +137,12 @@ export class DownloadInstance {
                 this.downloadedBytes += value.length; // 更新已下载字节数
 
                 // 调用进度回调
-                if (this.onProgress && !this.isCanceled && !this.hasErrorOccurred) {
+                if (this.onProgress && !this.canceled && !this.hasErrorOccurred) {
                     this.onProgress(this.downloadedBytes, contentLength); // 报告当前下载的字节数和总字节数
                 }
 
                 // 检查是否被取消或发生错误
-                if (this.isCanceled || this.hasErrorOccurred) {
+                if (this.canceled || this.hasErrorOccurred) {
                     throw new Error('Download canceled or an error occurred');
                 }
             }
@@ -151,12 +165,10 @@ export class Downloader {
     private currentDownloads: number = 0; // 当前进行中的下载任务数
 
     constructor(maxConcurrentDownloads: number) {
-        console.info('max', maxConcurrentDownloads)
         this.maxConcurrentDownloads = maxConcurrentDownloads;
     }
 
     public addDownload(task: DownloadTask): Promise<ReturnData> {
-        console.info('queue', this.queue.length)
         return new Promise<ReturnData>((resolve, reject) => {
             this.queue.push({
                 task: task,
@@ -182,7 +194,6 @@ export class Downloader {
             } finally {
                 this.currentDownloads--; // 结束下载任务时减少当前下载数
                 this.startNextDownload(); // 启动下一个下载
-                console.info('Current Downloads:', this.currentDownloads);
             }
         }
     }

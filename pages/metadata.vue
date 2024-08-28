@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import {createVNode, ref, type VNode, watch} from "vue";
-import {formatDateWithDefaultOffset, getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
+import {getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
 import {snackbar} from "mdui";
 import {
   type AnimateEmojiUrl,
@@ -22,7 +22,6 @@ import DownloadCard from "~/components/download-card.vue";
 import Keys from "~/components/keys.vue";
 import {Portal} from "portal-vue";
 import JSZip from "jszip";
-import FileSaver from "file-saver";
 import mime from 'mime/lite';
 import {useStore} from "~/storages/useStore";
 import {Downloader} from "~/util/downloader";
@@ -57,7 +56,20 @@ let input = ref({
   select: ""
 });
 
+let downloadDetails = ref({
+  isDownloading: false,
+  zipFile: null as JSZip | null,
+  downloadData: {} as Record<string, {
+    isSucceeded: boolean,
+    isFailed: boolean,
+    reDownload: () => Promise<void>,
+    progress: number
+  }>,
+})
+
 const settingPanel = ref<HTMLDivElement | null>(null);
+
+const downloadPanel = ref<HTMLDivElement | null>(null);
 
 function toggleSelectDataStat(parent: string, name: string) {
   if(!Details.value.Selected.has(parent)) {
@@ -198,99 +210,153 @@ if(route.query.hasOwnProperty("url")) {
 }
 
 function download() {
-  let zip = new JSZip();
-  let manager = new Downloader(store.settings.download.parallelThread);
+  if (Details.value.Selected.size === 0) {
+    return snackbar({
+      message: "还还没有选择下载内容",
+      closeOnOutsideClick: true,
+      autoCloseDelay: 1000,
+    });
+  }
+  if (downloadPanel.value) downloadPanel.value.open = true
+  if (downloadDetails.value.isDownloading) {
+    return snackbar({
+      message: "上一个下载任务还在进行中",
+      closeOnOutsideClick: true,
+      autoCloseDelay: 1000,
+    });
+  }
+  let copy = new Map(Details.value.Selected);
+  downloadDetails.value.downloadData = {};
+  downloadDetails.value.isDownloading = true;
+  downloadDetails.value.zipFile = new JSZip();
+  const manager = new Downloader(store.settings.download.parallelThread);
+  const segment = store.settings.download.segmentThread;
   const promises = [] as Promise<any>[];
-  Details.value.Selected.forEach((v, k) => {
-    let n = k.replaceAll(/{[a-zA-Z]+}/g, "")
-    let m = k.match(/{[a-zA-Z]+}/g)
-    let f: JSZip | null | undefined = zip;
-    if (m) {
-      switch (m[0]) {
+  copy.forEach((v, k) => {
+    let name = k.replaceAll(/{[a-zA-Z]+}/g, "")
+    let label = k.match(/{[a-zA-Z]+}/g)
+    let folder: JSZip | null | undefined = downloadDetails.value.zipFile;
+    if (label) {
+      switch (label[0]) {
         case '{COLLECTION}': {
-          f = zip.folder("收藏集")
+          folder = downloadDetails.value.zipFile?.folder("收藏集")
           break
         }
         case '{STICKER}': {
-          f = zip.folder("表情包")
+          folder = downloadDetails.value.zipFile?.folder("表情包")
           break
         }
         case '{THEME}': {
-          f = zip.folder("主题图片")
+          folder = downloadDetails.value.zipFile?.folder("主题图片")
           break
         }
         case '{OTHER}': {
-          f = zip.folder("其他")
+          folder = downloadDetails.value.zipFile?.folder("其他")
           break
         }
         case '{BACKGROUND}': {
-          f = zip.folder("背景")
+          folder = downloadDetails.value.zipFile?.folder("背景")
           break
         }
       }
     }
-    f = f?.folder(n)
-    if (!f) {
-      console.error(`Some thing went wrong, when packing '${n}'`)
-      return
+    folder = folder?.folder(name)
+    if (!folder) {
+      console.error(`Some thing went wrong, when packing '${name}'`)
+      return snackbar({
+        message: "上一个下载任务还在进行中",
+        closeOnOutsideClick: true,
+        autoCloseDelay: 1000,
+      })
     }
     v.forEach((v2, k2) => {
       if (typeof v2.url === 'string') {
-        let imgF = f?.folder('png')
-        promises.push(
-            manager.addDownload({
-              url: v2.url.replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
-              threadCount: store.settings.download.segmentThread,
+        if (v2.videoUrl) {
+          let videoFolder = folder?.folder('video')
+          const fun = async () => {
+            return manager.addDownload({
+              url: String(v2.videoUrl).replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
+              threadCount: segment,
               onProgress: (downloadedBytes, totalBytes) => {
-                //console.log(downloadedBytes, totalBytes)
+                downloadDetails.value.downloadData[`${k2}{video}`].progress = Math.floor(downloadedBytes / totalBytes)
               }
             }).then(data => {
               let ext = mime.getExtension(data.type);
               if (!ext) ext = 'bin'
-              imgF?.file(`${k2}.${ext}`, data.blob)
+              videoFolder?.file(`${k2}.${ext}`, data.blob);
+              downloadDetails.value.downloadData[`${k2}{video}`].isSucceeded = true
+            }).catch(() => {
+              downloadDetails.value.downloadData[`${k2}{video}`].isFailed = true
             })
-        )
-        if (v2.videoUrl) {
-          let videoF = f?.folder('video')
-          promises.push(
-              manager.addDownload({
-                url: v2.videoUrl.replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
-                threadCount: store.settings.download.segmentThread,
-                onProgress: (downloadedBytes, totalBytes) => {
-                  //console.log(downloadedBytes, totalBytes)
-                }
-              }).then(data => {
-                let ext = mime.getExtension(data.type);
-                if (!ext) ext = 'bin'
-                videoF?.file(`${k2}.${ext}`, data.blob)
-              })
-          )
+          }
+          downloadDetails.value.downloadData[`${k2}{video}`] = {
+            isFailed: false,
+            isSucceeded: false,
+            progress: 0,
+            reDownload: fun
+          }
+          promises.push(fun())
         }
+        const imgFolder = folder?.folder('png')
+        const fun = async () => {
+          return manager.addDownload({
+            url: String(v2.url).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
+            threadCount: segment,
+            onProgress: (downloadedBytes, totalBytes) => {
+              downloadDetails.value.downloadData[`${k2}{image}`].progress = Math.floor(downloadedBytes / totalBytes)
+            }
+          }).then(data => {
+            let ext = mime.getExtension(data.type);
+            if (!ext) ext = 'bin'
+            imgFolder?.file(`${k2}.${ext}`, data.blob);
+            downloadDetails.value.downloadData[`${k2}{image}`].isSucceeded = true
+          }).catch(() => {
+            downloadDetails.value.downloadData[`${k2}{image}`].isFailed = true
+          })
+        }
+        downloadDetails.value.downloadData[`${k2}{image}`] = {
+          isFailed: false,
+          isSucceeded: false,
+          progress: 0,
+          reDownload: fun
+        }
+        promises.push(fun())
       } else {
-        let u = v2.url as AnimateEmojiUrl
-        for (const uKey in u) {
-          let imgF = f?.folder(uKey)
-          promises.push(
-              manager.addDownload({
-                url: u[uKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
-                threadCount: store.settings.download.segmentThread,
-                onProgress: (downloadedBytes, totalBytes) => {
-                  //console.log(downloadedBytes, totalBytes)
-                }
-              }).then(data => {
-                let ext = mime.getExtension(data.type);
-                if (!ext) ext = 'bin'
-                imgF?.file(`${k2}.${ext}`, data.blob)
-              })
-          )
+        const u = v2.url as AnimateEmojiUrl
+        for (const urlKey in u) {
+          let imgFolder = folder?.folder(urlKey)
+          const fun = async () => {
+            return manager.addDownload({
+              url: u[urlKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
+              threadCount: segment,
+              onProgress: (downloadedBytes, totalBytes) => {
+                downloadDetails.value.downloadData[`${k2}{${urlKey}}`].progress = Math.floor(downloadedBytes / totalBytes)
+              }
+            }).then(data => {
+              let ext = mime.getExtension(data.type);
+              if (!ext) ext = 'bin'
+              imgFolder?.file(`${k2}.${ext}`, data.blob);
+              downloadDetails.value.downloadData[`${k2}{${urlKey}}`].isSucceeded = true
+            }).catch(() => {
+              downloadDetails.value.downloadData[`${k2}{${urlKey}}`].isFailed = true
+            })
+          }
+          downloadDetails.value.downloadData[`${k2}{${urlKey}}`] = {
+            isFailed: false,
+            isSucceeded: false,
+            progress: 0,
+            reDownload: fun
+          }
+          promises.push(fun())
         }
       }
     })
   })
-  Promise.all(promises).then(() => {
-    zip.generateAsync({type: "blob"}).then(buffer => {
-      FileSaver.saveAs(buffer, `${formatDateWithDefaultOffset(new Date(), "", true)}.zip`)
-    })
+  Promise.allSettled(promises).then(() => {
+    downloadDetails.value.isDownloading = false
+  }).catch((e) => {
+    downloadDetails.value.isDownloading = false
+    console.error(e)
   })
 }
 
@@ -368,7 +434,7 @@ function download() {
   </div>
   <mdui-dialog
       ref="settingPanel"
-      class="settings"
+      class="panel"
       close-on-overlay-click
       headline="Setting Panel"
   >
@@ -392,6 +458,32 @@ function download() {
     <mdui-button slot="action" variant="text" @click="() => {
       if(settingPanel) settingPanel.open = false
     }">关闭
+    </mdui-button>
+  </mdui-dialog>
+  <mdui-dialog
+      ref="downloadPanel"
+      class="panel download"
+      headline="Download Progress">
+    <div style="display: flex;flex-direction: column;row-gap: 0.25rem">
+      <div v-for="(v,k) in downloadDetails.downloadData" :key="k"
+           style="display: flex;align-items: center;column-gap: .75rem">
+        <p style="display: flex;margin: unset;white-space: nowrap;align-items: center;column-gap: .25rem">
+          <mdui-badge variant="large">
+            <template v-if="k.includes('{video}')">视频</template>
+            <template v-else-if="k.includes('{image}') || k.includes('{static}')">图片</template>
+            <template v-else-if="k.includes('{gif}')">GIF动图</template>
+            <template v-else-if="k.includes('{webp}')">WEBP动图</template>
+          </mdui-badge>
+          {{ k.replaceAll(/{[a-zA-Z]+}/g, "") }}
+        </p>
+        <mdui-linear-progress :class="{succeeded: v.isSucceeded, failed: v.isFailed}"
+                              :value="v.progress"></mdui-linear-progress>
+        <mdui-button-icon :disabled="!v.isFailed" icon="refresh" variant="filled"></mdui-button-icon>
+      </div>
+    </div>
+    <mdui-button slot="action" variant="text" @click="() => {
+      if(downloadPanel) downloadPanel.open = false
+    }">取消
     </mdui-button>
   </mdui-dialog>
   <portal to="additional-navigation">

@@ -24,7 +24,10 @@ import {Portal} from "portal-vue";
 import JSZip from "jszip";
 import FileSaver from "file-saver";
 import mime from 'mime/lite';
+import {useStore} from "~/storages/useStore";
+import {Downloader} from "~/util/downloader";
 
+const store = useStore()
 const route = useRoute()
 
 let Details = ref({
@@ -55,7 +58,6 @@ let input = ref({
 });
 
 const settingPanel = ref<HTMLDivElement | null>(null);
-
 
 function toggleSelectDataStat(parent: string, name: string) {
   if(!Details.value.Selected.has(parent)) {
@@ -196,7 +198,8 @@ if(route.query.hasOwnProperty("url")) {
 }
 
 function download() {
-  let zip = new JSZip()
+  let zip = new JSZip();
+  let manager = new Downloader(store.settings.download.parallelThread);
   const promises = [] as Promise<any>[];
   Details.value.Selected.forEach((v, k) => {
     let n = k.replaceAll(/{[a-zA-Z]+}/g, "")
@@ -228,29 +231,38 @@ function download() {
     }
     f = f?.folder(n)
     if (!f) {
-      console.error(`Some thing went wrong, when packing '${name}'`)
+      console.error(`Some thing went wrong, when packing '${n}'`)
       return
     }
     v.forEach((v2, k2) => {
-      console.log(v2.url)
       if (typeof v2.url === 'string') {
         let imgF = f?.folder('png')
         promises.push(
-            fetch(v2.url.replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`)).then(async resp => {
-              let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
+            manager.addDownload({
+              url: v2.url.replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
+              threadCount: store.settings.download.segmentThread,
+              onProgress: (downloadedBytes, totalBytes) => {
+                //console.log(downloadedBytes, totalBytes)
+              }
+            }).then(data => {
+              let ext = mime.getExtension(data.type);
               if (!ext) ext = 'bin'
-              let binary = await resp.blob();
-              imgF?.file(`${k2}.${ext}`, binary)
+              imgF?.file(`${k2}.${ext}`, data.blob)
             })
         )
         if (v2.videoUrl) {
           let videoF = f?.folder('video')
           promises.push(
-              fetch(v2.videoUrl.replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`)).then(async resp => {
-                let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
+              manager.addDownload({
+                url: v2.videoUrl.replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
+                threadCount: store.settings.download.segmentThread,
+                onProgress: (downloadedBytes, totalBytes) => {
+                  //console.log(downloadedBytes, totalBytes)
+                }
+              }).then(data => {
+                let ext = mime.getExtension(data.type);
                 if (!ext) ext = 'bin'
-                let binary = await resp.blob();
-                videoF?.file(`${k2}.${ext}`, binary)
+                videoF?.file(`${k2}.${ext}`, data.blob)
               })
           )
         }
@@ -259,11 +271,16 @@ function download() {
         for (const uKey in u) {
           let imgF = f?.folder(uKey)
           promises.push(
-              fetch(u[uKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`)).then(async resp => {
-                let ext = mime.getExtension(resp.headers.get('Content-Type') || '');
+              manager.addDownload({
+                url: u[uKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
+                threadCount: store.settings.download.segmentThread,
+                onProgress: (downloadedBytes, totalBytes) => {
+                  //console.log(downloadedBytes, totalBytes)
+                }
+              }).then(data => {
+                let ext = mime.getExtension(data.type);
                 if (!ext) ext = 'bin'
-                let binary = await resp.blob();
-                imgF?.file(`${k2}.${ext}`, binary)
+                imgF?.file(`${k2}.${ext}`, data.blob)
               })
           )
         }
@@ -355,9 +372,22 @@ function download() {
       close-on-overlay-click
       headline="Setting Panel"
   >
-    <div style="display: flex;margin-top: 20rem;align-items: center">
+    <h2 style="margin-bottom: unset;">下载设置</h2>
+    <div style="display: grid;margin-left: .5rem;grid-template-columns: 100px auto;align-items: center">
+      <label style="white-space: nowrap">并行任务数</label>
+      <mdui-slider :labelFormatter="(num: number) => {
+        if (num === 0) store.settings.download.parallelThread = 2
+        return Number(num)
+      }" :value="store.settings.download.parallelThread"
+                   max="8"
+                   @change="store.settings.download.parallelThread = Number($event.target?.value)"></mdui-slider>
       <label style="white-space: nowrap">下载线程数量</label>
-      <mdui-slider max="8"></mdui-slider>
+      <mdui-slider :labelFormatter="(num: number) => {
+        if (num === 0) store.settings.download.segmentThread = 2
+        return Number(num)
+      }" :value="store.settings.download.segmentThread"
+                   max="8"
+                   @change="store.settings.download.segmentThread = Number($event.target?.value)"></mdui-slider>
     </div>
     <mdui-button slot="action" variant="text" @click="() => {
       if(settingPanel) settingPanel.open = false

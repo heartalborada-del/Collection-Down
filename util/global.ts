@@ -1,6 +1,6 @@
 import type {Step} from "vue3-tour";
 
-const APIPrefix = '/bili/ts/';
+const APIPrefix = '/bili/ts';
 const tourSteps = new Map<string, Step[]>([
     ['metadata', [
         {

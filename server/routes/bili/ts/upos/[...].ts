@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
     let range = event.headers.get('range')
     let UPOS = useRuntimeConfig(event).public.UPOS
     event.node.res.setHeader("Target",String(UPOS))
+    console.log(`https://${UPOS}/${decodeURIComponent(path)}`)
     if(range)
         return fetch(
             `https://${UPOS}/${decodeURIComponent(path)}`,
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
             }
         );
     return fetch(
-        `https://${UPOS}/${path}`,
+        `https://${UPOS}/${decodeURIComponent(path)}`,
         {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.183',

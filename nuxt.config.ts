@@ -22,7 +22,8 @@ const UPOSURLS = [
   "https://upos-hz-mirrorakam.akamaized.net",
   "https://upos-sz-mirroraliov.bilivideo.com",
   "https://upos-tf-all-hw.bilivideo.com",
-  "https://upos-tf-all-tx.bilivideo.com"
+  "https://upos-tf-all-tx.bilivideo.com",
+
 ]
 async function optimizeUPOS() {
   let result = await Promise.all(UPOSURLS.map( link => new Promise<HostResult>((resolve, reject) => {
@@ -30,7 +31,7 @@ async function optimizeUPOS() {
     const req = https.get(link,{
       method: 'GET'
     }, (res) => {
-      res.on('data', (chunk) => {
+      res.on('data', () => {
       });
 
       res.on('end', () => {
@@ -51,7 +52,7 @@ async function optimizeUPOS() {
     });
 
     // 错误处理
-    req.on('error', (err) => {
+    req.on('error', () => {
       resolve({
         host: link,
         result: -1

@@ -1,0 +1,49 @@
+edition: 3.0.0
+name: Collection-Down
+access: 'default'
+vars:
+  region: 'cn-hongkong'
+  functionName: 'Collection-Down'
+resources:
+  build&start:
+    component: fc3
+    actions:
+      pre-deploy:
+        - run: wget "https://mirror.tuna.tsinghua.edu.cn/nodejs-release/v20.17.0/node-v20.17.0-linux-x64.tar.xz" -O "node-v20.17.0-linux-x64.tar.xz" && tar -xf "node-v20.17.0-linux-x64.tar.xz" && rm "node-v20.17.0-linux-x64.tar.xz"
+          path: /usr/local/versions/node
+        - run: mv /usr/local/versions/node/node-v20.17.0-linux-x64 /usr/local/versions/node/v20.17.0
+          path: /usr/local/versions/node
+        - run: ls /usr/local/versions/node/
+          path: ./
+        - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm install --production
+          path: ./
+        - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm run build
+          path: ./
+    props:
+      region: ${vars.region}
+      description: Serverless Devs Web Framework Function
+      runtime: custom.debian10
+      layers:
+        - acs:fc:cn-hongkong:1900395041969912:layers/cd-runtime/versions/1
+        - acs:fc:${vars.region}:official:layers/Nodejs20/versions/1
+      environmentVariables:
+        PATH: >-
+          /opt/nodejs20/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin
+      timeout: 60
+      customRuntimeConfig:
+        command:
+          - node
+          - .output/server/index.mjs
+        port: 3000
+      functionName: ${vars.functionName}
+      code: ./
+  public:
+    component: fc3-domain
+    props:
+      region: ${vars.region}
+      domainName: auto
+      protocol: HTTP
+      routeConfig:
+        routes:
+          - path: /*
+            functionName: ${vars.functionName}

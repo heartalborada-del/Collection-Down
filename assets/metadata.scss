@@ -16,3 +16,43 @@ mdui-dialog.panel.download::part(panel) {
   width: 80%;
   max-width: 800px;
 }
+
+mdui-dialog.panel.download {
+  div.progress {
+    p {
+      & {
+        flex-shrink: 1;
+        min-width: 100px;
+      }
+
+      label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    mdui-button-icon {
+      width: 1.8rem;
+      height: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    mdui-linear-progress {
+      flex-shrink: 1;
+      min-width: 60px;
+      border-radius: var(--mdui-shape-corner-extra-small);
+    }
+
+    mdui-linear-progress::part(indicator) {
+      transition: background-color 0.2s ease-in-out;
+    }
+
+    mdui-linear-progress.failed::part(indicator) {
+      background-color: rgb(var(--mdui-color-error-container));
+    }
+
+    mdui-linear-progress.succeeded::part(indicator) {
+      background-color: rgb(76, 175, 80);
+    }
+  }
+}

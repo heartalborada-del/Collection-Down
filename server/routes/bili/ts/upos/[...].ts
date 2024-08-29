@@ -6,7 +6,6 @@ export default defineEventHandler(async (event) => {
     let range = event.headers.get('range')
     let UPOS = useRuntimeConfig(event).public.UPOS
     event.node.res.setHeader("Target",String(UPOS))
-    console.log(`https://${UPOS}/${decodeURIComponent(path)}`)
     if(range)
         return fetch(
             `https://${UPOS}/${decodeURIComponent(path)}`,

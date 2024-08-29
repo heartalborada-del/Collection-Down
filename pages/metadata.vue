@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import {createVNode, ref, type VNode, watch} from "vue";
-import {getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
+import {formatDateWithDefaultOffset, getAPIUrl, getCollectionAPIUrl, isCollection} from "~/util/utils";
 import {snackbar} from "mdui";
 import {
   type AnimateEmojiUrl,
@@ -25,6 +25,7 @@ import JSZip from "jszip";
 import mime from 'mime/lite';
 import {useStore} from "~/storages/useStore";
 import {Downloader} from "~/util/downloader";
+import FileSaver from "file-saver";
 
 const store = useStore()
 const route = useRoute()
@@ -59,6 +60,7 @@ let input = ref({
 let downloadDetails = ref({
   isDownloading: false,
   zipFile: null as JSZip | null,
+  downloader: null as Downloader | null,
   downloadData: {} as Record<string, {
     isSucceeded: boolean,
     isFailed: boolean,
@@ -210,7 +212,14 @@ if(route.query.hasOwnProperty("url")) {
 }
 
 function download() {
-  if (Details.value.Selected.size === 0) {
+  let getSize = () => {
+    let cnt = 0;
+    for (const value of Details.value.Selected.values()) {
+      cnt += value.size;
+    }
+    return cnt;
+  }
+  if (Details.value.Selected.size === 0 || getSize() === 0) {
     return snackbar({
       message: "还还没有选择下载内容",
       closeOnOutsideClick: true,
@@ -225,11 +234,11 @@ function download() {
       autoCloseDelay: 1000,
     });
   }
+  downloadDetails.value.isDownloading = true;
   let copy = new Map(Details.value.Selected);
   downloadDetails.value.downloadData = {};
-  downloadDetails.value.isDownloading = true;
   downloadDetails.value.zipFile = new JSZip();
-  const manager = new Downloader(store.settings.download.parallelThread);
+  downloadDetails.value.downloader = new Downloader(store.settings.download.parallelThread);
   const segment = store.settings.download.segmentThread;
   const promises = [] as Promise<any>[];
   copy.forEach((v, k) => {
@@ -274,7 +283,7 @@ function download() {
         if (v2.videoUrl) {
           let videoFolder = folder?.folder('video')
           const fun = async () => {
-            return manager.addDownload({
+            return downloadDetails.value.downloader?.addDownload({
               url: String(v2.videoUrl).replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
               threadCount: segment,
               onProgress: (downloadedBytes, totalBytes) => {
@@ -299,7 +308,7 @@ function download() {
         }
         const imgFolder = folder?.folder('png')
         const fun = async () => {
-          return manager.addDownload({
+          return downloadDetails.value.downloader?.addDownload({
             url: String(v2.url).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
             threadCount: segment,
             onProgress: (downloadedBytes, totalBytes) => {
@@ -326,7 +335,7 @@ function download() {
         for (const urlKey in u) {
           let imgFolder = folder?.folder(urlKey)
           const fun = async () => {
-            return manager.addDownload({
+            return downloadDetails.value.downloader?.addDownload({
               url: u[urlKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
               threadCount: segment,
               onProgress: (downloadedBytes, totalBytes) => {
@@ -466,24 +475,41 @@ function download() {
       headline="Download Progress">
     <div style="display: flex;flex-direction: column;row-gap: 0.25rem">
       <div v-for="(v,k) in downloadDetails.downloadData" :key="k"
-           style="display: flex;align-items: center;column-gap: .75rem">
+           class="progress"
+           style="display: flex;align-items: center;column-gap: .75rem"
+      >
         <p style="display: flex;margin: unset;white-space: nowrap;align-items: center;column-gap: .25rem">
           <mdui-badge variant="large">
-            <template v-if="k.includes('{video}')">视频</template>
-            <template v-else-if="k.includes('{image}') || k.includes('{static}')">图片</template>
-            <template v-else-if="k.includes('{gif}')">GIF动图</template>
-            <template v-else-if="k.includes('{webp}')">WEBP动图</template>
+            <template v-if="k.includes('{video}')">MP4</template>
+            <template v-else-if="k.includes('{image}') || k.includes('{static}')">PNG</template>
+            <template v-else-if="k.includes('{gif}')">GIF</template>
+            <template v-else-if="k.includes('{webp}')">WEBP</template>
           </mdui-badge>
-          {{ k.replaceAll(/{[a-zA-Z]+}/g, "") }}
+          <label>{{ k.replaceAll(/{[a-zA-Z]+}/g, "") }}</label>
         </p>
+        <div style="flex-grow: 1"></div>
         <mdui-linear-progress :class="{succeeded: v.isSucceeded, failed: v.isFailed}"
                               :value="v.progress"></mdui-linear-progress>
-        <mdui-button-icon :disabled="!v.isFailed" icon="refresh" variant="filled"></mdui-button-icon>
+        <mdui-button-icon :disabled="!v.isFailed" icon="refresh" variant="filled" @click="() => {
+          if (v.isFailed) v.reDownload()
+        }"></mdui-button-icon>
       </div>
     </div>
     <mdui-button slot="action" variant="text" @click="() => {
+      if(downloadDetails.isDownloading) {
+        downloadDetails.downloader?.cancelAllDownloads();
+      }
       if(downloadPanel) downloadPanel.open = false
     }">取消
+    </mdui-button>
+    <mdui-button slot="action" :disabled="downloadDetails.isDownloading" variant="text" @click="() => {
+      if(downloadDetails.zipFile) {
+        downloadDetails.zipFile.generateAsync({type: 'blob'}).then((binary) => {
+          FileSaver.saveAs(binary, `${formatDateWithDefaultOffset(new Date(),'',true)}.zip`)
+        })
+      }
+      if(downloadPanel) downloadPanel.open = false;
+    }">保存并退出
     </mdui-button>
   </mdui-dialog>
   <portal to="additional-navigation">

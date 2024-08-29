@@ -163,6 +163,7 @@ export class Downloader {
     }[] = []; // 下载任务队列
     private readonly maxConcurrentDownloads: number; // 最大并行下载任务数
     private currentDownloads: number = 0; // 当前进行中的下载任务数
+    private downloadInstances: DownloadInstance[] = [];
 
     constructor(maxConcurrentDownloads: number) {
         this.maxConcurrentDownloads = maxConcurrentDownloads;
@@ -179,11 +180,17 @@ export class Downloader {
         })
     }
 
+    public cancelAllDownloads() {
+        this.downloadInstances.forEach(instance => instance.cancel()); // 调用每个下载实例的取消方法
+        this.queue = []; // 清空队列
+    }
+
     private async startNextDownload(completeDownload: () => void = () => {
     }) {
         while (this.currentDownloads < this.maxConcurrentDownloads && this.queue.length > 0) {
             const task = this.queue.shift()!; // 获取下一个下载任务
             const downloadManager = new DownloadInstance(task.task);
+            this.downloadInstances.push(downloadManager);
             this.currentDownloads++; // 增加当前下载数
 
             try {
@@ -193,6 +200,7 @@ export class Downloader {
                 task.reject(error);
             } finally {
                 this.currentDownloads--; // 结束下载任务时减少当前下载数
+                this.downloadInstances = this.downloadInstances.filter(instance => instance !== downloadManager);
                 this.startNextDownload(); // 启动下一个下载
             }
         }

@@ -6,7 +6,29 @@ type HostResult = {
 };
 
 const UPOSURLS = [
-  "https://upos-sz-mirrorbos.bilivideo.com",
+  "https://upos-sz-mirrorali.bilivideo.com",
+  "https://upos-sz-mirroralib.bilivideo.com",
+  "https://upos-sz-mirroralio1.bilivideo.com",
+  "https://upos-sz-mirrorcos.bilivideo.com",
+  "https://upos-sz-mirrorcosb.bilivideo.com",
+  "https://upos-sz-mirrorcoso1.bilivideo.com",
+  "https://upos-sz-mirrorhw.bilivideo.com",
+  "https://upos-sz-mirrorhwb.bilivideo.com",
+  "https://upos-sz-mirrorhwo1.bilivideo.com",
+  "https://upos-sz-mirror08c.bilivideo.com",
+  "https://upos-sz-mirror08h.bilivideo.com",
+  "https://upos-sz-mirror08ct.bilivideo.com",
+  "https://upos-hz-mirrorakam.akamaized.net",
+  "https://upos-sz-mirroraliov.bilivideo.com",
+  "https://upos-sz-mirrorcosov.bilivideo.com",
+  "https://upos-sz-mirrorhwov.bilivideo.com",
+  "https://upos-sz-mirroralibstar1.bilivideo.com",
+  "https://upos-sz-mirrorcosbstar1.bilivideo.com",
+  "https://upos-sz-mirrorhwbstar1.bilivideo.com",
+  "https://upos-bstar1-mirrorakam.akamaized.net"
+];
+
+/*const UPOSURLS = [
   "https://upos-sz-mirrorcos.bilivideo.com",
   "https://upos-sz-mirrorcosb.bilivideo.com",
   "https://upos-sz-mirrorcoso1.bilivideo.com",
@@ -23,8 +45,9 @@ const UPOSURLS = [
   "https://upos-sz-mirroraliov.bilivideo.com",
   "https://upos-tf-all-hw.bilivideo.com",
   "https://upos-tf-all-tx.bilivideo.com",
-
 ]
+
+ */
 async function optimizeUPOS() {
   let result = await Promise.all(UPOSURLS.map( link => new Promise<HostResult>((resolve, reject) => {
     const start = performance.now()

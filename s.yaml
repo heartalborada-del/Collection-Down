@@ -13,9 +13,7 @@ resources:
           path: /usr/local/versions/node
         - run: mv /usr/local/versions/node/node-v20.17.0-linux-x64 /usr/local/versions/node/v20.17.0
           path: /usr/local/versions/node
-        - run: ls /usr/local/versions/node/
-          path: ./
-        - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm install --production
+        - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm install --registry=https://registry.npmmirror.com --production
           path: ./
         - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm run build
           path: ./
@@ -24,12 +22,20 @@ resources:
       description: Serverless Devs Web Framework Function
       runtime: custom.debian10
       layers:
-        - acs:fc:cn-hongkong:1900395041969912:layers/cd-runtime/versions/1
         - acs:fc:${vars.region}:official:layers/Nodejs20/versions/1
       environmentVariables:
         PATH: >-
           /opt/nodejs20/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin
       timeout: 60
+      service:
+        name: fc-collection-down
+        internetAccess: true
+        logConfig:
+          project: collection-down
+          logstore: collection-down
+          enableRequestMetrics: true
+          enableInstanceMetrics: true
+          logBeginRule: DefaultRegex
       customRuntimeConfig:
         command:
           - node

@@ -87,6 +87,7 @@ export class DownloadInstance {
                             fileData.set(value, this.downloadedBytes); // 更新文件数据
                             this.downloadedBytes += value.length; // 更新已下载字节数
 
+
                             // 调用进度回调
                             if (this.onProgress && !this.canceled && !this.hasErrorOccurred) {
                                 this.onProgress(this.downloadedBytes, contentLength); // 报告当前下载的字节数和总字节数
@@ -131,6 +132,7 @@ export class DownloadInstance {
             if (!response.ok || !reader) return Promise.reject(new Error(`Failed to fetch file: ${response.statusText}`));
             while (true) {
                 const {done, value} = await reader.read();
+
                 if (done) break;
 
                 fileData.set(value, this.downloadedBytes); // 更新文件数据

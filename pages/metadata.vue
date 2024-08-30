@@ -287,7 +287,7 @@ function download() {
               url: String(v2.videoUrl).replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
               threadCount: segment,
               onProgress: (downloadedBytes, totalBytes) => {
-                downloadDetails.value.downloadData[`${k2}{video}`].progress = Math.floor(downloadedBytes / totalBytes)
+                downloadDetails.value.downloadData[`${k2}{video}`].progress = Number((downloadedBytes / totalBytes).toFixed(2))
               }
             }).then(data => {
               let ext = mime.getExtension(data.type);
@@ -312,7 +312,7 @@ function download() {
             url: String(v2.url).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
             threadCount: segment,
             onProgress: (downloadedBytes, totalBytes) => {
-              downloadDetails.value.downloadData[`${k2}{image}`].progress = Math.floor(downloadedBytes / totalBytes)
+              downloadDetails.value.downloadData[`${k2}{image}`].progress = Number((downloadedBytes / totalBytes).toFixed(2))
             }
           }).then(data => {
             let ext = mime.getExtension(data.type);
@@ -339,7 +339,7 @@ function download() {
               url: u[urlKey].replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
               threadCount: segment,
               onProgress: (downloadedBytes, totalBytes) => {
-                downloadDetails.value.downloadData[`${k2}{${urlKey}}`].progress = Math.floor(downloadedBytes / totalBytes)
+                downloadDetails.value.downloadData[`${k2}{${urlKey}}`].progress = Number((downloadedBytes / totalBytes).toFixed(2))
               }
             }).then(data => {
               let ext = mime.getExtension(data.type);
@@ -491,13 +491,17 @@ function download() {
         <mdui-linear-progress :class="{succeeded: v.isSucceeded, failed: v.isFailed}"
                               :value="v.progress"></mdui-linear-progress>
         <mdui-button-icon :disabled="!v.isFailed" icon="refresh" variant="filled" @click="() => {
-          if (v.isFailed) v.reDownload()
+          if (v.isFailed) {
+            v.reDownload()
+            v.isFailed = false;
+          }
         }"></mdui-button-icon>
       </div>
     </div>
     <mdui-button slot="action" variant="text" @click="() => {
       if(downloadDetails.isDownloading) {
         downloadDetails.downloader?.cancelAllDownloads();
+        downloadDetails.isDownloading = false
       }
       if(downloadPanel) downloadPanel.open = false
     }">取消

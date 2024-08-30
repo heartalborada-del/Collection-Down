@@ -44,7 +44,8 @@ mdui-dialog.panel.download {
     }
 
     mdui-linear-progress::part(indicator) {
-      transition: background-color 0.2s ease-in-out;
+      transition: background-color 0.2s ease-in-out,
+      width 0.5s ease-in;
     }
 
     mdui-linear-progress.failed::part(indicator) {

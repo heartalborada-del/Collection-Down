@@ -108,7 +108,8 @@ export default async () => {
       '@nuxtjs/i18n',
     ],
     plugins: [
-        '~/plugins/vueMiddleware.ts'
+      '~/plugins/vueMiddleware.ts',
+      "~/plugins/vercel.client.ts"
     ],
     routeRules: {
       "/bili/api/**": {

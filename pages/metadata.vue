@@ -493,8 +493,9 @@ function download() {
         <mdui-button-icon :disabled="!v.isFailed" icon="refresh" variant="filled" @click="() => {
           if (v.isFailed) {
             v.reDownload()
-            v.isFailed = false;
           }
+          v.isFailed = false;
+          v.isSucceeded = false;
         }"></mdui-button-icon>
       </div>
     </div>

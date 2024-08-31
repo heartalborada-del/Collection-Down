@@ -3,6 +3,7 @@ import 'mdui';
 import 'mdui/mdui.css';
 import 'vue3-tour/dist/vue3-tour.css';
 import 'vue3-tour'
+import {SpeedInsights} from '@vercel/speed-insights/vue';
 
 import {getCurrentInstance, watch} from "vue";
 import {PortalTarget} from "portal-vue";
@@ -90,6 +91,7 @@ mdui-top-app-bar,mdui-navigation-rail {
 }
 </style>
 <template>
+  <SpeedInsights/>
   <mdui-layout style="overflow: visible;">
     <mdui-top-app-bar scroll-behavior="elevate" variant="small">
       <mdui-top-app-bar-title style="margin-left: 45px">

@@ -102,20 +102,20 @@ function generateCardList(data: any) {
     }
     if (infos)
         for (const info of infos) {
-            if(info['redeem_item_type'] !== 1) continue
+            if (info['redeem_item_type'] !== 1 || info['card_item']['card_type_info']['material_sub_type']) continue
             result.push({
                 name: info['card_item']['card_type_info']['name'],
                 url: info['card_item']['card_type_info']['overview_image'],
-                videoUrl: info['card_item']['card_type_info']['animation'] ? info['card_item']['card_type_info']['animation']['animation_url'] : null
+                videoUrl: info['card_item']['card_type_info']['content']['animation'] ? info['card_item']['card_type_info']['content']['animation']['animation_url'] : null
             })
         }
     if (chain)
         for (const ele of chain) {
-            if(ele['redeem_item_type'] !== 1) continue
+            if (ele['redeem_item_type'] !== 1 || ele['card_item']['card_type_info']['material_sub_type']) continue
             result.push({
                 name: ele['card_item']['card_type_info']['name'],
                 url: ele['card_item']['card_type_info']['overview_image'],
-                videoUrl: ele['card_item']['card_type_info']['animation'] ? ele['card_item']['card_type_info']['animation']['animation_url'] : null
+                videoUrl: ele['card_item']['card_type_info']['content']['animation'] ? ele['card_item']['card_type_info']['content']['animation']['animation_url'] : null
             })
         }
     return result

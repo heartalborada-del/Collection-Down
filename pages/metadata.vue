@@ -157,6 +157,7 @@ watch(() => input.value.resolvedURL,   (newValue) => {
       data.set(`${json.data.name}{THEME}`, generateSkinList(json.data))
     }
     Details.value.Data = data
+    input.value.select = ""
   }).catch((e) => {
     labels.value.urlStat.classes = ['error']
     labels.value.urlStat.text = "请求数据时遇到了一些问题"

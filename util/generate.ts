@@ -106,7 +106,7 @@ function generateCardList(data: any) {
             result.push({
                 name: info['card_item']['card_type_info']['name'],
                 url: info['card_item']['card_type_info']['overview_image'],
-                videoUrl: info['card_item']['card_type_info']['content']['animation'] ? info['card_item']['card_type_info']['content']['animation']['animation_url'] : null
+                videoUrl: info['card_item']['card_type_info']['content']['animation'] ? info['card_item']['card_type_info']['content']['animation']['animation_video_urls'][0] : null
             })
         }
     if (chain)
@@ -115,7 +115,7 @@ function generateCardList(data: any) {
             result.push({
                 name: ele['card_item']['card_type_info']['name'],
                 url: ele['card_item']['card_type_info']['overview_image'],
-                videoUrl: ele['card_item']['card_type_info']['content']['animation'] ? ele['card_item']['card_type_info']['content']['animation']['animation_url'] : null
+                videoUrl: ele['card_item']['card_type_info']['content']['animation'] ? ele['card_item']['card_type_info']['content']['animation']['animation_video_urls'][0] : null
             })
         }
     return result

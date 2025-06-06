@@ -78,15 +78,17 @@ export class DownloadInstance {
                     try {
                         const chunkResponse = await fetch(this.url, {headers: {Range: `bytes=${start}-${end - 1}`}});
                         let reader = chunkResponse.body?.getReader();
+                        let chuckDownloadedBytes = start;
                         if (!chunkResponse.ok || !reader) throw new Error(`Failed to fetch chunk: ${chunkResponse.statusText}`);
 
                         while (true) {
                             const {done, value} = await reader.read();
                             if (done) break;
 
-                            fileData.set(value, this.downloadedBytes); // 更新文件数据
-                            this.downloadedBytes += value.length; // 更新已下载字节数
+                            fileData.set(value, chuckDownloadedBytes); // 更新文件数据
+                            chuckDownloadedBytes += value.length; // 更新已下载字节数
 
+                            this.downloadedBytes += value.length; // 更新已下载字节数
 
                             // 调用进度回调
                             if (this.onProgress && !this.canceled && !this.hasErrorOccurred) {
@@ -95,7 +97,9 @@ export class DownloadInstance {
 
                             // 检查是否被取消或发生错误
                             if (this.canceled || this.hasErrorOccurred) {
-                                throw new Error('Download canceled or an error occurred');
+                                throw new Error('Download canceled');
+                            } else if (this.hasErrorOccurred) {
+                                throw new Error('Download canceled');
                             }
                         }
                     } catch (error) {

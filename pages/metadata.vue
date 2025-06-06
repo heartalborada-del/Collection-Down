@@ -446,7 +446,7 @@ function download() {
       ref="settingPanel"
       class="panel"
       close-on-overlay-click
-      headline="Setting Panel"
+      headline="下载设置面板"
   >
     <h2 style="margin-bottom: unset;">下载设置</h2>
     <div style="display: grid;margin-left: .5rem;grid-template-columns: 100px auto;align-items: center">

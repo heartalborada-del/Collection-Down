@@ -292,7 +292,8 @@ function download() {
           let videoFolder = folder?.folder('video')
           const fun = async () => {
             return downloadDetails.value.downloader?.addDownload({
-              url: String(v2.videoUrl).replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
+              url: String(v2.videoUrl).replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`)
+                  .replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`),
               threadCount: segment / 2 < 2 ? 2 : segment / 2, // Sometimes may face some download issues
               onProgress: (downloadedBytes, totalBytes) => {
                 downloadDetails.value.downloadData[`${k2}{video}`].progress = Number((downloadedBytes / totalBytes).toFixed(2))

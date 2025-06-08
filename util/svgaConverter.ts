@@ -1,6 +1,8 @@
 import type {BitmapsCache, Video} from "svga/dist/types";
 import {render} from 'svga';
-import {encode} from "upng-js";
+import upng from "upng-js";
+
+const {encode} = upng;
 
 export class SVGAConverter {
     private video: Video;

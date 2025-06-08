@@ -1,7 +1,12 @@
 export interface DataElement {
     name: string,
-    url: string | AnimateEmojiUrl,
+    url: string | AnimateEmojiUrl | LikeAnimationUrl,
     videoUrl?: string,
+}
+
+export interface LikeAnimationUrl {
+    static: string,
+    bin: string,
 }
 
 export interface AnimateEmojiUrl {
@@ -11,6 +16,7 @@ export interface AnimateEmojiUrl {
 
     [key: string]: string;
 }
+
 export interface DataPromiseResult {
     name: string,
     data: Map<string,DataElement[]>
@@ -65,34 +71,43 @@ function generateSkinList(data: any) {
         ['drag_right_png', "向前拉进度条"],
         ['middle_png', "未拉动进度条"],
         ['loading_url', '加载动画'],
-        ['head_myself_bg', '个人主页头图']
+        ['head_myself_bg', '个人主页头图'],
+        ['image_ani', '点赞动画']
     ])
     let result: DataElement[] = []
     let skinList = data['suit_items']['skin']
+    const processFunction = (key: string, value: string, properties: any) => {
+        if (key === 'head_myself_bg') {
+            return {
+                name: value,
+                url: properties['head_myself_bg'],
+                videoUrl: properties['head_myself_mp4_bg'],
+            }
+        }
+        if (key === 'image_ani') {
+            return {
+                name: value,
+                url: {
+                    static: properties['image_preview'],
+                    bin: properties['image_ani_cut'],
+                } as LikeAnimationUrl,
+            }
+        }
+        return {
+            name: value,
+            url: properties[key],
+        }
+    }
     if (!skinList) {
         for (const [key,v] of translation) {
             if(!data['properties'].hasOwnProperty(key)) continue;
-            if (key === 'head_myself_bg') {
-                result.push({
-                    name: v,
-                    url: data['properties'][key],
-                    videoUrl: data['properties']['head_myself_mp4_bg'],
-                })
-                continue
-            }
-            result.push({
-                name: v,
-                url: data['properties'][key],
-            })
+            result.push(processFunction(key, v, data['properties']))
         }
     } else {
         for (const pack of skinList) {
             for (const [key, v] of translation) {
                 if (!pack['properties'].hasOwnProperty(key)) continue;
-                result.push({
-                    name: v,
-                    url: pack['properties'][key],
-                })
+                result.push(processFunction(key, v, pack['properties']))
             }
         }
     }
@@ -172,7 +187,7 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                                     static: item['properties']['image'],
                                     gif: item['properties']['image_gif'],
                                     webp: item['properties']['image_webp'],
-                                }
+                                } as AnimateEmojiUrl,
                             })
                         } else {
                             result.push({
@@ -188,9 +203,13 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                 }
                 case 5: {
                     let themeResult: DataElement[] = []
-                    data['redeem_item_id'].split("&").forEach((item: any) => {
-                        let o = fetch(`${APIPrefix}/api/garb/v2/mall/suit/detail?item_id=${item}&part=suit`).then(resp => resp.json())
-                    })
+                    for (const item of data['redeem_item_id'].split("&")) {
+                        let o = await fetch(`${APIPrefix}/api/garb/v2/mall/suit/detail?item_id=${item}&part=suit`).then(resp => resp.json())
+                        themeResult = themeResult.concat(generateSkinList(o['data']))
+                    }
+                    resolve(new Map([
+                        [`${data['redeem_item_name']}{THEME}`, themeResult]
+                    ]))
                 }
             }
         }

@@ -15,7 +15,8 @@ import {
   generateCollectList,
   generateEmojiList,
   generateSkinList,
-  generateSpaceBackgroundList
+  generateSpaceBackgroundList,
+  type LikeAnimationUrl
 } from "~/util/generate";
 import {APIPrefix} from "~/util/global";
 import DownloadCard from "~/components/download-card.vue";
@@ -26,6 +27,8 @@ import mime from 'mime/lite';
 import {useStore} from "~/storages/useStore";
 import {Downloader} from "~/util/downloader";
 import FileSaver from "file-saver";
+import {Parser} from "svga";
+import {SVGAConverter} from "~/util/svgaConverter";
 
 const store = useStore()
 const route = useRoute()
@@ -130,6 +133,7 @@ watch(() => input.value.resolvedURL,   (newValue) => {
         let json = await fetch(api).then(resp => resp.json())
         map.set("{MAIN}", generateCardList(json.data))
         let other = await generateCollectList(json.data, APIPrefix)
+        console.log(other)
         other.forEach((value, key) => {
           map.set(key, value);
         });
@@ -145,7 +149,7 @@ watch(() => input.value.resolvedURL,   (newValue) => {
             key = `${k.name}{COLLECTION}`
           } else if (ke.includes("{OTHER}")) {
             key = `${k.name}{OTHER}`
-          } else if (ke.includes("{STICKER}")) {
+          } else if (ke.includes("{STICKER}") || ke.includes("{THEME}")) {
             key = ke
           }
           if(key && !data.has(key)) data.set(key,v)
@@ -242,6 +246,9 @@ function download() {
   downloadDetails.value.downloader = new Downloader(store.settings.download.parallelThread);
   const segment = store.settings.download.segmentThread;
   const promises = [] as Promise<any>[];
+  const parser = new Parser({
+    isDisableWebWorker: false,
+  })
   copy.forEach((v, k) => {
     let name = k.replaceAll(/{[a-zA-Z]+}/g, "")
     let label = k.match(/{[a-zA-Z]+}/g)
@@ -331,7 +338,36 @@ function download() {
           reDownload: fun
         }
         promises.push(fun())
-      } else {
+      } else if ("bin" in v2.url) {
+        const u = v2.url as LikeAnimationUrl
+        const fun = async () => {
+          const imgFolder = folder?.folder('apng')
+          let b: SVGAConverter | null = null
+          try {
+            let video = await parser.load(String(u.bin).replace(/http(s|):\/\/i0.hdslb.com\//, `${APIPrefix}/i0/`))
+            downloadDetails.value.downloadData[`${k2}{bin}`].progress = 30
+            b = new SVGAConverter(video)
+            await b.load()
+            let blob = b.convertToAPNG()
+            imgFolder?.file(`${k2}.apng`, blob);
+            b.destruct()
+            downloadDetails.value.downloadData[`${k2}{bin}`].progress = 100
+            downloadDetails.value.downloadData[`${k2}{bin}`].isSucceeded = true
+          } catch (e) {
+            downloadDetails.value.downloadData[`${k2}{bin}`].isFailed = true
+            return
+          } finally {
+            if (b) b.destruct()
+          }
+        }
+        downloadDetails.value.downloadData[`${k2}{bin}`] = {
+          isFailed: false,
+          isSucceeded: false,
+          progress: 0,
+          reDownload: fun
+        }
+        promises.push(fun())
+      } else if ("gif" in v2.url) {
         const u = v2.url as AnimateEmojiUrl
         for (const urlKey in u) {
           let imgFolder = folder?.folder(urlKey)
@@ -485,6 +521,7 @@ function download() {
             <template v-else-if="k.includes('{image}') || k.includes('{static}')">PNG</template>
             <template v-else-if="k.includes('{gif}')">GIF</template>
             <template v-else-if="k.includes('{webp}')">WEBP</template>
+            <template v-else-if="k.includes('{bin}')">APNG</template>
           </mdui-badge>
           <label>{{ k.replaceAll(/{[a-zA-Z]+}/g, "") }}</label>
         </p>

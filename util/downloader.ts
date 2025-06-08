@@ -96,10 +96,10 @@ export class DownloadInstance {
                             }
 
                             // 检查是否被取消或发生错误
-                            if (this.canceled || this.hasErrorOccurred) {
+                            if (this.canceled) {
                                 throw new Error('Download canceled');
                             } else if (this.hasErrorOccurred) {
-                                throw new Error('Download canceled');
+                                throw new Error('Error occurred during download');
                             }
                         }
                     } catch (error) {

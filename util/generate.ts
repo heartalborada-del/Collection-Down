@@ -61,13 +61,25 @@ function generateSkinList(data: any) {
         ['tail_icon_selected_shop', '会员购[已点击]'],
         ['head_bg', '上方工具栏'],
         ['tail_bg', '下方导航栏'],
-        ['head_myself_squared_bg', '个人空间头图']
+        ['drag_left_png', "向后拉进度条"],
+        ['drag_right_png', "向前拉进度条"],
+        ['middle_png', "未拉动进度条"],
+        ['loading_url', '加载动画'],
+        ['head_myself_bg', '个人主页头图']
     ])
     let result: DataElement[] = []
     let skinList = data['suit_items']['skin']
     if (!skinList) {
         for (const [key,v] of translation) {
             if(!data['properties'].hasOwnProperty(key)) continue;
+            if (key === 'head_myself_bg') {
+                result.push({
+                    name: v,
+                    url: data['properties'][key],
+                    videoUrl: data['properties']['head_myself_mp4_bg'],
+                })
+                continue
+            }
             result.push({
                 name: v,
                 url: data['properties'][key],
@@ -89,11 +101,13 @@ function generateSkinList(data: any) {
 
 function generateCardList(data: any) {
     let result: DataElement[] = []
+    let already = new Set<string>()
     let items = data['item_list']
     let infos = data['collect_list']['collect_infos']
     let chain = data['collect_list']['collect_chain']
     for (const item of items) {
-        if(item['item_type'] !== 1) continue
+        if (item['item_type'] !== 1 || already.has(item['card_info']['card_name'])) continue
+        already.add(item['card_info']['card_name'])
         result.push({
             name: item['card_info']['card_name'],
             url: item['card_info']['card_img'],
@@ -102,7 +116,8 @@ function generateCardList(data: any) {
     }
     if (infos)
         for (const info of infos) {
-            if (info['redeem_item_type'] !== 1 || info['card_item']['card_type_info']['material_sub_type']) continue
+            if (info['redeem_item_type'] !== 1 || info['card_item']['card_type_info']['material_sub_type'] || already.has(info['card_item']['card_type_info']['name'])) continue
+            already.add(info['card_item']['card_type_info']['name'])
             result.push({
                 name: info['card_item']['card_type_info']['name'],
                 url: info['card_item']['card_type_info']['overview_image'],
@@ -111,7 +126,8 @@ function generateCardList(data: any) {
         }
     if (chain)
         for (const ele of chain) {
-            if (ele['redeem_item_type'] !== 1 || ele['card_item']['card_type_info']['material_sub_type']) continue
+            if (ele['redeem_item_type'] !== 1 || ele['card_item']['card_type_info']['material_sub_type'] || already.has(ele['card_item']['card_type_info']['material_sub_type'])) continue
+            already.add(ele['card_info']['card_type_info']['name'])
             result.push({
                 name: ele['card_item']['card_type_info']['name'],
                 url: ele['card_item']['card_type_info']['overview_image'],
@@ -125,6 +141,7 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
     const allowedValues = new Set<number>([
         1000, // 空间背景
         2, // 表情包
+        5, // 主题
         15, //动态表情包
     ]);
     let infos = data['collect_list']['collect_infos'] ? data['collect_list']['collect_infos'] : []
@@ -168,6 +185,12 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                         [`${o['data']['name']}{STICKER}`, result]
                     ]))
                     return
+                }
+                case 5: {
+                    let themeResult: DataElement[] = []
+                    data['redeem_item_id'].split("&").forEach((item: any) => {
+                        let o = fetch(`${APIPrefix}/api/garb/v2/mall/suit/detail?item_id=${item}&part=suit`).then(resp => resp.json())
+                    })
                 }
             }
         }

@@ -20,6 +20,8 @@ const router = useRouter()
 
 const r = ref<string>("")
 
+const runtimeConfig = useRuntimeConfig()
+
 let tour = ref<{
   steps: Step[],
   option: VTourOptions
@@ -79,6 +81,7 @@ function startTour(isChkToured = false) {
 nextTick(() => {
   startTour(true)
 })
+
 </script>
 <style lang="scss" scoped>
 body {
@@ -93,38 +96,48 @@ mdui-top-app-bar,mdui-navigation-rail {
 <template>
   <SpeedInsights/>
   <mdui-layout style="overflow: visible;">
-    <mdui-top-app-bar scroll-behavior="elevate" variant="small">
+    <mdui-top-app-bar scroll-behavior="elevate" style="align-items: center" variant="small">
       <mdui-top-app-bar-title style="margin-left: 45px">
         Collection Down
       </mdui-top-app-bar-title>
       <div style="flex-grow: 1"></div>
-      <mdui-button-icon href="https://github.com/heartalborada-del/Collection-Down" target="_blank">
-        <mdui-icon style="width: 30px; height: 30px;">
-          <svg class="bi bi-github" fill="currentColor" height="16" viewBox="0 0 16 16" width="16"
-               xmlns="http://www.w3.org/2000/svg">
-            <path
-                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-          </svg>
-        </mdui-icon>
-      </mdui-button-icon>
+      <mdui-card style="font-size: 12px; padding: 2px 5px 2px 5px; margin-right: 10px; display: flex; align-items: center; gap: 5px"
+                 variant="elevated">
+        <mdui-icon name="commit" style="font-size: 12px;margin-top: 1px"></mdui-icon>
+        {{ runtimeConfig.public.__COMMIT_HASH__.slice(0, 6) }}
+      </mdui-card>
+      <mdui-tooltip content="Github Repository" placement="bottom-left">
+        <mdui-button-icon href="https://github.com/heartalborada-del/Collection-Down" target="_blank">
+          <mdui-icon style="width: 30px; height: 30px;">
+            <svg class="bi bi-github" fill="currentColor" height="16" viewBox="0 0 16 16" width="16"
+                 xmlns="http://www.w3.org/2000/svg">
+              <path
+                  d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </mdui-icon>
+        </mdui-button-icon>
+      </mdui-tooltip>
     </mdui-top-app-bar>
     <mdui-navigation-rail :value="r">
       <mdui-navigation-rail-item icon="account_circle--outlined" value="index" @click="router.push('/')">Index</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="search--outlined" value="search" @click="router.push('/search')">Search</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="file_download--outlined" value="metadata" @click="router.push('/metadata')">Metadata</mdui-navigation-rail-item>
       <mdui-navigation-rail-item icon="info--outlined" value="about" @click="router.push('/about')">About</mdui-navigation-rail-item>
-      <div slot="bottom">
-        <mdui-button-icon data-v-step="startTour" icon='question_mark' @click="startTour(false)"></mdui-button-icon>
+      <div slot="bottom" style="display: flex; flex-direction: column; row-gap: 5px">
+        <mdui-tooltip content="开始引导" placement="right">
+          <mdui-button-icon data-v-step="startTour" icon='question_mark' @click="startTour(false)"></mdui-button-icon>
+        </mdui-tooltip>
         <portal-target name="additional-navigation"/>
       </div>
     </mdui-navigation-rail>
     <mdui-layout-main style="overflow: visible" class="mdui-prose">
       <main>
-        <NuxtLayout>
-          <NuxtPage/>
-        </NuxtLayout>
+        <LazyNuxtLayout>
+          <LazyNuxtPage/>
+        </LazyNuxtLayout>
       </main>
     </mdui-layout-main>
+
   </mdui-layout>
   <v-tour :options="tour.option" :steps="tour.steps" name="tour"></v-tour>
 </template>

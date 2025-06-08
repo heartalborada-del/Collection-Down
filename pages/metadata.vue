@@ -286,7 +286,7 @@ function download() {
           const fun = async () => {
             return downloadDetails.value.downloader?.addDownload({
               url: String(v2.videoUrl).replace(/http(s|):\/\/[a-zA-z\-]*.(bilivideo.com|akamaized.net)\//, `${APIPrefix}/upos/`),
-              threadCount: segment,
+              threadCount: segment / 2 < 2 ? 2 : segment / 2, // Sometimes may face some download issues
               onProgress: (downloadedBytes, totalBytes) => {
                 downloadDetails.value.downloadData[`${k2}{video}`].progress = Number((downloadedBytes / totalBytes).toFixed(2))
               }

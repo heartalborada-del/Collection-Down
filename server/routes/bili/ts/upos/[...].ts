@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
         return
     }
     let range = event.headers.get('range')
-    let UPOS = useRuntimeConfig(event).public.UPOS
+    let UPOS = useRuntimeConfig(event).public.__UPOS_URL__
     event.node.res.setHeader("Target",String(UPOS))
     if(range)
         return fetch(

@@ -1,4 +1,5 @@
 import * as https from "node:https";
+import {execSync} from "node:child_process";
 
 type HostResult = {
   host: string;
@@ -27,27 +28,6 @@ const UPOSURLS = [
   "https://upos-sz-mirrorhwbstar1.bilivideo.com",
   "https://upos-bstar1-mirrorakam.akamaized.net"
 ];
-
-/*const UPOSURLS = [
-  "https://upos-sz-mirrorcos.bilivideo.com",
-  "https://upos-sz-mirrorcosb.bilivideo.com",
-  "https://upos-sz-mirrorcoso1.bilivideo.com",
-  "https://upos-sz-mirrorhw.bilivideo.com",
-  "https://upos-sz-mirrorhwb.bilivideo.com",
-  "https://upos-sz-mirrorhwo1.bilivideo.com",
-  "https://upos-sz-mirror08c.bilivideo.com",
-  "https://upos-sz-mirror08h.bilivideo.com",
-  "https://upos-sz-mirror08ct.bilivideo.com",
-  "https://upos-sz-mirrorali.bilivideo.com",
-  "https://upos-sz-mirroralib.bilivideo.com",
-  "https://upos-sz-mirroralio1.bilivideo.com",
-  "https://upos-hz-mirrorakam.akamaized.net",
-  "https://upos-sz-mirroraliov.bilivideo.com",
-  "https://upos-tf-all-hw.bilivideo.com",
-  "https://upos-tf-all-tx.bilivideo.com",
-]
-
- */
 async function optimizeUPOS() {
   let result = await Promise.all(UPOSURLS.map( link => new Promise<HostResult>((resolve, reject) => {
     const start = performance.now()
@@ -92,20 +72,35 @@ async function optimizeUPOS() {
   }
 }
 
+function getCommitHash() {
+  if (process.env.NODE_ENV === 'development') {
+    return 'dev';
+  }
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    return process.env.VERCEL_GIT_COMMIT_SHA;
+  }
+  try {
+    return execSync('git rev-parse HEAD').toString().trim()
+  } catch (e) {
+    return 'unknown';
+  }
+}
 export default async () => {
-  let UPOS = await optimizeUPOS()
+  const UPOS = await optimizeUPOS()
   console.info("Target UPOS URL: %s",UPOS.replace("/**",""))
+  const commitHash = getCommitHash()
   return defineNuxtConfig({
+    ssr: true,
     runtimeConfig: {
       public: {
-        UPOS: UPOS.replace("https://","").replace("/**","")
+        __UPOS_URL__: UPOS.replace("https://", "").replace("/**", ""),
+        __COMMIT_HASH__: commitHash
       }
     },
     compatibilityDate: '2024-04-03',
     modules: [
         '@pinia/nuxt',
         '@pinia-plugin-persistedstate/nuxt',
-      '@nuxtjs/i18n',
     ],
     plugins: [
       '~/plugins/vueMiddleware.ts',
@@ -158,9 +153,6 @@ export default async () => {
         swr: 60*15,
         cors: true,
       },
-    },
-    i18n: {
-      //vueI18n: '@i18n.config.ts',
     },
     devtools: { enabled: true },
     vue: {

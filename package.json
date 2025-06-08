@@ -10,7 +10,6 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@nuxtjs/i18n": "^9.5.5",
     "@pinia-plugin-persistedstate/nuxt": "^1.2.1",
     "@pinia/nuxt": "^0.11.1",
     "@types/file-saver": "^2.0.7",
@@ -28,9 +27,14 @@
     "portal-vue": "^3.0.0",
     "qrcode-decoder": "^0.3.4",
     "sass": "^1.89.1",
+    "svga": "patch:svga@npm%3A2.1.1#~/.yarn/patches/svga-npm-2.1.1-9f73c92290.patch",
     "undici": "^7.10.0",
+    "upng-js": "^2.1.0",
     "vue": "latest",
     "vue3-tour": "^1.0.3"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "yarn@4.6.0",
+  "devDependencies": {
+    "@types/upng-js": "^2"
+  }
 }

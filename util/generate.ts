@@ -75,6 +75,7 @@ function generateSkinList(data: any) {
         ['image_ani', '点赞动画']
     ])
     let result: DataElement[] = []
+    if (!data['suit_items']) return result
     let skinList = data['suit_items']['skin']
     const processFunction = (key: string, value: string, properties: any) => {
         if (key === 'head_myself_bg') {
@@ -204,7 +205,7 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                 case 5: {
                     let themeResult: DataElement[] = []
                     for (const item of data['redeem_item_id'].split("&")) {
-                        let o = await fetch(`${APIPrefix}/api/garb/v2/mall/suit/detail?item_id=${item}&part=suit`).then(resp => resp.json())
+                        let o = await fetch(`${APIPrefix}/api/garb/v2/user/suit/benefit?item_id=${item}&part=suit`).then(resp => resp.json())
                         themeResult = themeResult.concat(generateSkinList(o['data']))
                     }
                     resolve(new Map([

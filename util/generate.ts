@@ -77,17 +77,18 @@ function generateSkinList(data: any) {
     let result: DataElement[] = []
     if (!data['suit_items']) return result
     let skinList = data['suit_items']['skin']
-    const processFunction = (key: string, value: string, properties: any) => {
+    const processFunction = (key: string, value: string, properties: any, category_name: string = "") => {
+        let name = category_name == "" ? value : `${category_name}-${value}`;
         if (key === 'head_myself_bg') {
             return {
-                name: value,
+                name: name,
                 url: properties['head_myself_bg'],
                 videoUrl: properties['head_myself_mp4_bg'],
             }
         }
         if (key === 'image_ani') {
             return {
-                name: value,
+                name: name,
                 url: {
                     static: properties['image_preview'],
                     bin: properties['image_ani_cut'],
@@ -95,20 +96,43 @@ function generateSkinList(data: any) {
             }
         }
         return {
-            name: value,
+            name: name,
             url: properties[key],
         }
     }
     if (!skinList) {
         for (const [key,v] of translation) {
             if(!data['properties'].hasOwnProperty(key)) continue;
-            result.push(processFunction(key, v, data['properties']))
+            result.push(processFunction(key, v, data['properties'], data['name']))
         }
     } else {
         for (const pack of skinList) {
             for (const [key, v] of translation) {
                 if (!pack['properties'].hasOwnProperty(key)) continue;
-                result.push(processFunction(key, v, pack['properties']))
+                result.push(processFunction(key, v, pack['properties'], pack['name']))
+            }
+        }
+        if ("thumbup" in data['suit_items']) {
+            const thumbup = data['suit_items']['thumbup']
+            for (const item of thumbup) {
+                if (item['properties']['image_preview']) {
+                    result.push({
+                        name: `${item['name']}-点赞动画`,
+                        url: {
+                            static: item['properties']['image_preview'],
+                            bin: item['properties']['image_ani_cut'],
+                        } as LikeAnimationUrl,
+                    })
+                }
+            }
+        }
+        if ("play_icon" in data['suit_items']) {
+            const playicon = data['suit_items']['play_icon']
+            for (const item of playicon) {
+                for (const [key, v] of translation) {
+                    if (!item['properties'].hasOwnProperty(key)) continue;
+                    result.push(processFunction(key, v, item['properties'], item['name']))
+                }
             }
         }
     }

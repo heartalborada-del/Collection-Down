@@ -246,9 +246,7 @@ function download() {
   downloadDetails.value.downloader = new Downloader(store.settings.download.parallelThread);
   const segment = store.settings.download.segmentThread;
   const promises = [] as Promise<any>[];
-  const parser = new Parser({
-    isDisableWebWorker: false,
-  })
+  const parser = new Parser()
   copy.forEach((v, k) => {
     let name = k.replaceAll(/{[a-zA-Z]+}/g, "")
     let label = k.match(/{[a-zA-Z]+}/g)

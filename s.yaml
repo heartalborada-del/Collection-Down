@@ -9,23 +9,22 @@ resources:
     component: fc3
     actions:
       pre-deploy:
-        - run: wget "https://mirror.tuna.tsinghua.edu.cn/nodejs-release/v20.17.0/node-v20.17.0-linux-x64.tar.xz" -O "node-v20.17.0-linux-x64.tar.xz" && tar -xf "node-v20.17.0-linux-x64.tar.xz" && rm "node-v20.17.0-linux-x64.tar.xz"
+        - run: wget "https://mirrors.aliyun.com/nodejs-release/v22.16.0/node-v22.16.0-linux-x64.tar.xz" -O "node-v22.16.0-linux-x64.tar.xz" && tar -xf "node-v22.16.0-linux-x64.tar.xz" && rm "node-v22.16.0-linux-x64.tar.xz"
           path: /usr/local/versions/node
-        - run: mv /usr/local/versions/node/node-v20.17.0-linux-x64 /usr/local/versions/node/v20.17.0
+        - run: mv /usr/local/versions/node/node-v22.16.0-linux-x64 /usr/local/versions/node/v22.16.0
           path: /usr/local/versions/node
-        - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm install --registry=https://registry.npmmirror.com
-          path: ./
-        - run: export PATH=/usr/local/versions/node/v20.17.0/bin:$PATH && npm run build
-          path: ./
+        - run: export PATH=/usr/local/versions/node/v22.16.0/bin && corepack enable
+        - run: export PATH=/usr/local/versions/node/v22.16.0/bin && yarn install
+        - run: export PATH=/usr/local/versions/node/v22.16.0/bin && yarn run build
     props:
       region: ${vars.region}
       description: Serverless Devs Web Framework Function
-      runtime: custom.debian10
+      runtime: custom.debian12
       layers:
-        - acs:fc:${vars.region}:official:layers/Nodejs20/versions/1
+        - acs:fc:${vars.region}:official:layers/Nodejs22/versions/1
       environmentVariables:
         PATH: >-
-          /opt/nodejs20/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin
+          /opt/nodejs22/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/bin
       timeout: 60
       service:
         name: fc-collection-down

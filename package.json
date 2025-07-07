@@ -1,6 +1,7 @@
 {
-  "name": "nuxt-app",
-  "private": true,
+  "name": "Collection-Down",
+  "description": "An Bilibili Collection Downloader",
+  "private": false,
   "type": "module",
   "scripts": {
     "build": "nuxt build",

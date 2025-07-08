@@ -100,7 +100,7 @@ export default async () => {
     compatibilityDate: '2024-04-03',
     modules: [
         '@pinia/nuxt',
-        '@pinia-plugin-persistedstate/nuxt',
+      'pinia-plugin-persistedstate/nuxt',
     ],
     plugins: [
       '~/plugins/vueMiddleware.ts',

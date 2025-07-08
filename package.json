@@ -1,7 +1,6 @@
 {
-  "name": "Collection-Down",
-  "description": "An Bilibili Collection Downloader",
-  "private": false,
+  "name": "nuxt-app",
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "nuxt build",
@@ -11,7 +10,6 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@pinia-plugin-persistedstate/nuxt": "^1.2.1",
     "@pinia/nuxt": "^0.11.1",
     "@types/file-saver": "^2.0.7",
     "@vercel/analytics": "^1.5.0",
@@ -25,6 +23,7 @@
     "nuxt": "^3.17.5",
     "ping": "^0.4.4",
     "pinia": "^3.0.3",
+    "pinia-plugin-persistedstate": "^4.4.1",
     "portal-vue": "^3.0.0",
     "qrcode-decoder": "^0.3.4",
     "sass": "^1.89.1",

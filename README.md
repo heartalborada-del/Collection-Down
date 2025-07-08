@@ -1,4 +1,7 @@
-# Collection Down
+# [Collection Down](https://cd.griseo.top/)
+
+![Vercel Deploy](https://deploy-badge.vercel.app/vercel/collection-down)
+![Netlify Deploy](http://img.shields.io/netlify/e6d5a4e0-dee1-4261-833e-2f47f509c68f?logo=netlify)
 
 又一个Bilibili收藏集下载工具，支持下载视频，图片，表情包等
 

@@ -203,21 +203,21 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                 case 15: {
                     let o = await fetch(`${APIPrefix}/api/garb/v2/user/suit/benefit?item_id=${data['redeem_item_id']}&part=emoji_package`).then(resp => resp.json())
                     let result: DataElement[] = []
-                    let emojis = o['data']['suit_items']['emoji']
+                    let emojis = JSON.parse(o['data']['properties']['item_emoji_list'])
                     for (const item of emojis) {
-                        if(item['properties']['image_gif']) {
+                        if(item['image_gif']) {
                             result.push({
-                                name: item['name'],
+                                name: `[${o["data"]["name"]}-${item['name']}]`,
                                 url: {
-                                    static: item['properties']['image'],
-                                    gif: item['properties']['image_gif'],
-                                    webp: item['properties']['image_webp'],
+                                    static: item['image'],
+                                    gif: item['image_gif'],
+                                    webp: item['image_webp'],
                                 } as AnimateEmojiUrl,
                             })
                         } else {
                             result.push({
-                                name: item['name'],
-                                url: item['properties']['image'],
+                                name: `[${o["data"]["name"]}-${item['name']}]`,
+                                url: item['image'],
                             })
                         }
                     }

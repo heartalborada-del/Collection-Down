@@ -203,22 +203,43 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
                 case 15: {
                     let o = await fetch(`${APIPrefix}/api/garb/v2/user/suit/benefit?item_id=${data['redeem_item_id']}&part=emoji_package`).then(resp => resp.json())
                     let result: DataElement[] = []
-                    let emojis = JSON.parse(o['data']['properties']['item_emoji_list'])
-                    for (const item of emojis) {
-                        if(item['image_gif']) {
-                            result.push({
-                                name: `[${o["data"]["name"]}-${item['name']}]`,
-                                url: {
-                                    static: item['image'],
-                                    gif: item['image_gif'],
-                                    webp: item['image_webp'],
-                                } as AnimateEmojiUrl,
-                            })
-                        } else {
-                            result.push({
-                                name: `[${o["data"]["name"]}-${item['name']}]`,
-                                url: item['image'],
-                            })
+                    if (o['data']['properties']['item_emoji_list']) {
+                        let emojis = JSON.parse(o['data']['properties']['item_emoji_list'])
+                        for (const item of emojis) {
+                            if(item['image_gif']) {
+                                result.push({
+                                    name: `[${o["data"]["name"]}-${item['name']}]`,
+                                    url: {
+                                        static: item['image'],
+                                        gif: item['image_gif'],
+                                        webp: item['image_webp'],
+                                    } as AnimateEmojiUrl,
+                                })
+                            } else {
+                                result.push({
+                                    name: `[${o["data"]["name"]}-${item['name']}]`,
+                                    url: item['image'],
+                                })
+                            }
+                        }
+                    } else{
+                        let emojis = o['data']['suit_items']['emoji']
+                        for (const item of emojis) {
+                            if(item['properties']['image_gif']) {
+                                result.push({
+                                    name: item['name'],
+                                    url: {
+                                        static: item['properties']['image'],
+                                        gif: item['properties']['image_gif'],
+                                        webp: item['properties']['image_webp'],
+                                    } as AnimateEmojiUrl,
+                                })
+                            } else {
+                                result.push({
+                                    name: item['name'],
+                                    url: item['properties']['image'],
+                                })
+                            }
                         }
                     }
                     resolve(new Map([

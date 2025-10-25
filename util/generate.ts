@@ -143,15 +143,16 @@ function generateCardList(data: any) {
     let result: DataElement[] = []
     let already = new Set<string>()
     let items = data['item_list']
-    let infos = data['collect_list']['collect_infos']
-    let chain = data['collect_list']['collect_chain']
+    let infos = data['collect_list']['collect_infos'] ? data['collect_list']['collect_infos'] : []
+    let chain = data['collect_list']['collect_chain'] ? data['collect_list']['collect_chain'] : []
     for (const item of items) {
-        if (item['item_type'] !== 1 || already.has(item['card_info']['card_name'])) continue
-        already.add(item['card_info']['card_name'])
+        let root = item['card_info'] ? item['card_info'] : item['card_item']
+        if (item['item_type'] !== 1 || already.has(root['card_name'])) continue
+        already.add(root['card_name'])
         result.push({
-            name: item['card_info']['card_name'],
-            url: item['card_info']['card_img'],
-            videoUrl: item['card_info']['video_list'] ? item['card_info']['video_list'][0] : null
+            name: root['card_name'],
+            url: root['card_img'],
+            videoUrl: root['video_list'] ? root['video_list'][0] : null
         })
     }
     if (infos)
@@ -184,9 +185,15 @@ async function generateCollectList(data: any, APIPrefix = '/bili/ts/') {
         5, // 主题
         15, //动态表情包
     ]);
-    let infos = data['collect_list']['collect_infos'] ? data['collect_list']['collect_infos'] : []
-    let chain = data['collect_list']['collect_chain'] ? data['collect_list']['collect_chain'] : []
-    const unparsed = [...infos, ...chain];
+    let unparsed: any[]
+    if (data['collect_list'] instanceof Array) {
+        unparsed = data['collect_list']
+    } else {
+        let infos = data['collect_list']['collect_infos'] ? data['collect_list']['collect_infos'] : []
+        let chain = data['collect_list']['collect_chain'] ? data['collect_list']['collect_chain'] : []
+        unparsed = [...infos, ...chain];
+    }
+    //debugger
     let o = await Promise.all(
         Object.entries(unparsed)
             .map((k: any) => new Promise<Map<string, DataElement[]>>(async (resolve) => {

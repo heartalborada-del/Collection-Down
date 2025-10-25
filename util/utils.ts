@@ -19,7 +19,8 @@ function getCollectionAPIUrl(jumpLink: string, lottery: string, apiPrefix = "/bi
     let target = getAPIUrl(jumpLink)
     if (!target) return null;
     let params = new URL(jumpLink).searchParams
-    return `${apiPrefix}/api/vas/dlc_act/lottery_home_detail?act_id=${params.get("act_id")}&lottery_id=${lottery}`
+    return `${apiPrefix}/api/vas/dlc_act/asset_bag?act_id=${params.get("act_id")}&lottery_id=${lottery}`
+    //return `${apiPrefix}/api/vas/dlc_act/lottery_home_detail?act_id=${params.get("act_id")}&lottery_id=`
 }
 
 function isCollection(jumpLink: string) {

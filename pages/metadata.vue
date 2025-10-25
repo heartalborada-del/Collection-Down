@@ -133,12 +133,11 @@ watch(() => input.value.resolvedURL,   (newValue) => {
         let json = await fetch(api).then(resp => resp.json())
         map.set("{MAIN}", generateCardList(json.data))
         let other = await generateCollectList(json.data, APIPrefix)
-        console.log(other)
         other.forEach((value, key) => {
           map.set(key, value);
         });
         resolve({
-          name: json['data']['name'],
+          name: out['lottery_name'],
           data: map
         })
       })))

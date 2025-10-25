@@ -7,7 +7,11 @@ interface DownloadTask {
     url: string;
     threadCount: number;
     onProgress?: (downloadedBytes: number, totalBytes: number) => void;
+    maxChunkSize?: number; // 单个 chunk 最大大小（字节），可选
 }
+
+//Netlify 6291556
+export const DEFAULT_MAX_CHUNK_SIZE = 6291000; // 默认单个 chunk 最大大小（字节）
 
 export class DownloadInstance {
     private readonly url: string;
@@ -18,11 +22,14 @@ export class DownloadInstance {
     private hasErrorOccurred: boolean = false; // 是否发生错误
     private succeeded: boolean = true;
     private blobResult: Blob | null = null; // 存储下载的 Blob
+    private readonly maxChunkSize: number; // 新增：限制单个 chunk 的最大大小（字节）
 
     constructor(task: DownloadTask) {
         this.url = task.url;
         this.threadCount = task.threadCount;
         this.onProgress = task.onProgress;
+        // 如果未指定，则使用默认常量
+        this.maxChunkSize = task.maxChunkSize && task.maxChunkSize > 0 ? task.maxChunkSize : DEFAULT_MAX_CHUNK_SIZE;
     }
 
     public cancel() {
@@ -64,14 +71,20 @@ export class DownloadInstance {
             if (!response.ok) return Promise.reject(new Error(`Failed to fetch file: ${response.statusText}`));
 
             const contentLength = Number(response.headers.get('Content-Length'));
-            const totalChunks = Math.ceil(contentLength / (contentLength / this.threadCount));
+
+            // 计算实际的 chunk 大小：先按线程数平均分配（preferred），再与 maxChunkSize 取最小值
+            const preferredChunkSize = Math.ceil(contentLength / this.threadCount);
+            const actualChunkSize = Math.min(preferredChunkSize, this.maxChunkSize);
+            const totalChunks = Math.ceil(contentLength / actualChunkSize);
+
             const fileData = new Uint8Array(contentLength);
             const promises: Promise<void>[] = [];
             let ongoingRequests = 0;
 
             for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-                const start = Math.floor((chunkIndex / totalChunks) * contentLength);
-                const end = Math.min(Math.floor(((chunkIndex + 1) / totalChunks) * contentLength), contentLength);
+                // 使用基于 actualChunkSize 的 start/end 计算
+                const start = chunkIndex * actualChunkSize;
+                const end = Math.min(start + actualChunkSize, contentLength);
 
                 const fetchChunk = async () => {
                     ongoingRequests++;

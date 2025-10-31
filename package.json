@@ -1,0 +1,21 @@
+{
+  "name": "Collection-Down",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/eslint": "1.10.0",
+    "@nuxt/ui": "4.1.0",
+    "eslint": "^9.0.0",
+    "nuxt": "^4.2.0",
+    "typescript": "^5.6.3",
+    "vue": "^3.5.22",
+    "vue-router": "^4.6.3"
+  }
+}

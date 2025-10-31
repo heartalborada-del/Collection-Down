@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+    --container-9xl: 100rem;
+    --space: .25rem;
+}
+
+:root {
+    --ui-container: var(--container-9xl);
+    --ui-space: var(--space);
+}
+
+.font-bold {
+    font-weight: 700
+}
+
+.font-semibold {
+    font-weight: 600
+}
+.text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem
+}
+.text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem
+}
+.text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem
+}
+.text-4xl {
+    font-size: 2.25rem;
+    line-height: 2.5rem
+}
+
+
+
+.mb-1 {
+    margin-bottom: .25rem
+}
+
+.mb-2 {
+    margin-bottom: .5rem
+}
+
+.mb-4 {
+    margin-bottom: 1rem
+}
+
+.mt-1 {
+    margin-top: .25rem
+}
+
+.mt-2 {
+    margin-top: .5rem
+}
+
+.mt-4 {
+    margin-top: 1rem
+}
+
+.text-pretty {
+    text-wrap: pretty;
+}
+
+.leading-7 {
+    line-height: calc(var(--ui-space) * 7);
+}

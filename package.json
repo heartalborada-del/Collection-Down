@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@nuxt/content": "^3.8.0",
     "@nuxt/eslint": "1.10.0",
     "@nuxt/ui": "4.1.0",
     "eslint": "^9.0.0",
@@ -17,5 +18,9 @@
     "typescript": "^5.6.3",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@iconify-json/mdi": "^1.2.3",
+    "@iconify-json/simple-icons": "^1.2.56"
   }
 }

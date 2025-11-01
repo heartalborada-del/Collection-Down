@@ -1,4 +1,6 @@
-import {ApiResponse, type LotteryListItem} from "~~/types/api/root";
+import {ApiResponse} from "~~/types/api/root";
+import type {LotteryListItem} from "~~/types/api/bili/types";
+import {FetchHeaders} from "~~/types/global";
 
 export default defineEventHandler(async (event) => {
     try {
@@ -6,7 +8,7 @@ export default defineEventHandler(async (event) => {
         if (!actId) {
             return new ApiResponse<null>(-1, 'Invalid act_id parameter');
         }
-        return await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}`).then((resp) => {
+        return await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}`,{headers:FetchHeaders}).then((resp) => {
             if (resp.status !== 200) {
                 return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
             }
@@ -15,7 +17,7 @@ export default defineEventHandler(async (event) => {
                     lottery_simple_list: LotteryListItem[]
                 }>;
                 if (lists.code !== 0)
-                    return new ApiResponse<null>(lists.code, `Bilibili api error, msg: ${lists.msg}`);
+                    return new ApiResponse<null>(lists.code, `Bilibili api error, msg: ${lists.message}`);
                 if (!lists.data)
                     return new ApiResponse<null>(-1, `Failed to fetch data`);
                 const newList: LotteryListItem[] = [];

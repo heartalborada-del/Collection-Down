@@ -1,0 +1,16 @@
+export enum RedeemType {
+    BADGE=1001,
+    AVATAR_FRAME=3,
+    STATIC_EMOJI_PACKAGE=2,
+    ANIMATED_EMOJI_PACKAGE=15,
+    SUIT_PART=5
+}
+
+export enum SuitPartType {
+    STATIC_EMOJI_PACKAGE=7,
+    ANIMATED_EMOJI_PACKAGE=5,
+    PROGRESS_BAR=11,
+    LOADING=10,
+    THUMB_UP=3,
+    THEME=9
+}

@@ -33,3 +33,10 @@ export interface EmojiPackageInfo {
     item_id: number;
     emojis: EmojiInfo[];
 }
+
+export interface SuitSearchInfo {
+    name: string;
+    type: number;
+    id: number;
+    sub_ids: number[];
+}

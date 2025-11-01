@@ -30,3 +30,15 @@ export interface BiliEmojiPackageInfo {
         image_webp?: string;
     }
 }
+
+export interface BiliSuitMallSearchItem {
+    item_id: number;
+    part_id: number;
+    name: string;
+    properties: {
+        fan_item_ids?: string;
+        dlc_act_id?: string;
+        dlc_lottery_id?: string;
+        type: string
+    }
+}

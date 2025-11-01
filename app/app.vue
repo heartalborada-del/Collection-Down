@@ -1,25 +1,31 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
 
-  const route = useRoute()
-  const navigationItems = computed<NavigationMenuItem[]>(() => [
-    {
-      label: 'Home',
-      icon: 'i-mdi-home',
-      to: '/',
-      active: route.path === '/',
-    },
-    {
-      label: 'Search',
-      icon: 'i-mdi-search',
-      to: '/search',
-      active: route.path === '/search',
-    }
-  ])
+const route = useRoute()
+const navigationItems = computed<NavigationMenuItem[]>(() => [
+  {
+    label: 'Home',
+    icon: 'i-mdi-home',
+    to: '/',
+    active: route.path === '/',
+  },
+  {
+    label: 'Search',
+    icon: 'i-mdi-search',
+    to: '/search',
+    active: route.path === '/search',
+  },
+  {
+    label: 'Detail',
+    icon: 'i-mdi-information',
+    to: '/detail',
+    active: route.path === '/detail',
+  }
+])
 </script>
 <template>
   <UApp>
-    <UHeader>
+    <UHeader mode="slideover">
       <template #title>
         Collection Down
       </template>
@@ -31,18 +37,23 @@ import type { NavigationMenuItem } from '@nuxt/ui'
           <UButton
               color="neutral"
               variant="ghost"
-              to="https://github.com/nuxt/ui"
+              to="https://github.com/heartalborada-del/Collection-Down"
               target="_blank"
               icon="i-simple-icons-github"
               aria-label="GitHub"
           />
         </UTooltip>
       </template>
+      <template #body>
+        <UNavigationMenu :items="navigationItems" orientation="vertical" class="-mx-2.5" />
+      </template>
     </UHeader>
 
     <UMain>
       <NuxtLayout>
-        <NuxtPage />
+        <UContainer class="pt-4">
+          <NuxtPage />
+        </UContainer>
       </NuxtLayout>
     </UMain>
 

@@ -35,8 +35,6 @@
     line-height: 2.5rem
 }
 
-
-
 .mb-1 {
     margin-bottom: .25rem
 }
@@ -59,6 +57,41 @@
 
 .mt-4 {
     margin-top: 1rem
+}
+
+.ml-1 {
+    margin-left: .25rem
+}
+
+.ml-2 {
+    margin-left: .5rem
+}
+
+.ml-4 {
+    margin-left: 1rem
+}
+
+.mr-1 {
+    margin-right: .25rem
+}
+
+.mr-2 {
+    margin-right: .5rem
+}
+
+.mr-4 {
+    margin-right: 1rem
+}
+.pt-1 {
+    padding-top: .25rem
+}
+
+.pt-2 {
+    padding-top: .5rem
+}
+
+.pt-4 {
+    padding-top: 1rem
 }
 
 .text-pretty {

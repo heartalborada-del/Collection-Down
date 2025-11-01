@@ -3,7 +3,7 @@ import {RangeValidator} from "~~/utils/rangeValidator";
 export default defineEventHandler(async (event) => {
     try {
         const query = getQuery(event);
-        if (!query || !query.type || !query.origin) {
+        if (!query || !query.origin) {
             setResponseHeader(event,"X-Error-Message", "Invalid request payload");
             return setResponseStatus(event, 400);
         }

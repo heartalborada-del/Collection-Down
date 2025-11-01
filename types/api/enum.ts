@@ -6,11 +6,14 @@ export enum RedeemType {
     SUIT_PART=5
 }
 
-export enum SuitPartType {
+export enum PartIdType {
     STATIC_EMOJI_PACKAGE=7,
     ANIMATED_EMOJI_PACKAGE=5,
     PROGRESS_BAR=11,
     LOADING=10,
     THUMB_UP=3,
-    THEME=9
+    COLLECTION_THEME=9,
+    //SEARCH
+    COLLECTION=0,
+    IP_THEME=6
 }

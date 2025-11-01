@@ -5,6 +5,10 @@ export default defineNuxtConfig({
     modules: ['@nuxt/eslint', '@nuxt/ui'],
     css: ['~/assets/css/global.css'],
     ui: {
-      fonts: false
+        fonts: false,
     },
+    devServer: {
+        host: '127.0.0.1',
+        port: 3000,
+    }
 })

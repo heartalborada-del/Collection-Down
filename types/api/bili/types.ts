@@ -39,6 +39,7 @@ export interface BiliSuitMallSearchItem {
         fan_item_ids?: string;
         dlc_act_id?: string;
         dlc_lottery_id?: string;
-        type: string
+        type: string,
+        image_cover: string,
     }
 }

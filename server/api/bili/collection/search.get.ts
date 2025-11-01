@@ -29,7 +29,8 @@ export default defineEventHandler(async (event) => {
                 name: item.name,
                 id: item.item_id !== 0 ? item.item_id : parseInt(item.properties.dlc_act_id ? item.properties.dlc_act_id : "0",10),
                 type: item.properties.type === "ip" ? PartIdType.IP_THEME : PartIdType.COLLECTION,
-                sub_ids: item.properties.fan_item_ids ? item.properties.fan_item_ids.split(',').map(id => parseInt(id)) : [parseInt(item.properties.dlc_lottery_id ? item.properties.dlc_lottery_id : "0")]
+                sub_ids: item.properties.fan_item_ids ? item.properties.fan_item_ids.split(',').map(id => parseInt(id)) : [parseInt(item.properties.dlc_lottery_id ? item.properties.dlc_lottery_id : "0")],
+                cover: item.properties.image_cover,
             });
         }
         return new ApiResponse<SuitSearchInfo[]>(0,undefined,list);

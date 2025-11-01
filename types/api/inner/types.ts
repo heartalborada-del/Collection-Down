@@ -36,6 +36,7 @@ export interface EmojiPackageInfo {
 
 export interface SuitSearchInfo {
     name: string;
+    cover: string;
     type: number;
     id: number;
     sub_ids: number[];

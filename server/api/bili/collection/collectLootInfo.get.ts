@@ -62,10 +62,10 @@ export default defineEventHandler(async (event) => {
                     redeems: redeems
                 });
             }).catch((e) => {
-                throw e
+                return new ApiResponse<null>(-1, 'An error occurred while fetching data');
             })
         }).catch((e) => {
-            throw e
+            return new ApiResponse<null>(-1, 'An error occurred while fetching data');
         })
     } catch {
         return new ApiResponse<null>(-1, 'An error occurred while fetching data');

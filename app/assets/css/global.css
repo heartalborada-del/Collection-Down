@@ -11,93 +11,22 @@
     --ui-space: var(--space);
 }
 
-.font-bold {
-    font-weight: 700
+.suit-card {
+    & .background-blur {
+        background-size: cover;
+        background-position: center;
+        opacity: 0.3;
+        filter: blur(8px);
+        transition: opacity 0.25s ease-in-out;
+    }
+    & img {
+        object-fit: cover;
+        height: 100%;
+    }
 }
 
-.font-semibold {
-    font-weight: 600
-}
-.text-xl {
-    font-size: 1.25rem;
-    line-height: 1.75rem
-}
-.text-2xl {
-    font-size: 1.5rem;
-    line-height: 2rem
-}
-.text-3xl {
-    font-size: 1.875rem;
-    line-height: 2.25rem
-}
-.text-4xl {
-    font-size: 2.25rem;
-    line-height: 2.5rem
-}
-
-.mb-1 {
-    margin-bottom: .25rem
-}
-
-.mb-2 {
-    margin-bottom: .5rem
-}
-
-.mb-4 {
-    margin-bottom: 1rem
-}
-
-.mt-1 {
-    margin-top: .25rem
-}
-
-.mt-2 {
-    margin-top: .5rem
-}
-
-.mt-4 {
-    margin-top: 1rem
-}
-
-.ml-1 {
-    margin-left: .25rem
-}
-
-.ml-2 {
-    margin-left: .5rem
-}
-
-.ml-4 {
-    margin-left: 1rem
-}
-
-.mr-1 {
-    margin-right: .25rem
-}
-
-.mr-2 {
-    margin-right: .5rem
-}
-
-.mr-4 {
-    margin-right: 1rem
-}
-.pt-1 {
-    padding-top: .25rem
-}
-
-.pt-2 {
-    padding-top: .5rem
-}
-
-.pt-4 {
-    padding-top: 1rem
-}
-
-.text-pretty {
-    text-wrap: pretty;
-}
-
-.leading-7 {
-    line-height: calc(var(--ui-space) * 7);
+.suit-card:hover{
+    & .background-blur {
+        opacity: 0.5;
+    }
 }

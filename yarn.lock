@@ -6114,6 +6114,11 @@ muggle-string@^0.4.1:
   resolved "https://registry.yarnpkg.com/muggle-string/-/muggle-string-0.4.1.tgz#3b366bd43b32f809dc20659534dd30e7c8a0d328"
   integrity sha512-VNTrAak/KhO2i8dqqnqnAHOa3cYBwXEZe9h+D5h/1ZqFSTEFHdM65lR7RoIqq3tBBYavsOXV84NoHXZ0AkPyqQ==
 
+mutex-ts@^1.2.1:
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/mutex-ts/-/mutex-ts-1.2.1.tgz#4524e8d8cf78e6326d1f215bb77d7976013575bd"
+  integrity sha512-OkcXgf0viuCgYdnm48kiNQ9PzC5OzISQ261svHr/Ybc2vBYC/5xfLXn44hQ+dYRX74v7MCSqV/LKPEbpYdDybw==
+
 nanoid@^3.3.11:
   version "3.3.11"
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.11.tgz#4f4f112cefbe303202f2199838128936266d185b"

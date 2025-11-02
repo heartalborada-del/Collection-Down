@@ -130,23 +130,23 @@ async function searchForKeyword(keyword: string, page: number) {
           })
           throw "skip"
         }
-       if (result.data.length === 0) {
-         if (page === 1) {
-           toast.add({
-             title: '未找到相关结果',
-             icon: 'i-mdi-magnify-close',
-             color: 'info'
-           })
-         } else {
-           toast.add({
-             title: '没有更多结果了',
-             icon: 'i-mdi-magnify-close',
-             color: 'info'
-           })
-         }
-         throw "skip"
-       }
-       searchItems.value = [...searchItems.value, ...result.data];
+        if (result.data.length === 0) {
+          if (page === 1) {
+            toast.add({
+              title: '未找到相关结果',
+              icon: 'i-mdi-magnify-close',
+              color: 'info'
+            })
+          } else {
+            toast.add({
+              title: '没有更多结果了',
+              icon: 'i-mdi-magnify-close',
+              color: 'info'
+            })
+          }
+          throw "skip"
+        }
+        searchItems.value = [...searchItems.value, ...result.data];
       })
       .catch(error => {
         if (error === "skip") {
@@ -160,8 +160,8 @@ async function searchForKeyword(keyword: string, page: number) {
         })
         throw (error)
       }).finally(() => {
-        unlock()
-      });
+    unlock()
+  });
 }
 
 function switchToDetailPage() {
@@ -195,68 +195,85 @@ function updateResult(type: ParsedType, id: string) {
       <div class="flex justify-center-safe">
         <UTabs :items="tabItems" class="w-full max-w-10/12">
           <template #search>
-            <form class="flex justify-center-safe mt-1"
+            <Transition name="opacity" mode="out-in" appear>
+            <div key="search">
+              <form
+                  class="flex justify-center-safe mt-1"
                   @submit.prevent="searchForKeyword(searchKeyword,1);searchPage = 1;">
-              <UInput v-model="searchKeyword" class="w-11/12" type="search" icon="i-mdi-magnify" size="lg"
-                      variant="outline" placeholder="Search..."/>
-              <UButton class="ml-2 w-9 flex justify-center" icon="i-mdi-magnify" size="md" color="primary"
-                       variant="soft" type="submit"/>
-            </form>
-            <USeparator class="mt-4 mb-2" size="md"/>
-            <div v-if="searchItems.length !== 0">
-              <UPageGrid>
-                <UPageCard
-                    v-for="searchItem in searchItems"
-                    :key="searchItem.name"
-                    variant="outline_nopadding"
-                    class="flex justify-center-safe bg-default ring ring-default"
-                    @click="updateResult(searchItem.type === 0 ? ParsedType.DLC : ParsedType.THEME, searchItem.id.toString())"
-                >
-                  <div class="flex flex-nowrap items-center suit-card h-full">
-                    <img :src="`/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}`"
-                         :alt="searchItem.id.toString()" class=" max-w-1/3 h-max">
-                    <div class="relative flex items-center pl-2 pr-2" style="width:100%; height:100%;">
-                      <div
-                          class="absolute inset-0 background-blur"
-                          :style="{
+                <UInput
+                    v-model="searchKeyword" class="w-11/12" type="search" icon="i-mdi-magnify" size="lg"
+                    variant="outline" placeholder="Search..."/>
+                <UButton
+                    class="ml-2 w-9 flex justify-center" icon="i-mdi-magnify" size="md" color="primary"
+                    variant="soft" type="submit"/>
+              </form>
+              <USeparator class="mt-4 mb-2" size="md"/>
+              <div v-if="searchItems.length !== 0">
+                <UPageGrid>
+                  <TransitionGroup name="suit-card" mode="out-in" appear>
+                    <UPageCard
+                        v-for="searchItem in searchItems"
+                        :key="searchItem.name"
+                        variant="outline_nopadding"
+                        class="flex justify-center-safe bg-default ring ring-default"
+                        @click="updateResult(searchItem.type === 0 ? ParsedType.DLC : ParsedType.THEME, searchItem.id.toString())"
+                    >
+                      <div class="flex flex-nowrap items-center suit-card h-full">
+                        <img
+                            :src="`/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}`"
+                            :alt="searchItem.id.toString()" class=" max-w-1/3 h-max">
+                        <div class="relative flex items-center pl-2 pr-2" style="width:100%; height:100%;">
+                          <div
+                              class="absolute inset-0 background-blur"
+                              :style="{
                           backgroundImage: `url('/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}')`,
                         }"
-                          aria-hidden="true"
-                      />
-                      <div class="relative z-10 w-full">
-                        <p class="text-center" style="width: 100%;">{{ searchItem.name }}</p>
+                              aria-hidden="true"
+                          />
+                          <div class="relative z-10 w-full">
+                            <p class="text-center" style="width: 100%;">{{ searchItem.name }}</p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </UPageCard>
-              </UPageGrid>
-              <USeparator class="mt-2"/>
-              <UButton class="mt-2 w-full justify-center " icon="i-ic-refresh"
-                       @click="searchForKeyword(searchKeyword, searchPage+1);searchPage++;">加载更多
-              </UButton>
+                    </UPageCard>
+                  </TransitionGroup>
+                </UPageGrid>
+                <USeparator class="mt-2"/>
+                <UButton
+                    class="mt-2 w-full justify-center " icon="i-ic-refresh"
+                    @click="searchForKeyword(searchKeyword, searchPage+1);searchPage++;">加载更多
+                </UButton>
+              </div>
+              <USeparator v-else class="pt-4" label="还没有数据哦" size="lg"/>
             </div>
-            <USeparator v-else class="pt-4" label="还没有数据哦" size="lg"/>
+            </Transition>
           </template>
           <template #qrcode>
-            <div class="flex justify-center-safe mt-1">
-              <UButton class="text-center" icon="i-mdi-qrcode-scan" size="lg" color="primary" variant="soft"
-                       @click="QRScan?.click()">
-                选择二维码
-              </UButton>
-              <input ref="QRScan" type="file" accept="image/*" class="absolute w-0 h-0 overflow-hidden"
-                     @change="parseQRCode">
-            </div>
+            <Transition name="opacity" mode="out-in" appear>
+              <div key="qrcode" class="flex justify-center-safe mt-1">
+                <UButton
+                    class="text-center" icon="i-mdi-qrcode-scan" size="lg" color="primary" variant="soft"
+                    @click="QRScan?.click()">
+                  选择二维码
+                </UButton>
+                <input
+                    ref="QRScan" type="file" accept="image/*" class="absolute w-0 h-0 overflow-hidden"
+                    @change="parseQRCode">
+              </div>
+            </Transition>
           </template>
         </UTabs>
       </div>
     </div>
     <template #footer>
       <div class="flex justify-center-safe">
-        <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
-                 :items="selectItem"/>
+        <USelect
+            v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
+            :items="selectItem"/>
         <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 ml-4 mr-4" placeholder="id"/>
-        <UButton trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary"
-                 @click="switchToDetailPage">下一步
+        <UButton
+            trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary"
+            @click="switchToDetailPage">下一步
         </UButton>
       </div>
     </template>
@@ -264,5 +281,13 @@ function updateResult(type: ParsedType, id: string) {
 </template>
 
 <style scoped>
-
+.suit-card-enter-active,
+.suit-card-leave-active {
+  transition: all 0.4s ease;
+}
+.suit-card-enter-from,
+.suit-card-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
+}
 </style>

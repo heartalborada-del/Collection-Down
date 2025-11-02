@@ -30,3 +30,13 @@
         opacity: 0.5;
     }
 }
+
+.opacity-enter-active,
+.opacity-leave-active {
+    transition: opacity 0.5s ease;
+}
+
+.opacity-enter-from,
+.opacity-leave-to {
+    opacity: 0;
+}

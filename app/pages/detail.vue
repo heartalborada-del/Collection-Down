@@ -175,7 +175,7 @@ async function showCardDetail() {
 
 <template>
   <div>
-    <div class="flex justify-center-safe">
+    <div class="flex justify-center-safe h-9">
       <USelect
           v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
           :items="selectItem"/>
@@ -188,44 +188,21 @@ async function showCardDetail() {
     <div class="flex justify-center-safe">
       <USelectMenu v-model="selected" class="w-9/12 min-w-40" label-key="name" :items="ItemsArray" @change="showCardDetail()"/>
     </div>
+    <USeparator class="m-2" size="md"/>
     <div v-if="selected.id !== 0">
-      <div class="flex justify-center-safe align-items-center flex-wrap">
-        <UPageCard
-            v-for="card in selected.cards"
-            :key="card.id"
-            variant="outline_nopadding"
-            class="flex justify-center-safe bg-default ring ring-default"
-            style="width: 100%;height: 100%;"
-        >
-          <img style="object-fit: cover;height: 100%;" :src="`/api/bili/proxy?origin=${encodeURIComponent(card.img)}`" :alt="card.name" class=" max-w-1/3 h-max">
-        </UPageCard>
+      <div class="flex justify-center-safe align-items-center flex-wrap gap-2">
+        <TransitionGroup name="suit-card" appear>
+          <UCard
+              v-for="card in selected.cards"
+              :key="card.id"
+              class="flex justify-center-safe"
+              variant="outline_nopadding"
+              style="width: 100px; height: 100%;"
+          >
+            <img loading="lazy" :src="`/api/bili/proxy?origin=${encodeURIComponent(card.img+'@100w')}`" :alt="card.name" class="object-scale-down max-h-full">
+          </UCard>
+        </TransitionGroup>
       </div>
-      <!--      <UPageGrid>
-              <UPageCard
-                  v-for="searchItem in searchItems"
-                  :key="searchItem.name"
-                  variant="outline_nopadding"
-                  class="flex justify-center-safe bg-default ring ring-default"
-                  @click="updateResult(searchItem.type === 0 ? ParsedType.DLC : ParsedType.THEME, searchItem.id.toString())"
-              >
-                <div class="flex flex-nowrap items-center suit-card h-full">
-                  <img :src="`/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}`"
-                       :alt="searchItem.id.toString()" class=" max-w-1/3 h-max">
-                  <div class="relative flex items-center pl-2 pr-2" style="width:100%; height:100%;">
-                    <div
-                        class="absolute inset-0 background-blur"
-                        :style="{
-                                backgroundImage: `url('/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}')`,
-                              }"
-                        aria-hidden="true"
-                    />
-                    <div class="relative z-10 w-full">
-                      <p class="text-center" style="width: 100%;">{{ searchItem.name }}</p>
-                    </div>
-                  </div>
-                </div>
-              </UPageCard>
-            </UPageGrid>-->
     </div>
     <USeparator v-else class="pt-4" label="还没有数据哦" size="lg"/>
   </div>

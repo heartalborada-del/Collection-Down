@@ -32,7 +32,7 @@ const selectItem = ref<SelectItem[]>([
   }
 ])
 const lock = new Mutex()
-const selected = ref<{
+const currentCardPackage = ref<{
   id: number
   name?: string
   cards: CardInfo[]
@@ -40,7 +40,9 @@ const selected = ref<{
   id: 0,
   cards: []
 })
+const selectedCards = ref<Map<number, Map<number,boolean>>>(new Map())
 
+const checked = ref<boolean | string>(false);
 if (route.query) {
   if (route.query.type && typeof route.query.type === 'string') {
     const typeNum = parseInt(route.query.type)
@@ -69,16 +71,17 @@ watch(ParsedResult, (newVal) => {
 async function fetchData() {
   if (ParsedResult.value.type === ParsedType.DLC) {
     ItemsArray.value = []
-    selected.value = {
+    currentCardPackage.value = {
       id: 0,
       cards: []
     }
+    selectedCards.value = new Map()
     const unlock = await lock.obtain()
     fetch(`/api/bili/collection/allLotteryId?act_id=${ParsedResult.value.id}`)
         .then(resp => {
           if (!resp.ok) {
             toast.add({
-              title: '搜索时出现错误',
+              title: '获取数据时出现错误',
               description: `服务器返回错误：${resp.status}`,
               icon: 'i-mdi-exclamation-thick',
               color: 'error'
@@ -91,7 +94,7 @@ async function fetchData() {
         .then(async result => {
           if (result.code !== 0 || !result.data) {
             toast.add({
-              title: '搜索时出现错误',
+              title: '获取数据时出现错误',
               description: `错误信息：${result.message}`,
               icon: 'i-mdi-exclamation-thick',
               color: 'error'
@@ -108,7 +111,7 @@ async function fetchData() {
                 .then(res => {
                   if (res.code !== 0 || !res.data) {
                     toast.add({
-                      title: '搜索时出现错误',
+                      title: '获取数据时出现错误',
                       description: `错误信息：${res.message}`,
                       icon: 'i-mdi-exclamation-thick',
                       color: 'error'
@@ -116,7 +119,7 @@ async function fetchData() {
                   }
                   toast.add({
                     title: `获取 ${item.lottery_name} 成功`,
-                    description: `获得 ${res.data?.items.length} 张卡片，${res.data?.redeems.length} 个兑换码`,
+                    description: `获得 ${res.data?.items.length} 张卡片，${res.data?.redeems.length} 个兑换物`,
                     icon: 'i-mdi-check-circle',
                     color: 'success'
                   })
@@ -128,7 +131,7 @@ async function fetchData() {
                 })
                 .catch(error => {
                   toast.add({
-                    title: '搜索时出现错误',
+                    title: '获取数据时出现错误',
                     description: '请稍后重试。',
                     icon: 'i-mdi-exclamation-thick',
                     color: 'error'
@@ -138,7 +141,7 @@ async function fetchData() {
           })
           const merged = await Promise.all(promises);
           ItemsArray.value = []
-          selected.value = {
+          currentCardPackage.value = {
             id: 0,
             cards: []
           }
@@ -168,8 +171,16 @@ async function fetchData() {
   }
 }
 
-async function showCardDetail() {
-
+async function selectCard(currentCard: CardInfo, cardPackageId: number) {
+  if (!selectedCards.value.has(cardPackageId)) {
+    selectedCards.value.set(cardPackageId, new Map())
+  }
+  const cardMap = selectedCards.value.get(cardPackageId)!
+  if (cardMap.has(currentCard.id)) {
+    cardMap.set(currentCard.id, false)
+  } else {
+    cardMap.set(currentCard.id, true)
+  }
 }
 </script>
 
@@ -185,21 +196,27 @@ async function showCardDetail() {
       </UButton>
     </div>
     <USeparator class="m-2" size="md"/>
-    <div class="flex justify-center-safe">
-      <USelectMenu v-model="selected" class="w-9/12 min-w-40" label-key="name" :items="ItemsArray" @change="showCardDetail()"/>
+    <div class="flex justify-center-safe items-center">
+      <USelectMenu v-model="currentCardPackage" class="w-9/12 min-w-40" label-key="name" :items="ItemsArray"/>
+      <UCheckbox
+          :model-value="checked" :disabled="currentCardPackage.id === 0" label="全选" class="justify-center ml-2" size="lg"/>
     </div>
     <USeparator class="m-2" size="md"/>
-    <div v-if="selected.id !== 0">
-      <div class="flex justify-center-safe align-items-center flex-wrap gap-2">
-        <TransitionGroup name="suit-card" appear>
+    <div v-if="currentCardPackage.id !== 0">
+      <div class="flex justify-center-safe items-center flex-wrap gap-2">
+        <TransitionGroup name="opacity-card" appear>
           <UCard
-              v-for="card in selected.cards"
-              :key="card.id"
-              class="flex justify-center-safe"
+              v-for="card in currentCardPackage.cards"
+              :key="`${card.id}-${currentCardPackage.id}`"
+              class="flex justify-center-safe show-card"
+              :class="{
+                selected: selectedCards.has(currentCardPackage.id) && selectedCards.get(currentCardPackage.id)?.get(card.id)
+              }"
               variant="outline_nopadding"
-              style="width: 100px; height: 100%;"
+              :style="{width: '100px', height: `${card.resolution.height/(card.resolution.width/100)}px`}"
+              @click="selectCard(card, currentCardPackage.id)"
           >
-            <img loading="lazy" :src="`/api/bili/proxy?origin=${encodeURIComponent(card.img+'@100w')}`" :alt="card.name" class="object-scale-down max-h-full">
+            <img :key="card.id" loading="eager" :src="`/api/bili/proxy?origin=${encodeURIComponent(card.img+'@100w')}`" :alt="card.name" class="object-cover h-full">
           </UCard>
         </TransitionGroup>
       </div>
@@ -209,5 +226,12 @@ async function showCardDetail() {
 </template>
 
 <style scoped>
-
+.show-card {
+  transition: border 0.1s ease-in-out;
+  cursor: pointer;
+}
+.show-card.selected {
+  border: 2px solid var(--ui-color-secondary-500);
+  box-sizing: border-box;
+}
 </style>

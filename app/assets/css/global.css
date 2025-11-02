@@ -40,3 +40,20 @@
 .opacity-leave-to {
     opacity: 0;
 }
+
+.opacity-card-enter-active,
+.opacity-card-leave-active {
+    transition: opacity 0.5s ease;
+}
+
+.opacity-card-enter-from,
+.opacity-card-leave-to {
+    opacity: 0;
+}
+
+.opacity-card-leave-active {
+    position: absolute;
+    display: none;
+
+
+}

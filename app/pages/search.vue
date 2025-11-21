@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import QrcodeDecoder from "qrcode-decoder";
 import type {TabsItem} from "#ui/components/Tabs.vue";
-import {GetForwardedLink, ParsedType, ParseIdFromLink} from "~/utils/parser";
+import {GetForwardedLink, ParsedType, ParseIdFromLink} from "~/utils/Preprocess";
 import type {SelectItem} from "#ui/components/Select.vue";
 import type {SuitSearchInfo} from "~~/types/api/inner/types";
 import type {ApiResponse} from "~~/types/api/root";

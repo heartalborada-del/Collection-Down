@@ -18,6 +18,8 @@ export interface BiliRedeemInfo {
     redeem_item_name: string;
     redeem_item_id: string | undefined;
     redeem_item_image: string;
+    lottery_id: number;
+    card_item: never;
 }
 
 export interface BiliEmojiPackageInfo {

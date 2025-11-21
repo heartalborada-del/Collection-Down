@@ -1,10 +1,12 @@
+import type { PackageType } from "../enum";
+
 export interface CardInfo {
     type: number;
     id: number
     name: string;
-    img: string;
-    video: string[];
-    resolution:VideoResolution;
+    img?: string;
+    video?: string[];
+    resolution: VideoResolution;
 }
 
 export interface VideoResolution {
@@ -16,7 +18,8 @@ export interface RedeemInfo {
     type: number;
     name: string;
     image: string;
-    ids?: string[];
+    shared?: boolean;
+    ids: string[];
 }
 
 export interface EmojiInfo {
@@ -40,4 +43,16 @@ export interface SuitSearchInfo {
     type: number;
     id: number;
     sub_ids: number[];
+}
+
+export interface OtherInfo {
+    name: string;
+    img: string;
+    id: number;
+}
+export interface DetailedData {
+    id: number
+    name: string,
+    type: PackageType,
+    data: CardInfo[] | EmojiInfo[] | OtherInfo[] | string[],
 }

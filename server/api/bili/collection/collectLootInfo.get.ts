@@ -1,7 +1,8 @@
 import {ApiResponse} from "~~/types/api/root";
 import type {BiliCardInfo, BiliRedeemInfo} from "~~/types/api/bili/types";
-import type {CardInfo, RedeemInfo} from "~~/types/api/inner/types";
+import type {CardInfo, RedeemInfo, VideoResolution} from "~~/types/api/inner/types";
 import {FetchHeaders} from "~~/types/global";
+import {RedeemType} from "~~/types/api/enum";
 
 export default defineEventHandler(async (event) => {
     try {
@@ -27,13 +28,13 @@ export default defineEventHandler(async (event) => {
                     return new ApiResponse<null>(origin.code, `Bilibili api error, msg: ${origin.message}`);
                 if (!origin.data)
                     return new ApiResponse<null>(-1, `Failed to fetch data`);
-                const items: CardInfo[] = [];
+                const items:  CardInfo[] = [];
                 const redeems: RedeemInfo[] = [];
                 for (const item of origin.data.item_list) {
                     if (item.item_type !== 1)
                         continue;
                     items.push({
-                        type: item.item_type,
+                        type: item.card_item.card_type, // 1: video, 2: image
                         id: item.card_item.card_type_id,
                         name: item.card_item.card_name,
                         img: item.card_item.card_img,
@@ -41,18 +42,34 @@ export default defineEventHandler(async (event) => {
                         resolution: {
                             width: item.card_item.width,
                             height: item.card_item.height
-                        }
-                    });
+                        } as VideoResolution
+                    } as CardInfo);
                 }
                 for (const redeem of origin.data.collect_list) {
+                    if (redeem.redeem_item_type === RedeemType.COLLECTION_CARD) {
+                        const card = (redeem as {card_item: {card_asset_info: { card_item: BiliCardInfo } }}).card_item.card_asset_info.card_item
+                        items.push({
+                            type: card.card_type, // 1: video, 2: image
+                            id: card.card_type_id,
+                            name: card.card_name,
+                            img: card.card_img,
+                            video: card.video_list,
+                            resolution: {
+                                width: card.width,
+                                height: card.height
+                            } as VideoResolution
+                        } as CardInfo)
+                        continue
+                    }
                     let ids = redeem.redeem_item_id?.split("&")
                     if (ids && ids.length === 1 && ids[0] === "") ids = undefined
                     redeems.push({
                         type: redeem.redeem_item_type,
                         name: redeem.redeem_item_name,
                         image: redeem.redeem_item_image,
-                        ids: ids
-                    })
+                        ids: ids,
+                        shared: redeem.lottery_id === 0
+                    } as RedeemInfo)
                 }
                 return new ApiResponse<{
                     items: CardInfo[],
@@ -61,10 +78,10 @@ export default defineEventHandler(async (event) => {
                     items: items,
                     redeems: redeems
                 });
-            }).catch((e) => {
+            }).catch(() => {
                 return new ApiResponse<null>(-1, 'An error occurred while fetching data');
             })
-        }).catch((e) => {
+        }).catch(() => {
             return new ApiResponse<null>(-1, 'An error occurred while fetching data');
         })
     } catch {

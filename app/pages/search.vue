@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import QrcodeDecoder from "qrcode-decoder";
-import type {TabsItem} from "#ui/components/Tabs.vue";
-import {GetForwardedLink, ParsedType, ParseIdFromLink} from "~/utils/Preprocess";
-import type {SelectItem} from "#ui/components/Select.vue";
-import type {SuitSearchInfo} from "~~/types/api/inner/types";
-import type {ApiResponse} from "~~/types/api/root";
-import {Mutex} from "mutex-ts";
+import { GetForwardedLink, ParsedType, ParseIdFromLink } from "~/utils/Preprocess";
+import type { SuitSearchInfo } from "~~/types/api/inner/types";
+import type { ApiResponse } from "~~/types/api/root";
+import { Mutex } from "mutex-ts";
+import type { SelectItem, TabsItem } from "@nuxt/ui";
 
 const router = useRouter();
 const toast = useToast()
@@ -37,7 +36,7 @@ const selectItem = ref<SelectItem[]>([
   }
 ])
 const QRScan = ref<HTMLInputElement | null>(null)
-const ParsedResult: Ref<{ type: ParsedType; id: string }> = ref({type: ParsedType.NONE, id: ''})
+const ParsedResult: Ref<{ type: ParsedType; id: string }> = ref({ type: ParsedType.NONE, id: '' })
 
 const searchPage = ref(1)
 const searchItems = ref<SuitSearchInfo[]>([])
@@ -107,61 +106,61 @@ async function searchForKeyword(keyword: string, page: number) {
   fetch(`/api/bili/collection/search?&key_word=${encodeURIComponent(keyword)}&page=${page}`, {
     method: 'GET'
   })
-      .then(resp => {
-        if (!resp.ok) {
-          toast.add({
-            title: '搜索时出现错误',
-            description: `服务器返回错误：${resp.status}`,
-            icon: 'i-mdi-exclamation-thick',
-            color: 'error'
-          })
-          throw "skip"
-        }
-        return resp.json()
-      })
-      .then(data => data as ApiResponse<SuitSearchInfo[]>)
-      .then(result => {
-        if (result.code !== 0 || !result.data) {
-          toast.add({
-            title: '搜索时出现错误',
-            description: `错误信息：${result.message}`,
-            icon: 'i-mdi-exclamation-thick',
-            color: 'error'
-          })
-          throw "skip"
-        }
-        if (result.data.length === 0) {
-          if (page === 1) {
-            toast.add({
-              title: '未找到相关结果',
-              icon: 'i-mdi-magnify-close',
-              color: 'info'
-            })
-          } else {
-            toast.add({
-              title: '没有更多结果了',
-              icon: 'i-mdi-magnify-close',
-              color: 'info'
-            })
-          }
-          throw "skip"
-        }
-        searchItems.value = [...searchItems.value, ...result.data];
-      })
-      .catch(error => {
-        if (error === "skip") {
-          return
-        }
+    .then(resp => {
+      if (!resp.ok) {
         toast.add({
           title: '搜索时出现错误',
-          description: '请稍后重试。',
+          description: `服务器返回错误：${resp.status}`,
           icon: 'i-mdi-exclamation-thick',
           color: 'error'
         })
-        throw (error)
-      }).finally(() => {
-    unlock()
-  });
+        throw "skip"
+      }
+      return resp.json()
+    })
+    .then(data => data as ApiResponse<SuitSearchInfo[]>)
+    .then(result => {
+      if (result.code !== 0 || !result.data) {
+        toast.add({
+          title: '搜索时出现错误',
+          description: `错误信息：${result.message}`,
+          icon: 'i-mdi-exclamation-thick',
+          color: 'error'
+        })
+        throw "skip"
+      }
+      if (result.data.length === 0) {
+        if (page === 1) {
+          toast.add({
+            title: '未找到相关结果',
+            icon: 'i-mdi-magnify-close',
+            color: 'info'
+          })
+        } else {
+          toast.add({
+            title: '没有更多结果了',
+            icon: 'i-mdi-magnify-close',
+            color: 'info'
+          })
+        }
+        throw "skip"
+      }
+      searchItems.value = [...searchItems.value, ...result.data];
+    })
+    .catch(error => {
+      if (error === "skip") {
+        return
+      }
+      toast.add({
+        title: '搜索时出现错误',
+        description: '请稍后重试。',
+        icon: 'i-mdi-exclamation-thick',
+        color: 'error'
+      })
+      throw (error)
+    }).finally(() => {
+      unlock()
+    });
 }
 
 function switchToDetailPage() {
@@ -196,69 +195,54 @@ function updateResult(type: ParsedType, id: string) {
         <UTabs :items="tabItems" class="w-full max-w-10/12">
           <template #search>
             <Transition name="opacity" mode="out-in" appear>
-            <div key="search">
-              <form
-                  class="flex justify-center-safe mt-1"
-                  @submit.prevent="searchForKeyword(searchKeyword,1);searchPage = 1;">
-                <UInput
-                    v-model="searchKeyword" class="w-11/12" type="search" icon="i-mdi-magnify" size="lg"
-                    variant="outline" placeholder="Search..."/>
-                <UButton
-                    class="ml-2 w-9 flex justify-center" icon="i-mdi-magnify" size="md" color="primary"
-                    variant="soft" type="submit"/>
-              </form>
-              <USeparator class="mt-4 mb-2" size="md"/>
-              <div v-if="searchItems.length !== 0">
-                <UPageGrid>
-                  <TransitionGroup name="suit-card" mode="out-in" appear>
-                    <UPageCard
-                        v-for="searchItem in searchItems"
-                        :key="searchItem.name"
-                        variant="outline_nopadding"
+              <div key="search">
+                <form class="flex justify-center-safe mt-1"
+                  @submit.prevent="searchForKeyword(searchKeyword, 1); searchPage = 1;">
+                  <UInput v-model="searchKeyword" class="w-11/12" type="search" icon="i-mdi-magnify" size="lg"
+                    variant="outline" placeholder="Search..." />
+                  <UButton class="ml-2 w-9 flex justify-center" icon="i-mdi-magnify" size="md" color="primary"
+                    variant="soft" type="submit" />
+                </form>
+                <USeparator class="mt-4 mb-2" size="md" />
+                <div v-if="searchItems.length !== 0">
+                  <UPageGrid>
+                    <TransitionGroup name="suit-card" mode="out-in" appear>
+                      <UPageCard v-for="searchItem in searchItems" :key="searchItem.name" variant="outline_nopadding"
                         class="flex justify-center-safe bg-default ring ring-default"
-                        @click="updateResult(searchItem.type === 0 ? ParsedType.DLC : ParsedType.THEME, searchItem.id.toString())"
-                    >
-                      <div class="flex flex-nowrap items-center suit-card h-full">
-                        <img
-                            :src="`/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}`"
+                        @click="updateResult(searchItem.type === 0 ? ParsedType.DLC : ParsedType.THEME, searchItem.id.toString())">
+                        <div class="flex flex-nowrap items-center suit-card h-full">
+                          <img :src="`/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}`"
                             :alt="searchItem.id.toString()" class=" max-w-1/3 h-max">
-                        <div class="relative flex items-center pl-2 pr-2" style="width:100%; height:100%;">
-                          <div
-                              class="absolute inset-0 background-blur"
-                              :style="{
-                          backgroundImage: `url('/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}')`,
-                        }"
-                              aria-hidden="true"
-                          />
-                          <div class="relative z-10 w-full">
-                            <p class="text-center" style="width: 100%;">{{ searchItem.name }}</p>
+                          <div class="relative flex items-center pl-2 pr-2" style="width:100%; height:100%;">
+                            <div class="absolute inset-0 background-blur" :style="{
+                              backgroundImage: `url('/api/bili/proxy?origin=${encodeURIComponent(searchItem.cover)}')`,
+                            }" aria-hidden="true" />
+                            <div class="relative z-10 w-full">
+                              <p class="text-center" style="width: 100%;">{{ searchItem.name }}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </UPageCard>
-                  </TransitionGroup>
-                </UPageGrid>
-                <USeparator class="mt-2"/>
-                <UButton
-                    class="mt-2 w-full justify-center " icon="i-ic-refresh"
-                    @click="searchForKeyword(searchKeyword, searchPage+1);searchPage++;">加载更多
-                </UButton>
+                      </UPageCard>
+                    </TransitionGroup>
+                  </UPageGrid>
+                  <USeparator class="mt-2" />
+                  <UButton class="mt-2 w-full justify-center " icon="i-ic-refresh"
+                    @click="searchForKeyword(searchKeyword, searchPage + 1); searchPage++;">加载更多
+                  </UButton>
+                </div>
+                <USeparator v-else class="pt-4" label="还没有数据哦" size="lg" />
               </div>
-              <USeparator v-else class="pt-4" label="还没有数据哦" size="lg"/>
-            </div>
             </Transition>
           </template>
           <template #qrcode>
             <Transition name="opacity" mode="out-in" appear>
               <div key="qrcode" class="flex justify-center-safe mt-1">
-                <UButton
-                    class="text-center" icon="i-mdi-qrcode-scan" size="lg" color="primary" variant="soft"
-                    @click="QRScan?.click()">
+                <UButton class="text-center" icon="i-mdi-qrcode-scan" size="lg" color="primary" variant="soft"
+                  @click="QRScan?.click()">
                   选择二维码
                 </UButton>
-                <input
-                    ref="QRScan" type="file" accept="image/*" class="absolute w-0 h-0 overflow-hidden"
-                    @change="parseQRCode">
+                <input ref="QRScan" type="file" accept="image/*" class="absolute w-0 h-0 overflow-hidden"
+                  @change="parseQRCode">
               </div>
             </Transition>
           </template>
@@ -267,13 +251,11 @@ function updateResult(type: ParsedType, id: string) {
     </div>
     <template #footer>
       <div class="flex justify-center-safe">
-        <USelect
-            v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
-            :items="selectItem"/>
-        <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 ml-4 mr-4" placeholder="id"/>
-        <UButton
-            trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary"
-            @click="switchToDetailPage">下一步
+        <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
+          :items="selectItem" />
+        <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 ml-4 mr-4" placeholder="id" />
+        <UButton trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary"
+          @click="switchToDetailPage">下一步
         </UButton>
       </div>
     </template>
@@ -285,6 +267,7 @@ function updateResult(type: ParsedType, id: string) {
 .suit-card-leave-active {
   transition: all 0.4s ease;
 }
+
 .suit-card-enter-from,
 .suit-card-leave-to {
   opacity: 0;

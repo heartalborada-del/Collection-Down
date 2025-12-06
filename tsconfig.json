@@ -1,5 +1,10 @@
 {
   // https://nuxt.com/docs/guide/concepts/typescript
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "allowArbitraryExtensions": true
+  },
   "files": [],
   "references": [
     {

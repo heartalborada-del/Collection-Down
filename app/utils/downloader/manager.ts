@@ -1,10 +1,20 @@
-import type {DownloadItem} from "./types";
-import {DownloaderErrorEnum, DownloadError} from "~/utils/downloader/errors";
-import {MutexRW} from "mutex-ts";
+import type { DownloadItem } from "./types";
+import { DownloaderErrorEnum, DownloadError } from "~/utils/downloader/errors";
+import { MutexRW } from "mutex-ts";
+
+const DEFAULT_DOWNLOAD_TASK_OPTIONS: DownloadTaskOptions = {
+    maxThreads: 4,
+    chunkSize: 1024 * 1024, // 1 MB
+}
 
 export type DownloaderOptions = {
     maxConcurrentDownloads: number;
     taskOptions?: DownloadTaskOptions;
+}
+
+const DEFAULT_DOWNLOADER_OPTIONS: DownloaderOptions = {
+    maxConcurrentDownloads: 3,
+    taskOptions: DEFAULT_DOWNLOAD_TASK_OPTIONS,
 }
 
 export class Downloader {
@@ -16,7 +26,7 @@ export class Downloader {
     private currentDownloads: number = 0;
     private downloadInstances: DownloadTask[] = [];
 
-    constructor(private readonly maxConcurrentDownloads: number, private readonly options?: DownloaderOptions) {}
+    constructor(private readonly options?: DownloaderOptions) { }
 
     public addDownload(task: DownloadItem): Promise<Blob> {
         return new Promise<Blob>((resolve, reject) => {
@@ -35,9 +45,10 @@ export class Downloader {
     }
 
     private async startNextDownload() {
-        while (this.currentDownloads < this.maxConcurrentDownloads && this.queue.length > 0) {
+        let options = this.options ?? DEFAULT_DOWNLOADER_OPTIONS;
+        while (this.currentDownloads < options.maxConcurrentDownloads && this.queue.length > 0) {
             const task = this.queue.shift()!; // 获取下一个下载任务
-            const downloadManager = new DownloadTask(task.task, this.options?.taskOptions);
+            const downloadManager = new DownloadTask(task.task, options.taskOptions);
             this.downloadInstances.push(downloadManager);
             this.currentDownloads++; // 增加当前下载数
             try {
@@ -59,17 +70,14 @@ export type DownloadTaskOptions = {
     chunkSize: number;
 }
 
-const DEFAULT_DOWNLOAD_TASK_OPTIONS: DownloadTaskOptions = {
-    maxThreads: 4,
-    chunkSize: 1024 * 1024, // 1 MB
-}
+
 
 export class DownloadTask {
     private readonly mutex = new MutexRW();
     private bytebuffer: Uint8Array = new Uint8Array(0);
     private readonly shutdownSignal = new AbortController()
 
-    constructor(private item: DownloadItem, private options?: DownloadTaskOptions) {}
+    constructor(private item: DownloadItem, private options?: DownloadTaskOptions) { }
 
     /**
      * Get the size of the file to be downloaded.
@@ -78,7 +86,7 @@ export class DownloadTask {
      * @private
      */
     private async getFileSize(url: string): Promise<number> {
-        const response = await fetch(url, {method: 'HEAD',signal: this.shutdownSignal.signal});
+        const response = await fetch(url, { method: 'HEAD', signal: this.shutdownSignal.signal });
         if (!response.ok || response.headers.get('Accept-Ranges')?.toLowerCase() !== 'bytes')
             return -1;
         const contentLength = response.headers.get('Content-Length');
@@ -103,10 +111,10 @@ export class DownloadTask {
             return data;
         }
         const maxThreads = options.maxThreads;
-        let currentThreadCount = 0,index = 0;
+        let currentThreadCount = 0, index = 0;
         this.bytebuffer = new Uint8Array(fileSize);
         let downloaded = 0;
-        const afterChuckComplete = async (start:number,end:number) => {
+        const afterChuckComplete = async (start: number, end: number) => {
             const RO = await this.mutex.obtainRO()
             downloaded += end - start + 1;
             this.item.OnProgress?.(downloaded, this.bytebuffer.length);
@@ -114,7 +122,7 @@ export class DownloadTask {
             if (downloaded < fileSize) {
                 const RO = await this.mutex.obtainRW();
                 const nextStart = index * options.chunkSize;
-                if (nextStart>=fileSize) {
+                if (nextStart >= fileSize) {
                     RO();
                     return;
                 }
@@ -128,7 +136,7 @@ export class DownloadTask {
         }
         while (currentThreadCount < maxThreads) {
             const start = index * options.chunkSize, end = Math.min(start + options.chunkSize - 1, fileSize - 1);
-            if (start>=fileSize) break;
+            if (start >= fileSize) break;
             const RO = await this.mutex.obtainRO()
             currentThreadCount += 1;
             index += 1;

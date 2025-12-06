@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import {ParsedType} from "~/utils/Preprocess";
-import type {SelectItem} from "#ui/components/Select.vue";
-import {Mutex} from "mutex-ts";
-import type {CardInfo, DetailedData} from "~~/types/api/inner/types";
-import {PackageType} from "~~/types/api/enum";
-import type {TreeItem} from "@nuxt/ui";
-import type {TreeItemSelectEvent} from 'reka-ui'
-import {GetCollectionMigratedData} from "~/utils/getCollection";
+import { ParsedType } from "~/utils/Preprocess";
+import { Mutex } from "mutex-ts";
+import { CardInfo, DetailedData, EmojiInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { PackageType } from "~~/types/api/enum";
+import type { TreeItem } from "@nuxt/ui";
+import type { TreeItemSelectEvent } from 'reka-ui'
+import { GetCollectionMigratedData } from "~/utils/GetCollection";
+import { MD5 } from "object-hash"
+import { get } from "@nuxt/ui/runtime/utils/index.js";
 
 const route = useRoute()
 const router = useRouter();
@@ -16,7 +17,10 @@ const ParsedResult: Ref<{ type: ParsedType; id: string }> = ref({ type: ParsedTy
 
 const ItemsArray = ref<DetailedData[]>([])
 
-const selectItem = ref<SelectItem[]>([
+const selectItem = ref<{
+  label: string;
+  id: ParsedType;
+}[]>([
   {
     label: '无',
     id: ParsedType.NONE,
@@ -33,12 +37,12 @@ const selectItem = ref<SelectItem[]>([
 
 const lock = new Mutex()
 
-const currentCardPackage = ref<DetailedData>({
+const currentPackage = ref<DetailedData>({
   id: 0,
   type: PackageType.Undefined,
   data: []
 })
-const selectedCards = ref<Map<string, Set<string>>>(new Map())
+const selectedSets = ref<Map<string, Set<string>>>(new Map())
 
 const checked = ref<boolean | 'indeterminate'>(false);
 
@@ -73,64 +77,97 @@ async function fetchData() {
   }
 
   ItemsArray.value = []
-  currentCardPackage.value = {
+  currentPackage.value = {
     id: 0,
     type: PackageType.Undefined,
     data: []
   }
-  selectedCards.value = new Map()
+  selectedSets.value = new Map()
   using _ = await lock.lock();
-  ItemsArray.value = await GetCollectionMigratedData(Number(ParsedResult.value.id))
+  const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
+  for (const collection of collections) {
+    if (collection.type === PackageType.Undefined) {
+      continue
+    }
+    const cp = collection
+    switch (collection.type) {
+      case PackageType.Card:
+        cp.name = `收藏集-${collection.name}`
+        break
+      case PackageType.Theme:
+        cp.name = `主题-${collection.name}`
+        break
+      case PackageType.Sticker:
+        cp.name = `表情包-${collection.name}`
+        break
+      case PackageType.Other:
+        cp.name = `杂项-${collection.name}`
+    }
+    ItemsArray.value.push(cp)
+  }
   toast.add({
     title: `获取 卡池ID ${ParsedResult.value.id} 成功`,
-    description: `获得 ${ItemsArray.value.length} 个收藏集`,
+    description: `获得 ${ItemsArray.value.length} 个收藏集及其附属数据`,
     icon: 'i-mdi-check-circle',
     color: 'success'
   })
 }
 
-function removeCardByName(cardName: string, cardPackageName: string) {
-  const cardMap = selectedCards.value.get(cardPackageName)
+function queryCardIsSelected(cardName: string, packageName: string): boolean {
+  const cardMap = selectedSets.value.get(packageName)
+  if (cardMap?.has(cardName)) {
+    return true
+  }
+  return false
+}
+function removeCardByName(cardName: string, packageName: string) {
+  const cardMap = selectedSets.value.get(packageName)
   if (cardMap?.has(cardName)) {
     cardMap?.delete(cardName)
   }
-  refreshSelectedCards()
+  refreshSelectedCards();
 }
 
-function selectCard(currentCard: CardInfo, cardPackageName: string) {
-  if (!selectedCards.value.has(cardPackageName)) {
-    selectedCards.value.set(cardPackageName, new Set())
+function setActiveCard(currentCard: PackageDataType, packageName: string | undefined) {
+  if (currentPackage.value.id === 0 || !packageName) {
+    return
   }
-  const cardMap = selectedCards.value.get(cardPackageName)
-  if (cardMap?.has(currentCard.name) && cardMap?.has(currentCard.name)) {
-    cardMap?.delete(currentCard.name)
-  } else {
-    cardMap?.add(currentCard.name)
+  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo) {
+    if (!selectedSets.value.has(packageName)) {
+      selectedSets.value.set(packageName, new Set())
+    }
+    const cardMap = selectedSets.value.get(packageName)
+    if (cardMap?.has(currentCard.name) && cardMap?.has(currentCard.name)) {
+      cardMap?.delete(currentCard.name)
+    } else {
+      cardMap?.add(currentCard.name)
+    }
   }
   refreshSelectedCards()
 }
 
 function toggleSelectAllCards() {
-  if (currentCardPackage.value.id === 0) {
+  if (currentPackage.value.id === 0) {
     return
   }
   if (checked.value === true) {
     const newSet = new Set<string>()
-    currentCardPackage.value.data.forEach((card: CardInfo) => {
+    currentPackage.value.data.forEach((card) => {
+      card = card as CardInfo
       newSet.add(card.name)
     })
-    selectedCards.value.set(currentCardPackage.value.name!, newSet)
+    selectedSets.value.set(currentPackage.value.name!, newSet)
   } else {
-    selectedCards.value.set(currentCardPackage.value.name!, new Set())
+    selectedSets.value.set(currentPackage.value.name!, new Set())
   }
 }
 
 function refreshSelectedCards() {
-  if (currentCardPackage.value.id === 0) {
+  if (currentPackage.value.id === 0) {
     return
   }
-  const cardMap = selectedCards.value.get(currentCardPackage.value.name!)
-  if (cardMap?.size === currentCardPackage.value.data.length) {
+  const cardMap = selectedSets.value.get(currentPackage.value.name!)
+  if (cardMap?.size === currentPackage.value.data.length) {
     checked.value = true
   } else {
     if (!cardMap || cardMap?.size === 0) {
@@ -143,14 +180,14 @@ function refreshSelectedCards() {
 
 const generatedTreeData = ref<TreeItem[]>([])
 const treeDataKey = ref<number>(0)
-watch(selectedCards, () => {
-
+watch(selectedSets, () => {
   const treeData: TreeItem[3] = [
     { label: '收藏集', children: [] },
     { label: '主题', children: [] },
-    { label: '表情包', children: [] }
+    { label: '表情包', children: [] },
+    { label: '杂项', children: [] }
   ]
-  for (const [packageName, cardSet] of selectedCards.value) {
+  for (const [packageName, cardSet] of selectedSets.value) {
     const packageItem: TreeItem = {
       label: packageName,
       children: []
@@ -165,6 +202,8 @@ watch(selectedCards, () => {
       treeData[1].children!.push(packageItem)
     } else if (targetPackage?.type === PackageType.Sticker) {
       treeData[2].children!.push(packageItem)
+    } else if (targetPackage?.type === PackageType.Other) {
+      treeData[3].children!.push(packageItem)
     }
     cardSet.forEach(cardName => {
       packageItem.children!.push({
@@ -187,8 +226,67 @@ watch(selectedCards, () => {
 
 const downloadPanelOpen = ref(false)
 function download() {
+  downloadFiles.value = getSelectedDownloadFiles()
   downloadPanelOpen.value = true
 }
+
+function getSelectedDownloadFiles(): Array<{ url: string; filename: string }> {
+  const files: Array<{ url: string; filename: string }> = []
+  for (const [packageName, set] of selectedSets.value) {
+    const targetPackage = ItemsArray.value.find(item => item.name === packageName)
+    let a = packageName.split('-')
+    const path = `${a[0]}/${a[1]}`
+    if (!targetPackage) {
+      continue
+    }
+    for (const name of set) {
+      const target = targetPackage.data.find(card => card.name === name)
+      if (!target) {
+        continue
+      }
+      if (target instanceof CardInfo) {
+        files.push({
+          url: target.img!,
+          filename: `${path}/static/${target.name}.${getFileExtensionFromUrl(target.img!)}`,
+        })
+        if (target.video) {
+          files.push({
+            url: target.video![0]!,
+            filename: `${path}/video/${target.name}.${getFileExtensionFromUrl(target.video![0]!)}`,
+          })
+        }
+        continue
+      } else if (target instanceof EmojiInfo) {
+        files.push({
+          url: target.images.static!,
+          filename: `${path}/static/${target.name}.${getFileExtensionFromUrl(target.images.static!)}`,
+        })
+        if (target.images.webp) {
+          files.push({
+            url: target.images.webp!,
+            filename: `${path}/webp/${target.name}.${getFileExtensionFromUrl(target.images.webp!)}`,
+          })
+        }
+        if (target.images.gif) {
+          files.push({
+            url: target.images.gif!,
+            filename: `${path}/gif/${target.name}.${getFileExtensionFromUrl(target.images.gif!)}`,
+          })
+        }
+        continue
+      } else if (target instanceof OtherInfo) {
+        files.push({
+          url: target.img!,
+          filename: `${path}/${target.name}.${getFileExtensionFromUrl(target.img!)}`,
+        })
+        continue
+      }
+    }
+  }
+  return files
+}
+
+const downloadFiles = ref<Array<{ url: string; filename: string }>>([])
 </script>
 
 <template>
@@ -203,20 +301,23 @@ function download() {
     </div>
     <USeparator class="m-2" size="md" />
     <div class="flex justify-center-safe items-center">
-      <USelectMenu v-model="currentCardPackage" class="w-9/12 min-w-40" label-key="name"
-        :items="ItemsArray as SelectItem[]" @change="refreshSelectedCards" />
-      <UCheckbox v-model="checked" :disabled="currentCardPackage.id === 0" label="全选" class="justify-center ml-2"
-        size="lg" @change="toggleSelectAllCards" />
+      <USelectMenu v-model="currentPackage" class="w-9/12 min-w-40" label-key="name" :items="ItemsArray as any"
+        @change="refreshSelectedCards" />
+      <UCheckbox v-model="checked" :disabled="currentPackage.id === 0" label="全选" class="justify-center ml-2" size="lg"
+        @change="toggleSelectAllCards" />
       <UButton class="ml-4" color="primary" variant="outline" icon="i-mdi-download" @click="download">下载</UButton>
     </div>
     <USeparator class="m-2" size="md" />
-    <div v-if="currentCardPackage.id !== 0" style="display: flex; flex-flow: row;">
+    <div v-if="currentPackage.id !== 0" style="display: flex; flex-flow: row;">
       <div class="flex justify-center-safe items-center flex-wrap gap-2 h-full">
         <TransitionGroup name="opacity-card" appear>
-          <ShowCard v-for="card in currentCardPackage.data" :key="Math.random().toString()" :url="card"></ShowCard>
+          <ShowCard v-for="object in currentPackage.data" :key="MD5(object)" :url="object"
+            @click="setActiveCard(object, currentPackage.name)"
+            :highlight="queryCardIsSelected(object.name, currentPackage.name!)">
+          </ShowCard>
         </TransitionGroup>
       </div>
-      <UCard class="hidden lg:block ml-2 overflow-y-auto" style="min-width: 300px; max-height: 500px;"
+      <UCard class="hidden lg:block overflow-y-auto ml-auto" style="min-width: 300px; max-height: 500px;"
         variant="outline_nopadding">
         <UTree :items="generatedTreeData" @select="(e: TreeItemSelectEvent<TreeItem>) => {
           if (e.detail.originalEvent.type === 'click') {
@@ -236,18 +337,7 @@ function download() {
       </UCard>
     </div>
     <USeparator v-else class="pt-4" label="还没有数据哦" size="lg" />
-    <DownloadModal :open="downloadPanelOpen" @close="() => { downloadPanelOpen = false }" />
+    <DownloadModal :open="downloadPanelOpen" @close="() => { downloadPanelOpen = false }"
+      :target-files="downloadFiles" />
   </div>
 </template>
-
-<style scoped>
-.show-card {
-  transition: border 0.1s ease-in-out;
-  cursor: pointer;
-}
-
-.show-card.selected {
-  border: 2px solid var(--ui-color-secondary-500);
-  box-sizing: border-box;
-}
-</style>

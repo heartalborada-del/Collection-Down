@@ -1,7 +1,7 @@
-import type {ApiResponse} from "~~/types/api/root";
-import type {LotteryListItem} from "~~/types/api/bili/types";
-import type {CardInfo, DetailedData, EmojiPackageInfo, RedeemInfo, OtherInfo} from "~~/types/api/inner/types";
-import {PackageType, RedeemType} from "~~/types/api/enum";
+import type { ApiResponse } from "~~/types/api/root";
+import type { LotteryListItem } from "~~/types/api/bili/types";
+import { CardInfo, type DetailedData, type EmojiPackageInfo, type RedeemInfo, OtherInfo, EmojiInfo } from "~~/types/api/inner/types";
+import { PackageType, RedeemType } from "~~/types/api/enum";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
@@ -13,7 +13,7 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     if (data.code !== 0 || !data.data) {
         return Promise.reject(new PromiseRejected(Errors.API, data.message, data.code))
     }
-    const promises = data.data.map(async item => GetLotteryCardDetails(item.lottery_id, actId, item.lottery_name))
+    const promises = data.data.map(async item => GetLotteryDetails(item.lottery_id, actId, item.lottery_name))
 
     const merged = await Promise.allSettled(promises)
 
@@ -28,10 +28,11 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
                 })
             })
     })
+
     return ItemsArray
 }
 
-async function GetLotteryCardDetails(lotteryId: number, actId: number, lotteryName: string): Promise<DetailedData[]> {
+async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: string, allowShared: boolean = false): Promise<DetailedData[]> {
     const response = await fetch(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`)
     if (!response.ok) {
         return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${response.status}`, response.status))
@@ -44,8 +45,8 @@ async function GetLotteryCardDetails(lotteryId: number, actId: number, lotteryNa
         return Promise.reject(new PromiseRejected(Errors.API, res.message, res.code))
     }
     const parsedRedeems = await ParseRedeemInfo(res.data.redeems, lotteryId)
-    const migratedRedeems:DetailedData[] = []
-    const otherRedeems:DetailedData  = {
+    const migratedRedeems: DetailedData[] = []
+    const otherRedeems: DetailedData = {
         id: lotteryId,
         name: lotteryName,
         data: [] as OtherInfo[],
@@ -54,50 +55,58 @@ async function GetLotteryCardDetails(lotteryId: number, actId: number, lotteryNa
     for (const redeem of parsedRedeems) {
         if (redeem.type === PackageType.Other) {
             redeem.data.forEach(item => {
-                const url = item as string
-                (otherRedeems.data as OtherInfo[]).push({
-                    name: redeem.name,
-                    img: url,
-                    id: lotteryId
-                } as OtherInfo)
+                (otherRedeems.data as OtherInfo[]).push(
+                    new OtherInfo({
+                        name: redeem.name ?? '',
+                        img: (item as OtherInfo).img,
+                        id: lotteryId
+                    })
+                );
             })
         } else {
             migratedRedeems.push(redeem)
         }
     }
-    if (otherRedeems.data.length === 0) {
-        return [{
-            id: lotteryId,
-            name: lotteryName,
-            data: res.data?.items,
-            type: PackageType.Card
-        } as DetailedData,
-            ...migratedRedeems
-        ]
-    }
-    return [{
+    const cardObjects: CardInfo[] = [];
+    (res.data?.items).forEach((card: CardInfo) => {
+        cardObjects.push(new CardInfo(card))
+    })
+    const returnValue: DetailedData[] = [{
         id: lotteryId,
         name: lotteryName,
-        data: res.data?.items,
+        data: cardObjects,
         type: PackageType.Card
     } as DetailedData,
-        otherRedeems,
-        ...migratedRedeems
+    ...migratedRedeems
     ]
+    if (otherRedeems.data.length !== 0) {
+        returnValue.push(otherRedeems)
+    }
+    if (!allowShared) {
+        ///const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems)
+    }
+    return returnValue
 }
 
-async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, allowShared: boolean = false): Promise<DetailedData[]> {
+async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlyShared: boolean = false): Promise<DetailedData[]> {
     const results: DetailedData[] = []
     for (const redeem of redeems) {
-        if (redeem.shared && !allowShared)
+        if (redeem.shared && !onlyShared)
+            continue;
+        if (onlyShared && !redeem.shared)
             continue;
         switch (redeem.type) {
             case RedeemType.BADGE, RedeemType.AVATAR_FRAME:
                 results.push({
-                    id: parseInt(redeem.ids[0] ? redeem.ids[0] : "-1",10),
+                    id: parseInt(redeem.ids[0] ? redeem.ids[0] : "-1", 10),
                     name: redeem.name,
                     type: PackageType.Other,
-                    data: [redeem.image]
+                    data: [new OtherInfo({
+                        name: redeem.name,
+                        img: redeem.image,
+                        id: parseInt(redeem.ids[0] ? redeem.ids[0] : "-1", 10)
+                    })
+                    ]
                 } as DetailedData)
                 break
             case RedeemType.STATIC_EMOJI_PACKAGE: {
@@ -113,7 +122,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, allowSh
                     id: lotteryId,
                     name: res.data.name,
                     type: PackageType.Sticker,
-                    data: res.data.emojis
+                    data: (res.data.emojis.map(emoji => { return new EmojiInfo(emoji) }))
                 } as DetailedData)
                 break
             }
@@ -124,6 +133,10 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, allowSh
         }
     }
     return results
+}
+
+async function ParseRedeemOnlyShared(redeems: RedeemInfo[]): Promise<DetailedData[]> {
+    return ParseRedeemInfo(redeems, -1, true)
 }
 
 export enum Errors {

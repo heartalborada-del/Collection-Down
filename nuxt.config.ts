@@ -13,5 +13,22 @@ export default defineNuxtConfig({
     },
     app: {
         pageTransition: { name: 'page', mode: 'out-in' },
+        head: {
+            title: 'Collection Down',
+            meta: [
+                { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+                { charset: 'utf-8' },
+                { name: 'description', content: 'A new bilibili collection downloader.' },
+            ],
+            link: [{ rel: 'icon', type: 'image/x-icon', href: './favicon.ico' }],
+        },
+    },
+    nitro: {
+        vercel: {
+            functions: {
+                maxDuration: 10,
+                memory: 512,
+            }
+        },
     }
 })

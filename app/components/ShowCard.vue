@@ -1,41 +1,52 @@
 <script setup lang="ts">
-import type {CardInfo, EmojiInfo} from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
 
 const props = defineProps<{
-  url: CardInfo | EmojiInfo | string;
+  url: PackageDataType;
+  highlight?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'click', payload?: MouseEvent | unknown): void;
 }>();
 
 const showUrl = computed((): string => {
-  if (typeof props.url === "string") {
-    return props.url;
+  if (props.url instanceof CardInfo) {
+    return props.url.img!;
+  } else if (props.url instanceof OtherInfo) {
+    return props.url.img;
+  } else if (props.url instanceof EmojiInfo) {
+    return props.url.images.static;
   } else {
-    if ('img' in props.url) {
-      return props.url.img as string;
-    } else if ('images' in props.url) {
-      return props.url.images.static
-    } else {
-      return ''
-    }
+    return '';
   }
 })
 
 const name = computed((): string => {
-  if (typeof props.url === "string") {
-    return ''
-  } else {
-    return props.url.name
-  }
+  return props.url.name
 })
 
 const id = Math.random().toString(36).substring(2, 15);
 </script>
 
 <template>
-  <UCard class="flex justify-center-safe show-card" variant="outline_nopadding">
-  <img :key="id" loading="eager" :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl + '@100w')}`" :alt="name" class="object-cover h-full">
+  <UCard class="flex justify-center-safe show-card" variant="outline_nopadding" :class="{ highlight: props.highlight }">
+    <img :key="id" loading="eager" :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl + '@100w')}`" :alt="name"
+      class="object-cover h-full" @click="emit('click', $event)" draggable="false" />
   </UCard>
 </template>
 
-<style scoped>
+<style scoped></style>
 
+<style scoped>
+.show-card {
+  transition: border 0.1s ease-in-out;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100px;
+}
+
+.show-card.highlight {
+  border: 2px solid var(--ui-color-secondary-500);
+}
 </style>

@@ -1,6 +1,6 @@
-import type {ApiResponse} from "~~/types/api/root";
+import type { ApiResponse } from "~~/types/api/root";
 
-export async function GetForwardedLink(link:string):Promise<string> {
+export async function GetForwardedLink(link: string): Promise<string> {
     if (!link.startsWith("https://b23.tv"))
         return link;
     const raw: ApiResponse<string> = await fetch("/api/redirect", {
@@ -18,7 +18,7 @@ export async function GetForwardedLink(link:string):Promise<string> {
     throw new Error(raw.message);
 }
 
-export function ParseIdFromLink(link:string): {
+export function ParseIdFromLink(link: string): {
     id: string,
     type: ParsedType
 } {
@@ -46,4 +46,27 @@ export enum ParsedType {
     DLC = 1,
     THEME,
     NONE
+}
+
+export function getFileExtensionFromUrl(url?: string): string | undefined {
+    if (!url) return undefined;
+    try {
+        // 支持相对 URL：提供 base
+        const u = new URL(url, 'http://example.com');
+        const pathname = u.pathname || '';
+        // 先尝试直接从 pathname 末尾匹配扩展名
+        const m = pathname.match(/\.([a-z0-9]+)$/i);
+        const ext = m?.[1];
+        if (ext) return ext.toLowerCase();
+        // 再尝试在整个 URL 中匹配（处理像 /file.jpg?x=1 的情况）
+        const m2 = url.match(/\.([a-z0-9]+)(?=($|\?|#))/i);
+        const ext2 = m2?.[1];
+        if (ext2) return ext2.toLowerCase();
+        return undefined;
+    } catch {
+        // 容错：简单正则解析
+        const m = url.match(/\.([a-z0-9]+)(?=($|\?|#))/i);
+        const ext = m?.[1];
+        return ext ? ext.toLowerCase() : undefined;
+    }
 }

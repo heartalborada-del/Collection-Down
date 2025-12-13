@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { ParsedType } from "~/utils/Preprocess";
 import { Mutex } from "mutex-ts";
-import { CardInfo, DetailedData, EmojiInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
-import { PackageType } from "~~/types/api/enum";
+import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { ItemType, PackageType } from "~~/types/api/enum";
 import type { TreeItem } from "@nuxt/ui";
 import type { TreeItemSelectEvent } from 'reka-ui'
-import { GetCollectionMigratedData } from "~/utils/GetCollection";
 import { MD5 } from "object-hash"
-import { get } from "@nuxt/ui/runtime/utils/index.js";
 
 const route = useRoute()
 const router = useRouter();
@@ -227,11 +225,20 @@ watch(selectedSets, () => {
 const downloadPanelOpen = ref(false)
 function download() {
   downloadFiles.value = getSelectedDownloadFiles()
+  if (downloadFiles.value.length === 0) {
+    toast.add({
+      title: '未选择任何文件',
+      description: '请至少选择一个文件进行下载',
+      icon: 'i-mdi-alert-circle',
+      color: 'warning'
+    })
+    return
+  }
   downloadPanelOpen.value = true
 }
 
-function getSelectedDownloadFiles(): Array<{ url: string; filename: string }> {
-  const files: Array<{ url: string; filename: string }> = []
+function getSelectedDownloadFiles(): Array<DownloadMetaData> {
+  const files: DownloadMetaData[] = []
   for (const [packageName, set] of selectedSets.value) {
     const targetPackage = ItemsArray.value.find(item => item.name === packageName)
     let a = packageName.split('-')
@@ -245,40 +252,52 @@ function getSelectedDownloadFiles(): Array<{ url: string; filename: string }> {
         continue
       }
       if (target instanceof CardInfo) {
-        files.push({
+        files.push(new DownloadMetaData({
           url: target.img!,
-          filename: `${path}/static/${target.name}.${getFileExtensionFromUrl(target.img!)}`,
-        })
+          type: ItemType.StaticCard,
+          filename: `${path}/static/${target.name}.${GetFileExtensionFromUrl(target.img!)}`,
+          name: target.name
+        }))
         if (target.video) {
-          files.push({
+          files.push(new DownloadMetaData({
             url: target.video![0]!,
-            filename: `${path}/video/${target.name}.${getFileExtensionFromUrl(target.video![0]!)}`,
-          })
+            type: ItemType.AnimatedCard,
+            filename: `${path}/video/${target.name}.${GetFileExtensionFromUrl(target.video![0]!)}`,
+            name: target.name
+          }))
         }
         continue
       } else if (target instanceof EmojiInfo) {
-        files.push({
+        files.push(new DownloadMetaData({
           url: target.images.static!,
-          filename: `${path}/static/${target.name}.${getFileExtensionFromUrl(target.images.static!)}`,
-        })
+          type: ItemType.StaticSticker,
+          filename: `${path}/png/${target.name}.${GetFileExtensionFromUrl(target.images.static!)}`,
+          name: target.name
+        }))
         if (target.images.webp) {
-          files.push({
+          files.push(new DownloadMetaData({
             url: target.images.webp!,
-            filename: `${path}/webp/${target.name}.${getFileExtensionFromUrl(target.images.webp!)}`,
-          })
+            type: ItemType.WebpSticker,
+            filename: `${path}/webp/${target.name}.${GetFileExtensionFromUrl(target.images.webp!)}`,
+            name: target.name
+          }))
         }
         if (target.images.gif) {
-          files.push({
+          files.push(new DownloadMetaData({
             url: target.images.gif!,
-            filename: `${path}/gif/${target.name}.${getFileExtensionFromUrl(target.images.gif!)}`,
-          })
+            type: ItemType.GifSticker,
+            filename: `${path}/gif/${target.name}.${GetFileExtensionFromUrl(target.images.gif!)}`,
+            name: target.name
+          }))
         }
         continue
       } else if (target instanceof OtherInfo) {
-        files.push({
+        files.push(new DownloadMetaData({
           url: target.img!,
-          filename: `${path}/${target.name}.${getFileExtensionFromUrl(target.img!)}`,
-        })
+          filename: `${path}/${target.name}.${GetFileExtensionFromUrl(target.img!)}`,
+          type: ItemType.Other,
+          name: target.name
+        }))
         continue
       }
     }
@@ -286,7 +305,7 @@ function getSelectedDownloadFiles(): Array<{ url: string; filename: string }> {
   return files
 }
 
-const downloadFiles = ref<Array<{ url: string; filename: string }>>([])
+const downloadFiles = ref<DownloadMetaData[]>([])
 </script>
 
 <template>
@@ -338,6 +357,6 @@ const downloadFiles = ref<Array<{ url: string; filename: string }>>([])
     </div>
     <USeparator v-else class="pt-4" label="还没有数据哦" size="lg" />
     <DownloadModal :open="downloadPanelOpen" @close="() => { downloadPanelOpen = false }"
-      :target-files="downloadFiles" />
+      :file-metadatas="downloadFiles" />
   </div>
 </template>

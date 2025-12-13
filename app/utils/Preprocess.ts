@@ -48,7 +48,7 @@ export enum ParsedType {
     NONE
 }
 
-export function getFileExtensionFromUrl(url?: string): string | undefined {
+export function GetFileExtensionFromUrl(url?: string): string | undefined {
     if (!url) return undefined;
     try {
         // 支持相对 URL：提供 base
@@ -69,4 +69,19 @@ export function getFileExtensionFromUrl(url?: string): string | undefined {
         const ext = m?.[1];
         return ext ? ext.toLowerCase() : undefined;
     }
+}
+
+export function FormatDateWithDefaultOffset(date: Date, offset: string = '+0800', isShowHour = true): string {
+    const padZero = (num: number) => num.toString().padStart(2, '0');
+
+    const year = date.getFullYear();
+    const month = padZero(date.getMonth() + 1); // 月份从0开始，所以要加1
+    const day = padZero(date.getDate());
+
+    const hours = padZero(date.getHours());
+    const minutes = padZero(date.getMinutes());
+    const seconds = padZero(date.getSeconds());
+    if (isShowHour)
+        return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}${offset}`;
+    return `${year}/${month}/${day}`;
 }

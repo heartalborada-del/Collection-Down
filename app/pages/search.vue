@@ -19,6 +19,11 @@ const tabItems = ref<TabsItem[]>([
     label: '二维码扫描',
     icon: 'i-mdi-qrcode-scan',
     slot: 'qrcode'
+  },
+  {
+    label: '查找无法搜索到的收藏集',
+    icon: 'i-mdi-help-circle',
+    slot: 'idsearch'
   }
 ])
 const selectItem = ref<SelectItem[]>([

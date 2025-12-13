@@ -26,5 +26,6 @@ export const BiliVideoDomains = [
     "upos-sz-mirroralibstar1.bilivideo.com",
     "upos-sz-mirrorcosbstar1.bilivideo.com",
     "upos-sz-mirrorhwbstar1.bilivideo.com",
-    "upos-bstar1-mirrorakam.akamaized.net"
+    "upos-bstar1-mirrorakam.akamaized.net",
+    "upos-sz-estgoss.bilivideo.com"
 ]

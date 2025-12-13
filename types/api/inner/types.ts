@@ -1,4 +1,4 @@
-import type { PackageType } from "../enum";
+import type { ItemType, PackageType } from "../enum";
 
 export class VideoResolution {
     width: number;
@@ -120,6 +120,20 @@ export class DetailedData {
         this.name = data.name;
         this.type = data.type;
         this.data = data.data;
+    }
+}
+
+export class DownloadMetaData {
+    name: string;
+    type: ItemType;
+    url: string;
+    filename: string;
+
+    constructor(data: { name: string; type: ItemType; url: string; filename: string }) {
+        this.name = data.name;
+        this.type = data.type;
+        this.url = data.url;
+        this.filename = data.filename;
     }
 }
 

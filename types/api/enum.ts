@@ -26,3 +26,32 @@ export enum PackageType {
     Theme = 3,
     Other = 4
 }
+
+export enum ItemType {
+    // group bits: 0x100 = Card, 0x200 = Sticker, 0x300 = Other
+    StaticCard = 0x100 | 1,
+    AnimatedCard = 0x100 | 2,
+
+    WebpSticker = 0x200 | 1,
+    GifSticker = 0x200 | 2,
+    StaticSticker = 0x200 | 3,
+
+    Other = 0x300 | 1
+}
+
+export namespace ItemType {
+    export const GROUP_MASK = 0xF00;
+    export function isCard(t: ItemType) { return (t & GROUP_MASK) === 0x100; }
+    export function isSticker(t: ItemType) { return (t & GROUP_MASK) === 0x200; }
+    export function toString(t: ItemType): string {
+        switch (t) {
+            case ItemType.StaticCard: return "Static Card";
+            case ItemType.AnimatedCard: return "Animated Card";
+            case ItemType.WebpSticker: return "WebP Sticker";
+            case ItemType.GifSticker: return "GIF Sticker";
+            case ItemType.StaticSticker: return "Static Sticker";
+            case ItemType.Other: return "Other";
+            default: return "Unknown";
+        }
+    }
+}

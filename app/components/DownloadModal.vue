@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import JSZip from 'jszip';
 import { ref, watch } from 'vue';
-import { Downloader, DownloadTask } from '~/utils/downloader/manager';
+import { Downloader } from '~/utils/downloader/manager';
 import type { DownloadItem } from '~/utils/downloader/types';
+import { ItemType } from '~~/types/api/enum';
+import type { DownloadMetaData } from '~~/types/api/inner/types';
 
 const ParallelDownloads = ref(4);
 const SingleDownloadThread = ref(4);
 
 const props = defineProps<{
     open: boolean;
-    targetFiles: Array<{ url: string; filename: string }>
+    fileMetadatas: DownloadMetaData[]
 }>();
 
 const emit = defineEmits<{ close: [boolean] }>()
@@ -21,6 +24,23 @@ watch(() => props.open, (v) => {
 });
 
 var downloader = ref<Downloader | null>(null);
+
+const downloadProgress = ref<Map<string, number>>(new Map());
+const downloadData = ref<Map<string, Blob>>(new Map());
+function save() {
+    const zip = new JSZip()
+    downloadData.value.forEach((data, filename) => {
+        zip.file(filename, data);
+    });
+    zip.generateAsync({ type: 'blob' }).then((content) => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = `${FormatDateWithDefaultOffset(new Date(), '', true)}.zip`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    });
+}
+
 </script>
 
 <template>
@@ -36,15 +56,30 @@ var downloader = ref<Downloader | null>(null);
                 <div class="grid grid-cols-2 gap-x-6 md:gap-y-1 gap-y-4 items-center mb-4 mt-2">
                     <div class="text-left pl-2 text-nowrap">最大并行下载任务数</div>
                     <UInputNumber v-model="ParallelDownloads" :min="1" :max="8" :step="1" />
-
                     <div class="text-left pl-2 text-nowrap">单任务下载线程数</div>
                     <UInputNumber v-model="SingleDownloadThread" :min="1" :max="6" :step="1" />
                 </div>
             </template>
             <template v-else>
-                <div class="mb-2">下载进度</div>
+                <div class="mb-2">
+                    下载进度 总数: {{ fileMetadatas.length }} /
+                    完成: {{[...downloadProgress.values()].filter(v => v === 100).length}} /
+                    失败: {{[...downloadProgress.values()].filter(v => v === -1).length}}
+                </div>
+
                 <USeparator size="md" />
-                <div class="mt-2"></div>
+                <div class="mt-2">
+                    <div v-for="file in fileMetadatas" :key="file.filename" class="mb-4">
+                        <div class="flex items-center mb-1">
+                            <UBadge color="secondary" variant="outline">{{ ItemType.toString(file.type) }}</UBadge>
+                            <div class="mb-1 ml-2">{{ file.name }}</div>
+                        </div>
+                        <UProgress
+                            :model-value="(downloadProgress.get(file.filename) || 0) >= 0 ? (downloadProgress.get(file.filename) || 0) : 100"
+                            :max="100" :label="`${(downloadProgress.get(file.filename) || 0)}%`" size="sm"
+                            :color="(downloadProgress.get(file.filename) || 0) > 0 ? ((downloadProgress.get(file.filename) || 0) === 100 ? 'success' : 'info') : 'error'" />
+                    </div>
+                </div>
             </template>
         </template>
 
@@ -56,8 +91,8 @@ var downloader = ref<Downloader | null>(null);
                 }
             }" />
             <UButton :label="step === 1 ? '下一步' : '保存'" color="neutral" @click="() => {
-                console.log(targetFiles)
                 if (step === 1) {
+                    downloadProgress.clear();
                     if (downloader) {
                         downloader.cancelAllDownloads();
                     }
@@ -68,20 +103,33 @@ var downloader = ref<Downloader | null>(null);
                             chunkSize: 5 * 1024 * 1024, // 5 MB
                         }
                     });
-                    targetFiles.forEach(file => {
+                    fileMetadatas.forEach(file => {
                         if (!downloader) {
                             return
                         }
+                        downloadProgress.set(file.filename, 0);
                         downloader.addDownload({
                             Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
-                            RelativePath: file.filename,
                             OnProgress: (loaded: number, total: number) => {
                                 console.log(`Downloading ${file.filename}: ${loaded / total * 100}%`);
-                            }
+                                downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
+                            },
+                            OnFailed: (error: any) => {
+                                console.error(`Download failed for ${file.filename}:`, error);
+                                downloadProgress.set(file.filename, -1);
+                            },
+                            OnSuccess: (data: Blob) => {
+                                console.log(`Download succeeded for ${file.filename}`);
+                                downloadProgress.set(file.filename, 100);
+                                // 保存数据
+                                downloadData.set(file.filename, data);
+                            },
                         } as DownloadItem);
                     });
                     step = 2;
+                    downloader.startDownloads();
                 } else {
+                    save();
                     emit('close', true);
                 }
             }" />

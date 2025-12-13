@@ -2,6 +2,7 @@ import type { ApiResponse } from "~~/types/api/root";
 import type { LotteryListItem } from "~~/types/api/bili/types";
 import { CardInfo, type DetailedData, type EmojiPackageInfo, type RedeemInfo, OtherInfo, EmojiInfo } from "~~/types/api/inner/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
+import { tr } from "@nuxt/ui/runtime/locale/index.js";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
@@ -13,7 +14,12 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     if (data.code !== 0 || !data.data) {
         return Promise.reject(new PromiseRejected(Errors.API, data.message, data.code))
     }
-    const promises = data.data.map(async item => GetLotteryDetails(item.lottery_id, actId, item.lottery_name))
+    let flag = true;
+    const promises = data.data.map(async item => {
+        const res = GetLotteryDetails(item.lottery_id, actId, item.lottery_name, flag)
+        flag = false;
+        return res;
+    })
 
     const merged = await Promise.allSettled(promises)
 
@@ -82,8 +88,9 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
     if (otherRedeems.data.length !== 0) {
         returnValue.push(otherRedeems)
     }
-    if (!allowShared) {
-        ///const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems)
+    if (allowShared) {
+        const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems)
+        returnValue.push(...sharedRedeems)
     }
     return returnValue
 }

@@ -41,5 +41,8 @@ export default defineEventHandler(async (event) => {
   if (w2_resp.status === 200) {
     datas['100-300'] = await w2_resp.text()
   }
+  setResponseHeader(event, "X-Github-Raw-Endpoint", GithubRawEndpoint);
+  setResponseHeader(event, "X-ETag-100-300", Etags['100-300']);
+  setResponseHeader(event, "X-ETag-100000+", Etags['100000+']);
   return new ApiResponse<CollectionCSVData>(0, undefined, datas)
 })

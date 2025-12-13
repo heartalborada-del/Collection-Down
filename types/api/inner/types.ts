@@ -138,3 +138,8 @@ export class DownloadMetaData {
 }
 
 export type PackageDataType = CardInfo | EmojiInfo | OtherInfo;
+
+export type CollectionCSVData = {
+    '100-300': string;
+    '100000+': string;
+};

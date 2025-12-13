@@ -111,7 +111,6 @@ function save() {
                         downloader.addDownload({
                             Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
                             OnProgress: (loaded: number, total: number) => {
-                                console.log(`Downloading ${file.filename}: ${loaded / total * 100}%`);
                                 downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
                             },
                             OnFailed: (error: any) => {
@@ -119,7 +118,6 @@ function save() {
                                 downloadProgress.set(file.filename, -1);
                             },
                             OnSuccess: (data: Blob) => {
-                                console.log(`Download succeeded for ${file.filename}`);
                                 downloadProgress.set(file.filename, 100);
                                 // 保存数据
                                 downloadData.set(file.filename, data);

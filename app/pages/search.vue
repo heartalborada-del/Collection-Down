@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import QrcodeDecoder from "qrcode-decoder";
 import { GetForwardedLink, ParsedType, ParseIdFromLink } from "~/utils/Preprocess";
-import type { SuitSearchInfo } from "~~/types/api/inner/types";
+import type { CollectionCSVData, SuitSearchInfo } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 import { Mutex } from "mutex-ts";
 import type { SelectItem, TabsItem } from "@nuxt/ui";
+import Papa from 'papaparse';
 
 const router = useRouter();
 const toast = useToast()
@@ -22,7 +23,7 @@ const tabItems = ref<TabsItem[]>([
   },
   {
     label: '查找无法搜索到的收藏集',
-    icon: 'i-mdi-help-circle',
+    icon: 'i-mdi-alpha-a-box',
     slot: 'idsearch'
   }
 ])
@@ -188,6 +189,49 @@ function updateResult(type: ParsedType, id: string) {
     color: 'success',
   })
 }
+
+const CSVLock = new Mutex()
+const loadedCollectionIDs = ref<Array<{ id: string, name: string }>>([])
+const CSVSelectedID = ref<string>("")
+async function loadCSV() {
+  using _ = await CSVLock.lock();
+  fetch('/api/latestCollectionsMap')
+    .then(resp => resp.json())
+    .then(data => {
+      const result = data as ApiResponse<CollectionCSVData>
+      if (result.code !== 0 || !result.data) {
+        toast.add({
+          title: '加载失败',
+          description: `错误信息: ${result.message}`,
+          icon: 'i-mdi-exclamation-thick',
+          color: 'error'
+        })
+        return
+      }
+      const parsedCSV1wPlus = Papa.parse<{ id: string; name: string }>(result.data['100000+'], {
+        header: true,
+        skipEmptyLines: true,
+      }).data as { id: string; name: string }[];
+      const parsedCSV100to300 = Papa.parse<{ id: string; name: string }>(result.data['100-300'], {
+        header: true,
+        skipEmptyLines: true,
+      }).data as { id: string; name: string }[];
+      loadedCollectionIDs.value = [...parsedCSV1wPlus, ...parsedCSV100to300]
+      toast.add({
+        title: '加载成功, 共 ' + loadedCollectionIDs.value.length + ' 条数据',
+        description: '请从下拉菜单中选择收藏集',
+        icon: 'i-mdi-check-bold',
+        color: 'success',
+      })
+    }).catch(() => {
+      toast.add({
+        title: '加载失败',
+        description: '请稍后重试',
+        icon: 'i-mdi-exclamation-thick',
+        color: 'error'
+      })
+    })
+}
 </script>
 
 <template>
@@ -248,6 +292,30 @@ function updateResult(type: ParsedType, id: string) {
                 </UButton>
                 <input ref="QRScan" type="file" accept="image/*" class="absolute w-0 h-0 overflow-hidden"
                   @change="parseQRCode">
+              </div>
+            </Transition>
+          </template>
+          <template #idsearch>
+            <Transition name="opacity" mode="out-in" appear>
+              <div key="idsearch" class="flex flex-col items-center mt-1">
+                <p class="mb-4 text-center">如果你无法通过关键词搜索到你想要的收藏集, 可以尝试直接输入其名称</p>
+                <div class="mb-4 flex items-center-safe w-full justify-center-safe">
+                  <UButton class="mr-2" @click="loadCSV()">加载CSV数据</UButton>
+                  <USelectMenu icon="i-mdi-alpha-a-box" class="w-1/2" placeholder="请输入收藏集名称" value-key="id"
+                    label-key="name" :items="loadedCollectionIDs" virtualize v-model="CSVSelectedID"
+                    @change.stop="updateResult(ParsedType.DLC, CSVSelectedID)">
+                    <template #item-label="{ item }">
+                      {{ item.name }}
+
+                      <span class="text-muted">
+                        {{ item.id }}
+                      </span>
+                    </template>
+                  </USelectMenu>
+                </div>
+                <p>鸣谢: <a style="text-decoration: underline;"
+                    href="https://github.com/CloudyEagle/bilibili-collections-archive" target="_blank"
+                    rel="noopener noreferrer">CloudyEagle</a></p>
               </div>
             </Transition>
           </template>

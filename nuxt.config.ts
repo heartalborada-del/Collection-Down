@@ -7,6 +7,11 @@ export default defineNuxtConfig({
     ui: {
         fonts: false,
     },
+    runtimeConfig: {
+        public: {
+            GithubRawEndpoint: process.env.GITHUB_RAW_ENDPOINT || 'https://raw.githubusercontent.com',
+        }
+    },
     devServer: {
         host: '127.0.0.1',
         port: 3000,

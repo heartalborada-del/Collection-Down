@@ -33,7 +33,8 @@ export default defineEventHandler(async (event) => {
         }).catch((e) => {
             throw e
         });
-    } catch (e) {
-        return new ApiResponse<null>(-1, `An error occurred while fetching data: ${(e as Error).message}.`);
+    } catch {
+        setResponseStatus(event, 500);
+        return new ApiResponse<null>(-1, `An error occurred while fetching data.`);
     }
 })

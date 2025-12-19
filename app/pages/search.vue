@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import QrcodeDecoder from "qrcode-decoder";
 import { GetForwardedLink, ParsedType, ParseIdFromLink } from "~/utils/Preprocess";
-import type { CollectionCSVData, SuitSearchInfo } from "~~/types/api/inner/types";
+import type { CollectionCSVData, SearchInfo } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 import { Mutex } from "mutex-ts";
 import type { SelectItem, TabsItem } from "@nuxt/ui";
@@ -45,7 +45,7 @@ const QRScan = ref<HTMLInputElement | null>(null)
 const ParsedResult: Ref<{ type: ParsedType; id: string }> = ref({ type: ParsedType.NONE, id: '' })
 
 const searchPage = ref(1)
-const searchItems = ref<SuitSearchInfo[]>([])
+const searchItems = ref<SearchInfo[]>([])
 
 const searchLock = new Mutex()
 
@@ -124,7 +124,7 @@ async function searchForKeyword(keyword: string, page: number) {
       }
       return resp.json()
     })
-    .then(data => data as ApiResponse<SuitSearchInfo[]>)
+    .then(data => data as ApiResponse<SearchInfo[]>)
     .then(result => {
       if (result.code !== 0 || !result.data) {
         toast.add({
@@ -191,7 +191,7 @@ function updateResult(type: ParsedType, id: string) {
 }
 
 const CSVLock = new Mutex()
-const loadedCollectionIDs = ref<Array<{ id: string, name: string }>>([])
+const loadedCollectionIDs = ref<Array<{ act_id: string, act_title: string }>>([])
 const CSVSelectedID = ref<string>("")
 async function loadCSV() {
   using _ = await CSVLock.lock();
@@ -208,14 +208,14 @@ async function loadCSV() {
         })
         return
       }
-      const parsedCSV1wPlus = Papa.parse<{ id: string; name: string }>(result.data['100000+'], {
+      const parsedCSV1wPlus = Papa.parse<{ act_id: string; act_title: string }>(result.data['100000+'], {
         header: true,
         skipEmptyLines: true,
-      }).data as { id: string; name: string }[];
-      const parsedCSV100to300 = Papa.parse<{ id: string; name: string }>(result.data['100-300'], {
+      }).data as { act_id: string; act_title: string }[];
+      const parsedCSV100to300 = Papa.parse<{ act_id: string; act_title: string }>(result.data['100-300'], {
         header: true,
         skipEmptyLines: true,
-      }).data as { id: string; name: string }[];
+      }).data as { act_id: string; act_title: string }[];
       loadedCollectionIDs.value = [...parsedCSV1wPlus, ...parsedCSV100to300]
       toast.add({
         title: '加载成功, 共 ' + loadedCollectionIDs.value.length + ' 条数据',
@@ -301,14 +301,14 @@ async function loadCSV() {
                 <p class="mb-4 text-center">如果你无法通过关键词搜索到你想要的收藏集, 可以尝试直接输入其名称</p>
                 <div class="mb-4 flex items-center-safe w-full justify-center-safe">
                   <UButton class="mr-2" @click="loadCSV()">加载CSV数据</UButton>
-                  <USelectMenu icon="i-mdi-alpha-a-box" class="w-1/2" placeholder="请输入收藏集名称" value-key="id"
-                    label-key="name" :items="loadedCollectionIDs" virtualize v-model="CSVSelectedID"
+                  <USelectMenu icon="i-mdi-alpha-a-box" class="w-1/2" placeholder="请输入收藏集名称" value-key="act_id"
+                    label-key="act_title" :items="loadedCollectionIDs" virtualize v-model="CSVSelectedID"
                     @change.stop="updateResult(ParsedType.DLC, CSVSelectedID)">
                     <template #item-label="{ item }">
-                      {{ item.name }}
+                      {{ item.act_title }}
 
                       <span class="text-muted">
-                        {{ item.id }}
+                        {{ item.act_id }}
                       </span>
                     </template>
                   </USelectMenu>

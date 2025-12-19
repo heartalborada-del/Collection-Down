@@ -1,75 +1,27 @@
-# Nuxt Minimal Starter
+# [Collection Down](https://cd.griseo.top/)
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+![Vercel Deploy](https://deploy-badge.vercel.app/vercel/collection-down)
+![Netlify Deploy](http://img.shields.io/netlify/e6d5a4e0-dee1-4261-833e-2f47f509c68f?logo=netlify)
 
-## Setup
+又一个Bilibili收藏集下载工具，支持下载视频，图片，表情包等
 
-Make sure to install dependencies:
+此项目旨在给予B站用户更好的站装扮以及收藏集下载体验
+
+基于Vue3+Nuxt.js开发
+
+## Thanks To
+- [bilibili-collections-archive](https://github.com/CloudyEagle/bilibili-collections-archive)
+- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)
+
+## Development
 
 ```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
+# Clone & Install dependencies
 yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
+# Start the development server on `http://localhost:3000`
 yarn dev
-
-# bun
-bun run dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
+# Build the application for production
 yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
+# Locally preview production build
 yarn preview
-
-# bun
-bun run preview
 ```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.

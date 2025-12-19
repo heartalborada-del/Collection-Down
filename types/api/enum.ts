@@ -13,10 +13,10 @@ export enum PartIdType {
     PROGRESS_BAR = 11,
     LOADING = 10,
     THUMB_UP = 3,
-    COLLECTION_THEME = 9,
+    COLLECTION_THEME_PART = 9,
     //SEARCH
     COLLECTION = 0,
-    IP_THEME = 6
+    THEME = 6
 }
 
 export enum PackageType {

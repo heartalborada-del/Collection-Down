@@ -45,3 +45,45 @@ export interface BiliSuitMallSearchItem {
         image_cover: string,
     }
 }
+
+export interface SkinProperties {
+    color: string;
+    head_bg: string;
+    head_myself_bg: string;
+    head_myself_squared_bg: string;
+    head_tab_bg: string;
+    image_cover: string;
+    image_preview: string;
+    package_url: string;
+    side_bg: string;
+    side_bg_bottom: string;
+    tail_bg: string;
+    tail_icon_channel: string;
+    tail_icon_dynamic: string;
+    tail_icon_main: string;
+    tail_icon_myself: string;
+    tail_icon_selected_channel: string;
+    tail_icon_selected_dynamic: string
+    tail_icon_selected_main: string;
+    tail_icon_selected_myself: string
+    tail_icon_selected_shop: string;
+    tail_icon_shop: string;
+}
+
+export interface LoadingProperties {
+    loading_frame_url: string;
+    loading_url: string;
+}
+
+export interface ThumbupProperties {
+    image_ani: string;
+    image_preview: string;
+}
+
+export interface ProgressbarProperties {
+    drag_icon: string
+    icon: string
+    drag_left_png: string
+    drag_right_png: string
+    middle_png: string
+}

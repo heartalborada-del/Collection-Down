@@ -1,8 +1,8 @@
-import {ApiResponse} from "~~/types/api/root";
-import type {BiliSuitMallSearchItem} from "~~/types/api/bili/types";
-import {FetchHeaders} from "~~/types/global";
-import {PartIdType} from "~~/types/api/enum";
-import type {SuitSearchInfo} from "~~/types/api/inner/types";
+import { ApiResponse } from "~~/types/api/root";
+import type { BiliSuitMallSearchItem } from "~~/types/api/bili/types";
+import { FetchHeaders } from "~~/types/global";
+import { PartIdType } from "~~/types/api/enum";
+import type { SearchInfo } from "~~/types/api/inner/types";
 
 export default defineEventHandler(async (event) => {
     try {
@@ -11,30 +11,31 @@ export default defineEventHandler(async (event) => {
         if (!keyWord) {
             return new ApiResponse<null>(-1, 'Invalid key_word parameter');
         }
-        const raw = await fetch(`https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`,{headers:FetchHeaders}).then((resp) => {
+        const raw = await fetch(`https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`, { headers: FetchHeaders }).then((resp) => {
             if (resp.status !== 200) {
                 return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
             }
             return resp.json()
-         }) as ApiResponse<{ list: BiliSuitMallSearchItem[] }>
+        }) as ApiResponse<{ list: BiliSuitMallSearchItem[] }>
         if (raw.code !== 0)
             return new ApiResponse<null>(raw.code, `Bilibili api error, msg: ${raw.message}`);
         if (!raw.data)
             return new ApiResponse<null>(-1, `Failed to fetch data`);
-        const list: SuitSearchInfo[] = [];
+        const list: SearchInfo[] = [];
         for (const item of raw.data.list) {
             if (!(item.properties.type === "ip" || item.properties.type === "dlc_act"))
                 continue;
             list.push({
                 name: item.name,
-                id: item.item_id !== 0 ? item.item_id : parseInt(item.properties.dlc_act_id ? item.properties.dlc_act_id : "0",10),
-                type: item.properties.type === "ip" ? PartIdType.IP_THEME : PartIdType.COLLECTION,
+                id: item.item_id !== 0 ? item.item_id : parseInt(item.properties.dlc_act_id ? item.properties.dlc_act_id : "0", 10),
+                type: item.properties.type === "ip" ? PartIdType.THEME : PartIdType.COLLECTION,
                 sub_ids: item.properties.fan_item_ids ? item.properties.fan_item_ids.split(',').map(id => parseInt(id)) : [parseInt(item.properties.dlc_lottery_id ? item.properties.dlc_lottery_id : "0")],
                 cover: item.properties.image_cover,
             });
         }
-        return new ApiResponse<SuitSearchInfo[]>(0,undefined,list);
+        return new ApiResponse<SearchInfo[]>(0, undefined, list);
     } catch {
+        setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, 'An error occurred while fetching data');
     }
 })

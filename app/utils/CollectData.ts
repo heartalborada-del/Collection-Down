@@ -146,6 +146,14 @@ async function ParseRedeemOnlyShared(redeems: RedeemInfo[]): Promise<DetailedDat
     return ParseRedeemInfo(redeems, -1, true)
 }
 
+export function GetSuitMigratedData(partIds: number[]) {
+
+}
+
+export function GetSuitDetails(partId: number) {
+    //TODO implement suit details fetching
+}
+
 export enum Errors {
     NETWORK = "Network Error",
     API = "API Error",
@@ -157,3 +165,4 @@ export class PromiseRejected {
     constructor(public error: Errors, public message?: string, public code?: number) {
     }
 }
+

@@ -54,39 +54,61 @@ export class DownloadTask {
                 throw new DownloadError(DownloaderErrorEnum.NetworkError);
             }
             const data = new Uint8Array(await response.arrayBuffer());
-            this.item.OnProgress?.(data.length, data.length);
+            // 保存到任务状态，确保 OnProgress 与内部状态一致
+            this.bytebuffer = data;
+            this.fileSize = data.length;
+            this.downloaded = data.length;
+            this.item.OnProgress?.(this.downloaded, this.fileSize);
             return data;
         }
         const maxThreads = options.maxThreads;
         let currentThreadCount = 0, index = 0;
         this.bytebuffer = new Uint8Array(fileSize);
 
-        const afterChuckComplete = async (start: number, end: number) => {
+        const afterChuckComplete = async (_start: number, _end: number) => {
             // 不再在这里累计 downloaded（stream 已经在 downloadChunk 中实时更新）
             // 仅负责调度下一个 chunk
             if (this.downloaded < this.fileSize) {
-                const RO = await this.mutex.obtainRW();
-                const nextStart = index * options.chunkSize;
-                if (nextStart >= this.fileSize) {
-                    RO();
-                    return;
+                const RW = await this.mutex.obtainRW();
+                let nextStart = 0, nextEnd = 0;
+                let hasNext = false;
+                try {
+                    nextStart = index * options.chunkSize;
+                    if (nextStart >= this.fileSize) {
+                    } else {
+                        nextEnd = Math.min(nextStart + options.chunkSize - 1, this.fileSize - 1);
+                        index += 1;
+                        hasNext = true;
+                    }
+                } finally {
+                    RW();
                 }
-                const nextEnd = Math.min(nextStart + options.chunkSize - 1, this.fileSize - 1);
-                index += 1;
-                RO();
-                this.downloadChunk(this.item.Url, nextStart, nextEnd).then(() => {
-                    afterChuckComplete(nextStart, nextEnd);
-                });
+                if (hasNext) {
+                    this.downloadChunk(this.item.Url, nextStart, nextEnd).then(() => {
+                        afterChuckComplete(nextStart, nextEnd);
+                    });
+                }
             }
         }
 
         while (currentThreadCount < maxThreads) {
-            const start = index * options.chunkSize, end = Math.min(start + options.chunkSize - 1, fileSize - 1);
-            if (start >= fileSize) break;
-            const RO = await this.mutex.obtainRO()
-            currentThreadCount += 1;
-            index += 1;
-            RO();
+            // 在持锁期间计算并捕获 start/end，避免在释放锁后被其他线程修改导致重复或重叠分片
+            const RW = await this.mutex.obtainRW();
+            let start = 0, end = 0;
+            let shouldBreak = false;
+            try {
+                start = index * options.chunkSize;
+                if (start >= fileSize) {
+                    shouldBreak = true;
+                } else {
+                    end = Math.min(start + options.chunkSize - 1, fileSize - 1);
+                    index += 1;
+                    currentThreadCount += 1;
+                }
+            } finally {
+                RW();
+            }
+            if (shouldBreak) break;
             await this.downloadChunk(this.item.Url, start, end).then(() => {
                 afterChuckComplete(start, end);
             })

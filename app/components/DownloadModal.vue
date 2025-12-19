@@ -112,6 +112,10 @@ function save() {
                             Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
                             OnProgress: (loaded: number, total: number) => {
                                 downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
+                                if (loaded / total > 1) {
+                                    console.log(file.url)
+                                    console.log(`Downloading ${file.filename}: ${loaded}/${total} ${loaded / total * 100}%`);
+                                }
                             },
                             OnFailed: (error: any) => {
                                 console.error(`Download failed for ${file.filename}:`, error);

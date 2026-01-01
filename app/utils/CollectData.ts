@@ -1,8 +1,9 @@
 import type { ApiResponse } from "~~/types/api/root";
 import type { LotteryListItem } from "~~/types/api/bili/types";
-import { CardInfo, type DetailedData, type EmojiPackageInfo, type RedeemInfo, OtherInfo, EmojiInfo } from "~~/types/api/inner/types";
+import { CardInfo, type DetailedData, type EmojiPackageInfo, type RedeemInfo, OtherInfo, EmojiInfo, type SuitComponentResult, type PackageDataType, LoadingInfo } from "~~/types/api/inner/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
 import { tr } from "@nuxt/ui/runtime/locale/index.js";
+import { keys } from "object-hash";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
@@ -134,7 +135,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 break
             }
             case RedeemType.SUIT_PART: {
-                //TODO implement suit part parsing
+                const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
                 break
             }
         }
@@ -150,8 +151,84 @@ export function GetSuitMigratedData(partIds: number[]) {
 
 }
 
-export function GetSuitDetails(partId: number) {
-    //TODO implement suit details fetching
+export async function GetSuitDetails(partId: number) {
+    const returnValue: DetailedData[] = [];
+    const resp = await fetch(`/api/bili/suit/suitComponents?ids=${partId}`)
+    if (!resp.ok) {
+        return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${resp.status}`, resp.status));
+    }
+    const data = (await resp.json()) as ApiResponse<SuitComponentResult[]>;
+    if (data.code !== 0 || !data.data) {
+        return Promise.reject(new PromiseRejected(Errors.API, data.message, data.code));
+    }
+    const themePackage: {
+        [key: string]: PackageDataType[];
+    } = {};
+    data.data?.forEach(arr => {
+        arr.emojis?.forEach(element => {
+            returnValue.push({
+                id: element.item_id,
+                name: element.name,
+                type: PackageType.Sticker,
+                data: element.emojis.map(emoji => {
+                    return new EmojiInfo(emoji);
+                })
+            });
+        });
+        arr.skins?.forEach(element => {
+            let OtherInfoArray: OtherInfo[] = [];
+            (Object.keys(element.elements) as Array<keyof typeof element.elements>).forEach(key => {
+                if (key === 'package_url') return;
+                const val = element.elements[key];
+                if (typeof val === 'string') {
+                    OtherInfoArray.push(new OtherInfo({
+                        name: String(key),
+                        img: val,
+                    }));
+                }
+            });
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            themePackage[element.name]?.push(...OtherInfoArray);
+        });
+        arr.thumbUps?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            themePackage[element.name]?.push(new LoadingInfo({
+                name: "loading",
+                preview: element.preview,
+                url: element.ani,
+            }));
+        })
+        arr.spaceBackgrounds?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            let i = 1;
+            element.urls.forEach((url) => {
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "background_landscape_" + i++,
+                    img: url.landscape,
+                }));
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "background_portrait_" + i++,
+                    img: url.portrait,
+                }));
+            });
+        });
+    })
+    for (const key in themePackage) {
+        if (themePackage[key] === undefined) continue;
+        returnValue.push({
+            id: partId,
+            name: key,
+            type: PackageType.Theme,
+            data: themePackage[key],
+        });
+    }
+    return returnValue;
 }
 
 export enum Errors {

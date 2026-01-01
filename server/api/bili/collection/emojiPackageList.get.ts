@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
         const emojiList: EmojiInfo[] = [];
         for (const emoji of data.data.suit_items.emoji) {
             emojiList.push({
-                itemId: emoji.itemId,
+                item_id: emoji.itemId,
                 name: emoji.name,
                 images: {
                     static: emoji.properties.image,

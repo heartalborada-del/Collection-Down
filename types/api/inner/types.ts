@@ -55,7 +55,7 @@ export class RedeemInfo {
 }
 
 export class EmojiInfo {
-    itemId: number;
+    item_id: number;
     name: string;
     images: {
         "static": string;
@@ -63,8 +63,8 @@ export class EmojiInfo {
         webp?: string;
     };
 
-    constructor(data: { itemId: number; name: string; images: { "static": string; gif?: string; webp?: string } }) {
-        this.itemId = data.itemId;
+    constructor(data: { item_id: number; name: string; images: { "static": string; gif?: string; webp?: string } }) {
+        this.item_id = data.item_id;
         this.name = data.name;
         this.images = data.images;
     }
@@ -75,7 +75,7 @@ export class EmojiPackageInfo {
     item_id: number;
     emojis: EmojiInfo[];
 
-    constructor(data: { name: string; item_id: number; emojis: EmojiInfo[] | Array<{ itemId: number; name: string; images: { "static": string; gif?: string; webp?: string } }> }) {
+    constructor(data: { name: string; item_id: number; emojis: EmojiInfo[] | Array<{ item_id: number; name: string; images: { "static": string; gif?: string; webp?: string } }> }) {
         this.name = data.name;
         this.item_id = data.item_id;
         this.emojis = data.emojis.map(e => e instanceof EmojiInfo ? e : new EmojiInfo(e));
@@ -101,12 +101,24 @@ export class SearchInfo {
 export class OtherInfo {
     name: string;
     img: string;
-    id: number;
+    id?: number;
 
-    constructor(data: { name: string; img: string; id: number }) {
+    constructor(data: { name: string; img: string; id?: number }) {
         this.name = data.name;
         this.img = data.img;
         this.id = data.id;
+    }
+}
+
+export class LoadingInfo {
+    name: string;
+    preview: string;
+    url: string;
+
+    constructor(data: { name: string; preview: string; url: string }) {
+        this.name = data.name;
+        this.preview = data.preview;
+        this.url = data.url;
     }
 }
 
@@ -138,26 +150,21 @@ export class DownloadMetaData {
     }
 }
 
-export type PackageDataType = CardInfo | EmojiInfo | OtherInfo;
+export type PackageDataType = CardInfo | EmojiInfo | OtherInfo | LoadingInfo;
 
 export type CollectionCSVData = {
     '100-300': string;
     '100000+': string;
 };
 
-export type SuitComponentResults = {
-    emojis: EmojiPackageInfo[];
-    loadings: SuitLoadingInfo[];
-    avatarFrames: { name: string, id: number, url: string }[];
-    playIcons: PlayiconInfo[];
-    skins: SkinInfo[];
-    spaceBackgrounds: {
-        name: string, id: number, urls: {
-            portrait: string[];
-            landscape: string[];
-        }
-    }[];
-    thumbups: { name: string, id: number, ani: string, preview: string }[];
+export type SuitComponentResult = {
+    target: number;
+    emojis?: EmojiPackageInfo[];
+    loadings?: SuitLoadingInfo[];
+    playIcons?: PlayiconInfo[];
+    skins?: SkinInfo[];
+    spaceBackgrounds?: SkinBackgroundInfo[];
+    thumbUps?: { name: string, id: number, ani: string, preview: string }[];
 };
 
 export class SuitLoadingInfo {
@@ -165,12 +172,14 @@ export class SuitLoadingInfo {
     id: number;
     frame: string;
     animation: string;
+    preview: string;
 
-    constructor(data: { name: string; id: number; frame: string; animation: string }) {
+    constructor(data: { name: string; id: number; frame: string; animation: string; preview: string }) {
         this.name = data.name;
         this.id = data.id;
         this.frame = data.frame;
         this.animation = data.animation;
+        this.preview = data.preview;
     }
 }
 
@@ -187,6 +196,7 @@ export class PlayiconInfo {
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace PlayiconInfo {
     export class LottieIcon {
         drag: string
@@ -220,6 +230,7 @@ export class SkinInfo {
 
 }
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace SkinInfo {
     export class SkinElement {
         head_bg: string;
@@ -285,5 +296,19 @@ export namespace SkinInfo {
             this.tail_icon_selected_shop = data.tail_icon_selected_shop;
             this.tail_icon_shop = data.tail_icon_shop;
         }
+    }
+}
+
+export class SkinBackgroundInfo {
+    name: string;
+    id: number
+    urls: {
+        portrait: string;
+        landscape: string;
+    }[]
+    constructor(data: { name: string; id: number; urls: { portrait: string; landscape: string }[] }) {
+        this.name = data.name;
+        this.id = data.id;
+        this.urls = data.urls;
     }
 }

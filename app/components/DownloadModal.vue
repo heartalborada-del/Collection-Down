@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Parser } from '@heartalborada-del/svga';
 import JSZip from 'jszip';
 import { ref, watch } from 'vue';
 import { Downloader } from '~/utils/downloader/manager';
@@ -27,6 +28,21 @@ var downloader = ref<Downloader | null>(null);
 
 const downloadProgress = ref<Map<string, number>>(new Map());
 const downloadData = ref<Map<string, Blob>>(new Map());
+const downloadUrls = ref<Map<string, string>>(new Map());
+const objectUrls = ref<string[]>([]);
+
+// Track generated object URLs so we can revoke them later.
+function blobToUrl(blob: Blob): string {
+    const url = URL.createObjectURL(blob);
+    objectUrls.value.push(url);
+    return url;
+}
+
+function clearObjectUrls() {
+    objectUrls.value.forEach(url => URL.revokeObjectURL(url));
+    objectUrls.value = [];
+}
+
 function save() {
     const zip = new JSZip()
     downloadData.value.forEach((data, filename) => {
@@ -89,10 +105,16 @@ function save() {
                 if (step === 2 && downloader) {
                     downloader.cancelAllDownloads();
                 }
+                clearObjectUrls();
+                downloadData.clear();
+                downloadUrls.clear();
             }" />
             <UButton :label="step === 1 ? '下一步' : '保存'" color="neutral" @click="() => {
                 if (step === 1) {
                     downloadProgress.clear();
+                    clearObjectUrls();
+                    downloadData.clear();
+                    downloadUrls.clear();
                     if (downloader) {
                         downloader.cancelAllDownloads();
                     }
@@ -103,30 +125,38 @@ function save() {
                             chunkSize: 5 * 1024 * 1024, // 5 MB
                         }
                     });
-                    fileMetadatas.forEach(file => {
+                    fileMetadatas.forEach(async file => {
                         if (!downloader) {
                             return
                         }
                         downloadProgress.set(file.filename, 0);
-                        downloader.addDownload({
-                            Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
-                            OnProgress: (loaded: number, total: number) => {
-                                downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
-                                if (loaded / total > 1) {
-                                    console.log(file.url)
-                                    console.log(`Downloading ${file.filename}: ${loaded}/${total} ${loaded / total * 100}%`);
-                                }
-                            },
-                            OnFailed: (error: any) => {
-                                console.error(`Download failed for ${file.filename}:`, error);
-                                downloadProgress.set(file.filename, -1);
-                            },
-                            OnSuccess: (data: Blob) => {
-                                downloadProgress.set(file.filename, 100);
-                                // 保存数据
-                                downloadData.set(file.filename, data);
-                            },
-                        } as DownloadItem);
+                        // 保存数据
+                        if (file.type === ItemType.SVGA) {
+                            // SVGA 文件特殊处理
+                            const parser = new Parser();
+                            downloadProgress.set(file.filename, 5);
+                            let video = await parser.load(file.url);
+                            downloadProgress.set(file.filename, 20);
+                            const apng = await new SVGAConverter(video).convertToAPNG()
+                            clearObjectUrls();
+                            downloadData.set(file.filename, apng);
+                            downloadProgress.set(file.filename, 100);
+                        } else {
+                            downloader.addDownload({
+                                Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
+                                OnProgress: (loaded: number, total: number) => {
+                                    downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
+                                },
+                                OnFailed: (error: any) => {
+                                    console.error(`Download failed for ${file.filename}:`, error);
+                                    downloadProgress.set(file.filename, -1);
+                                },
+                                OnSuccess: async (data: Blob) => {
+                                    downloadProgress.set(file.filename, 100);
+                                    downloadData.set(file.filename, data);
+                                },
+                            } as DownloadItem);
+                        }
                     });
                     step = 2;
                     downloader.startDownloads();

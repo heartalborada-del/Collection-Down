@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CardInfo, EmojiInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, LoadingInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
 
 const props = defineProps<{
   url: PackageDataType;
@@ -16,7 +16,12 @@ const showUrl = computed((): string => {
   } else if (props.url instanceof OtherInfo) {
     return props.url.img;
   } else if (props.url instanceof EmojiInfo) {
+    if (props.url.images.webp) {
+      return props.url.images.webp;
+    }
     return props.url.images.static;
+  } else if (props.url instanceof LoadingInfo) {
+    return props.url.preview;
   } else {
     return '';
   }

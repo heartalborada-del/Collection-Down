@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ParsedType } from "~/utils/Preprocess";
 import { Mutex } from "mutex-ts";
-import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, LoadingInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
 import { ItemType, PackageType } from "~~/types/api/enum";
 import type { TreeItem } from "@nuxt/ui";
 import type { TreeItemSelectEvent } from 'reka-ui'
@@ -70,45 +70,90 @@ watch(ParsedResult, (newVal: { type: ParsedType; id: string }) => {
 }, { deep: true, immediate: true })
 
 async function fetchData() {
-  if (ParsedResult.value.type !== ParsedType.DLC) {
-    return
-  }
+  if (ParsedResult.value.type === ParsedType.DLC) {
+    ItemsArray.value = []
+    currentPackage.value = {
+      id: 0,
+      type: PackageType.Undefined,
+      data: []
+    }
+    selectedSets.value = new Map()
+    using _ = await lock.lock();
+    try {
+      const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
+      for (const collection of collections) {
+        if (collection.type === PackageType.Undefined) {
+          continue
+        }
+        const cp = collection
+        switch (collection.type) {
+          case PackageType.Card:
+            cp.name = `收藏集-${collection.name}`
+            break
+          case PackageType.Theme:
+            cp.name = `主题-${collection.name}`
+            break
+          case PackageType.Sticker:
+            cp.name = `表情包-${collection.name}`
+            break
+          case PackageType.Other:
+            cp.name = `杂项-${collection.name}`
+        }
+        ItemsArray.value.push(cp)
 
-  ItemsArray.value = []
-  currentPackage.value = {
-    id: 0,
-    type: PackageType.Undefined,
-    data: []
-  }
-  selectedSets.value = new Map()
-  using _ = await lock.lock();
-  const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
-  for (const collection of collections) {
-    if (collection.type === PackageType.Undefined) {
-      continue
+      }
+    } catch {
+      toast.add({
+        title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
+        description: `请检查ID是否正确或稍后重试`,
+        icon: 'i-mdi-alert-circle',
+        color: 'error'
+      })
+      return
     }
-    const cp = collection
-    switch (collection.type) {
-      case PackageType.Card:
-        cp.name = `收藏集-${collection.name}`
-        break
-      case PackageType.Theme:
-        cp.name = `主题-${collection.name}`
-        break
-      case PackageType.Sticker:
-        cp.name = `表情包-${collection.name}`
-        break
-      case PackageType.Other:
-        cp.name = `杂项-${collection.name}`
+    toast.add({
+      title: `获取 卡池ID ${ParsedResult.value.id} 成功`,
+      description: `获得 ${ItemsArray.value.length} 个收藏集及其附属数据`,
+      icon: 'i-mdi-check-circle',
+      color: 'success'
+    })
+  } else if (ParsedResult.value.type === ParsedType.THEME) {
+    ItemsArray.value = []
+    currentPackage.value = {
+      id: 0,
+      type: PackageType.Undefined,
+      data: []
     }
-    ItemsArray.value.push(cp)
+    selectedSets.value = new Map()
+    using _ = await lock.lock();
+    const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
+    for (const data of themeData) {
+      if (data.type === PackageType.Undefined) {
+        continue
+      }
+      const cp = data
+      switch (data.type) {
+        case PackageType.Card:
+          cp.name = `收藏集-${data.name}`
+          break
+        case PackageType.Theme:
+          cp.name = `主题-${data.name}`
+          break
+        case PackageType.Sticker:
+          cp.name = `表情包-${data.name}`
+          break
+        case PackageType.Other:
+          cp.name = `杂项-${data.name}`
+      }
+      ItemsArray.value.push(cp)
+    }
+    toast.add({
+      title: `获取 主题ID ${ParsedResult.value.id} 成功`,
+      description: `获得 ${ItemsArray.value.length} 个主题数据`,
+      icon: 'i-mdi-check-circle',
+      color: 'success'
+    })
   }
-  toast.add({
-    title: `获取 卡池ID ${ParsedResult.value.id} 成功`,
-    description: `获得 ${ItemsArray.value.length} 个收藏集及其附属数据`,
-    icon: 'i-mdi-check-circle',
-    color: 'success'
-  })
 }
 
 function queryCardIsSelected(cardName: string, packageName: string): boolean {
@@ -118,6 +163,7 @@ function queryCardIsSelected(cardName: string, packageName: string): boolean {
   }
   return false
 }
+
 function removeCardByName(cardName: string, packageName: string) {
   const cardMap = selectedSets.value.get(packageName)
   if (cardMap?.has(cardName)) {
@@ -130,7 +176,7 @@ function setActiveCard(currentCard: PackageDataType, packageName: string | undef
   if (currentPackage.value.id === 0 || !packageName) {
     return
   }
-  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo) {
+  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo || currentCard instanceof LoadingInfo) {
     if (!selectedSets.value.has(packageName)) {
       selectedSets.value.set(packageName, new Set())
     }
@@ -296,6 +342,14 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           url: target.img!,
           filename: `${path}/${target.name}.${GetFileExtensionFromUrl(target.img!)}`,
           type: ItemType.Other,
+          name: target.name
+        }))
+        continue
+      } else if (target instanceof LoadingInfo) {
+        files.push(new DownloadMetaData({
+          url: target.url!,
+          filename: `${path}/loading/${target.name}.png`,
+          type: ItemType.SVGA,
           name: target.name
         }))
         continue

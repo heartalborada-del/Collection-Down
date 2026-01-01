@@ -73,6 +73,7 @@ export interface SkinProperties {
 export interface LoadingProperties {
     loading_frame_url: string;
     loading_url: string;
+    image_preview_small: string;
 }
 
 export interface ThumbupProperties {

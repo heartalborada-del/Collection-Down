@@ -36,7 +36,8 @@ export enum ItemType {
     GifSticker = 0x200 | 2,
     StaticSticker = 0x200 | 3,
 
-    Other = 0x300 | 1
+    Other = 0x300 | 1,
+    SVGA = 0x300 | 2
 }
 
 export namespace ItemType {
@@ -51,6 +52,7 @@ export namespace ItemType {
             case ItemType.GifSticker: return "GIF Sticker";
             case ItemType.StaticSticker: return "Static Sticker";
             case ItemType.Other: return "Other";
+            case ItemType.SVGA: return "SVGA";
             default: return "Unknown";
         }
     }

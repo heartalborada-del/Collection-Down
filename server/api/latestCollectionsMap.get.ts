@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   if (w1_resp.status === 200) {
     datas['100000+'] = await w1_resp.text()
   }
-  const w2_resp = await fetch(`${GithubRawEndpoint}/CloudyEagle/bilibili-collections-archive/refs/heads/main/collect-act_id-100~300.csv`,
+  const w2_resp = await fetch(`${GithubRawEndpoint}/CaleyGoldue/bilibili-collections-archive/refs/heads/main/collect-act_id-100~300.csv`,
     {
       method: 'GET',
       redirect: 'follow',

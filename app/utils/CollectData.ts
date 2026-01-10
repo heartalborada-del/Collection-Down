@@ -136,6 +136,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
             }
             case RedeemType.SUIT_PART: {
                 const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
+                results.push(...suitDetails)
                 break
             }
         }
@@ -147,8 +148,128 @@ async function ParseRedeemOnlyShared(redeems: RedeemInfo[]): Promise<DetailedDat
     return ParseRedeemInfo(redeems, -1, true)
 }
 
-export function GetSuitMigratedData(partIds: number[]) {
-
+export async function GetSuitMigratedData(partIds: number[]): Promise<DetailedData[]> {
+    const returnValue: DetailedData[] = [];
+    if (partIds.length === 0) {
+        return returnValue;
+    }
+    const idsParam = partIds.map(id => `ids=${id}`).join('&');
+    const resp = await fetch(`/api/bili/suit/suitComponents?${idsParam}`);
+    if (!resp.ok) {
+        return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${resp.status}`, resp.status));
+    }
+    const data = (await resp.json()) as ApiResponse<SuitComponentResult[]>;
+    if (data.code !== 0 || !data.data) {
+        return Promise.reject(new PromiseRejected(Errors.API, data.message, data.code));
+    }
+    const themePackage: {
+        [key: string]: PackageDataType[];
+    } = {};
+    data.data?.forEach(arr => {
+        arr.emojis?.forEach(element => {
+            returnValue.push({
+                id: element.item_id,
+                name: element.name,
+                type: PackageType.Sticker,
+                data: element.emojis.map(emoji => {
+                    return new EmojiInfo(emoji);
+                })
+            });
+        });
+        arr.skins?.forEach(element => {
+            const OtherInfoArray: OtherInfo[] = [];
+            (Object.keys(element.elements) as Array<keyof typeof element.elements>).forEach(key => {
+                if (key === 'package_url') return;
+                const val = element.elements[key];
+                if (typeof val === 'string') {
+                    OtherInfoArray.push(new OtherInfo({
+                        name: String(key),
+                        img: val,
+                    }));
+                }
+            });
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            themePackage[element.name]?.push(...OtherInfoArray);
+        });
+        arr.loadings?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            themePackage[element.name]?.push(new LoadingInfo({
+                name: "loading",
+                preview: element.preview,
+                url: element.animation,
+            }));
+        });
+        arr.thumbUps?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            themePackage[element.name]?.push(new LoadingInfo({
+                name: "thumbup",
+                preview: element.preview,
+                url: element.ani,
+            }));
+        });
+        arr.spaceBackgrounds?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            let i = 1;
+            element.urls.forEach((url) => {
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "background_landscape_" + i++,
+                    img: url.landscape,
+                }));
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "background_portrait_" + i++,
+                    img: url.portrait,
+                }));
+            });
+        });
+        arr.playIcons?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = [];
+            }
+            if (element.isLottie) {
+                const icon = element.icon as { drag: string; normal: string };
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "playicon_drag",
+                    img: icon.drag,
+                }));
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "playicon_normal",
+                    img: icon.normal,
+                }));
+            } else {
+                const icon = element.icon as { dragLeft: string; dragRight: string; normal: string };
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "playicon_drag_left",
+                    img: icon.dragLeft,
+                }));
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "playicon_drag_right",
+                    img: icon.dragRight,
+                }));
+                themePackage[element.name]?.push(new OtherInfo({
+                    name: "playicon_normal",
+                    img: icon.normal,
+                }));
+            }
+        });
+    });
+    for (const key in themePackage) {
+        if (themePackage[key] === undefined || themePackage[key].length === 0) continue;
+        returnValue.push({
+            id: partIds[0] ?? 0,
+            name: key,
+            type: PackageType.Theme,
+            data: themePackage[key],
+        });
+    }
+    return returnValue;
 }
 
 export async function GetSuitDetails(partId: number) {

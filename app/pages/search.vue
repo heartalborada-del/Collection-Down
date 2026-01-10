@@ -193,6 +193,7 @@ function updateResult(type: ParsedType, id: string) {
 const CSVLock = new Mutex()
 const loadedCollectionIDs = ref<Array<{ act_id: string, act_title: string }>>([])
 const CSVSelectedID = ref<string>("")
+
 async function loadCSV() {
   using _ = await CSVLock.lock();
   fetch('/api/latestCollectionsMap')
@@ -232,6 +233,27 @@ async function loadCSV() {
       })
     })
 }
+
+const tabOrientation = ref<'horizontal' | 'vertical'>(window.innerWidth >= 640 ? 'horizontal' : 'vertical')
+
+const windowWidth = ref(window.innerWidth);
+
+onMounted(() => {
+  window.addEventListener('resize', checkScreenSize);
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScreenSize);
+})
+
+const checkScreenSize = () => {
+  windowWidth.value = window.innerWidth
+  if (windowWidth.value >= 640) {
+    tabOrientation.value = 'horizontal'
+  } else {
+    tabOrientation.value = 'vertical'
+  }
+}
 </script>
 
 <template>
@@ -241,7 +263,9 @@ async function loadCSV() {
     </template>
     <div>
       <div class="flex justify-center-safe">
-        <UTabs :items="tabItems" class="w-full max-w-10/12">
+        <UTabs :items="tabItems" class="w-full max-w-10/12 flex-col" :orientation="tabOrientation" :ui="{
+          list: 'w-full'
+        }">
           <template #search>
             <Transition name="opacity" mode="out-in" appear>
               <div key="search">
@@ -323,12 +347,12 @@ async function loadCSV() {
       </div>
     </div>
     <template #footer>
-      <div class="flex justify-center-safe">
-        <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
+      <div class="flex justify-center-safe items-center-safe gap-1 min-h-9 flex-wrap">
+        <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32 max-sm:grow" value-key="id"
           :items="selectItem" />
-        <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 ml-4 mr-4" placeholder="id" />
+        <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 max-sm:grow" placeholder="id" />
         <UButton trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary"
-          @click="switchToDetailPage">下一步
+          class="w-full sm:w-auto text-nowrap" @click="switchToDetailPage">下一步
         </UButton>
       </div>
     </template>

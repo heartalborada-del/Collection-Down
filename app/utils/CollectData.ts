@@ -1,9 +1,7 @@
-import type { ApiResponse } from "~~/types/api/root";
 import type { LotteryListItem } from "~~/types/api/bili/types";
-import { CardInfo, type DetailedData, type EmojiPackageInfo, type RedeemInfo, OtherInfo, EmojiInfo, type SuitComponentResult, type PackageDataType, LoadingInfo } from "~~/types/api/inner/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
-import { tr } from "@nuxt/ui/runtime/locale/index.js";
-import { keys } from "object-hash";
+import { CardInfo, EmojiInfo, LoadingInfo, OtherInfo, type DetailedData, type EmojiPackageInfo, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
+import type { ApiResponse } from "~~/types/api/root";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
@@ -136,6 +134,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
             }
             case RedeemType.SUIT_PART: {
                 const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
+                results.push(...suitDetails)
                 break
             }
         }
@@ -147,13 +146,13 @@ async function ParseRedeemOnlyShared(redeems: RedeemInfo[]): Promise<DetailedDat
     return ParseRedeemInfo(redeems, -1, true)
 }
 
-export function GetSuitMigratedData(partIds: number[]) {
-
-}
-
-export async function GetSuitDetails(partId: number) {
+async function GetSuitMigratedData(partIds: number[]) {
     const returnValue: DetailedData[] = [];
-    const resp = await fetch(`/api/bili/suit/suitComponents?ids=${partId}`)
+    if (partIds.length === 0) {
+        return returnValue;
+    }
+    const idsParam = partIds.map(id => `ids=${id}`).join('&');
+    const resp = await fetch(`/api/bili/suit/suitComponents?${idsParam}`);
     if (!resp.ok) {
         return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${resp.status}`, resp.status));
     }
@@ -162,9 +161,13 @@ export async function GetSuitDetails(partId: number) {
         return Promise.reject(new PromiseRejected(Errors.API, data.message, data.code));
     }
     const themePackage: {
-        [key: string]: PackageDataType[];
+        [key: string]: {
+            id: number,
+            package: PackageDataType[],
+        };
     } = {};
     data.data?.forEach(arr => {
+        let id = arr.target
         arr.emojis?.forEach(element => {
             returnValue.push({
                 id: element.item_id,
@@ -188,15 +191,21 @@ export async function GetSuitDetails(partId: number) {
                 }
             });
             if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = [];
+                themePackage[element.name] = {
+                    id: id,
+                    package: [],
+                };
             }
-            themePackage[element.name]?.push(...OtherInfoArray);
+            themePackage[element.name]?.package.push(...OtherInfoArray);
         });
         arr.thumbUps?.forEach(element => {
             if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = [];
+                themePackage[element.name] = {
+                    id: id,
+                    package: [],
+                };
             }
-            themePackage[element.name]?.push(new LoadingInfo({
+            themePackage[element.name]?.package.push(new LoadingInfo({
                 name: "loading",
                 preview: element.preview,
                 url: element.ani,
@@ -204,31 +213,39 @@ export async function GetSuitDetails(partId: number) {
         })
         arr.spaceBackgrounds?.forEach(element => {
             if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = [];
+                themePackage[element.name] = {
+                    id: id,
+                    package: [],
+                };
             }
             let i = 1;
             element.urls.forEach((url) => {
-                themePackage[element.name]?.push(new OtherInfo({
-                    name: "background_landscape_" + i++,
+                themePackage[element.name]?.package.push(new OtherInfo({
+                    name: `background_landscape_${i}`,
                     img: url.landscape,
                 }));
-                themePackage[element.name]?.push(new OtherInfo({
-                    name: "background_portrait_" + i++,
+                themePackage[element.name]?.package.push(new OtherInfo({
+                    name: `background_portrait_${i}`,
                     img: url.portrait,
                 }));
+                i++;
             });
         });
     })
     for (const key in themePackage) {
-        if (themePackage[key] === undefined) continue;
+        if (themePackage[key] === undefined || themePackage[key].package.length === 0) continue;
         returnValue.push({
-            id: partId,
+            id: themePackage[key].id,
             name: key,
             type: PackageType.Theme,
-            data: themePackage[key],
+            data: themePackage[key].package,
         });
     }
     return returnValue;
+}
+
+export async function GetSuitDetails(partId: number) {
+    return GetSuitMigratedData([partId]);
 }
 
 export enum Errors {

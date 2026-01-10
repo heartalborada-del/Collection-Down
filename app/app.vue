@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { SpeedInsights } from '@vercel/speed-insights/vue';
 
 const route = useRoute()
 const navigationItems = computed<NavigationMenuItem[]>(() => [
@@ -29,6 +30,7 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
 .page-leave-active {
   transition: all 0.1s;
 }
+
 .page-enter-from,
 .page-leave-to {
   opacity: 0;
@@ -47,14 +49,8 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
         <UColorModeButton />
 
         <UTooltip text="Open on GitHub">
-          <UButton
-              color="neutral"
-              variant="ghost"
-              to="https://github.com/heartalborada-del/Collection-Down"
-              target="_blank"
-              icon="i-simple-icons-github"
-              aria-label="GitHub"
-          />
+          <UButton color="neutral" variant="ghost" to="https://github.com/heartalborada-del/Collection-Down"
+            target="_blank" icon="i-simple-icons-github" aria-label="GitHub" />
         </UTooltip>
       </template>
       <template #body>
@@ -72,4 +68,5 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
 
     <UFooter />
   </UApp>
+  <SpeedInsights />
 </template>

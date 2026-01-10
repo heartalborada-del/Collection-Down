@@ -364,21 +364,26 @@ const downloadFiles = ref<DownloadMetaData[]>([])
 
 <template>
   <div>
-    <div class="flex justify-center-safe h-9">
-      <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32" value-key="id"
+    <div class="flex justify-center-safe items-center-safe gap-1 min-h-9 flex-wrap">
+      <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32 max-sm:grow" value-key="id"
         :items="selectItem" />
-      <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 ml-4 mr-4" placeholder="id" />
-      <UButton trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary" @click="fetchData">
+      <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 max-sm:grow" placeholder="id" />
+      <UButton trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary" @click="fetchData"
+        class="w-full sm:w-auto text-nowrap">
         获取数据
       </UButton>
     </div>
     <USeparator class="m-2" size="md" />
-    <div class="flex justify-center-safe items-center">
-      <USelectMenu v-model="currentPackage" class="w-9/12 min-w-40" label-key="name" :items="ItemsArray as any"
-        @change="refreshSelectedCards" />
-      <UCheckbox v-model="checked" :disabled="currentPackage.id === 0" label="全选" class="justify-center ml-2" size="lg"
-        @change="toggleSelectAllCards" />
-      <UButton class="ml-4" color="primary" variant="outline" icon="i-mdi-download" @click="download">下载</UButton>
+    <div class="flex justify-center-safe items-center flex-wrap gap-4 max-sm:gap-1 ">
+      <div class="flex justify-center-safe items-center gap-1 grow">
+        <USelectMenu v-model="currentPackage" class="min-w-40 grow" label-key="name" :items="ItemsArray as any"
+          @change="refreshSelectedCards" />
+        <UCheckbox v-model="checked" :disabled="currentPackage.id === 0" label="全选" class="justify-center text-nowrap"
+          size="lg" @change="toggleSelectAllCards" />
+      </div>
+      <UButton class="max-sm:grow text-nowrap" color="primary" variant="outline" icon="i-mdi-download"
+        @click="download">下载
+      </UButton>
     </div>
     <USeparator class="m-2" size="md" />
     <div v-if="currentPackage.id !== 0" style="display: flex; flex-flow: row;">

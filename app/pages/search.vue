@@ -234,25 +234,28 @@ async function loadCSV() {
     })
 }
 
-const tabOrientation = ref<'horizontal' | 'vertical'>(window.innerWidth >= 640 ? 'horizontal' : 'vertical')
+const tabOrientation = ref<'horizontal' | 'vertical'>('horizontal')
 
-const windowWidth = ref(window.innerWidth);
+// 在 SSR 环境下 window 不存在，这里不要直接读取 window
+const windowWidth = ref<number>(0)
 
 onMounted(() => {
-  window.addEventListener('resize', checkScreenSize);
+  checkScreenSize();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', checkScreenSize);
+  }
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', checkScreenSize);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', checkScreenSize);
+  }
 })
 
 const checkScreenSize = () => {
+  if (typeof window === 'undefined') return
   windowWidth.value = window.innerWidth
-  if (windowWidth.value >= 640) {
-    tabOrientation.value = 'horizontal'
-  } else {
-    tabOrientation.value = 'vertical'
-  }
+  tabOrientation.value = windowWidth.value >= 640 ? 'horizontal' : 'vertical'
 }
 </script>
 

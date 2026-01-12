@@ -10,10 +10,10 @@ const datas = {
   '100-300': '',
   '100000+': ''
 }
-// Thanks CloudyEagle/bilibili-collections-archive
+// Thanks CaleyGoldue/bilibili-collections-archive
 export default defineEventHandler(async (event) => {
   const { GithubRawEndpoint } = useRuntimeConfig().public
-  const w1_resp = await fetch(`${GithubRawEndpoint}/CloudyEagle/bilibili-collections-archive/refs/heads/main/collect-act_id-100000+.csv`,
+  const w1_resp = await fetch(`${GithubRawEndpoint}/CaleyGoldue/bilibili-collections-archive/refs/heads/act_id/collect-act_id-100000+.csv`,
     {
       method: 'GET',
       redirect: 'follow',
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   if (w1_resp.status === 200) {
     datas['100000+'] = await w1_resp.text()
   }
-  const w2_resp = await fetch(`${GithubRawEndpoint}/CaleyGoldue/bilibili-collections-archive/refs/heads/main/collect-act_id-100~300.csv`,
+  const w2_resp = await fetch(`${GithubRawEndpoint}/CaleyGoldue/bilibili-collections-archive/refs/heads/act_id/collect-act_id-100~300.csv`,
     {
       method: 'GET',
       redirect: 'follow',

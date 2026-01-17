@@ -9,7 +9,8 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             GithubRawEndpoint: process.env.GITHUB_RAW_ENDPOINT || 'https://raw.githubusercontent.com',
-        }
+        },
+        isDev: process.env.DEV_MODE === 'true' || false,
     },
     devServer: {
         host: '127.0.0.1',

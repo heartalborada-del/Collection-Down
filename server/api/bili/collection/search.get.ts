@@ -6,21 +6,27 @@ import type { SearchInfo } from "~~/types/api/inner/types";
 
 export default defineEventHandler(async (event) => {
     try {
+        const { isDev } = useRuntimeConfig();
         const keyWord = getQuery(event)?.key_word as string;
         const page = getQuery(event)?.page ? getQuery(event)?.page as string : "1";
         if (!keyWord) {
+            setResponseStatus(event, 400);
             return new ApiResponse<null>(-1, 'Invalid key_word parameter');
         }
-        const raw = await fetch(`https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`, { headers: FetchHeaders }).then((resp) => {
-            if (resp.status !== 200) {
-                return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
-            }
-            return resp.json()
-        }) as ApiResponse<{ list: BiliSuitMallSearchItem[] }>
-        if (raw.code !== 0)
+        const resp = await fetch(`https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`, { headers: FetchHeaders });
+        if (resp.status !== 200) {
+            setResponseStatus(event, resp.status || 502);
+            return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
+        }
+        const raw = await resp.json() as ApiResponse<{ list: BiliSuitMallSearchItem[] }>;
+        if (raw.code !== 0) {
+            setResponseStatus(event, 502);
             return new ApiResponse<null>(raw.code, `Bilibili api error, msg: ${raw.message}`);
-        if (!raw.data)
+        }
+        if (!raw.data) {
+            setResponseStatus(event, 502);
             return new ApiResponse<null>(-1, `Failed to fetch data`);
+        }
         const list: SearchInfo[] = [];
         for (const item of raw.data.list) {
             if (!(item.properties.type === "ip" || item.properties.type === "dlc_act"))
@@ -33,8 +39,13 @@ export default defineEventHandler(async (event) => {
                 cover: item.properties.image_cover,
             });
         }
+        setResponseStatus(event, 200);
         return new ApiResponse<SearchInfo[]>(0, undefined, list);
-    } catch {
+    } catch (e) {
+        const { isDev } = useRuntimeConfig();
+        if (isDev && e instanceof Error) {
+            setHeaders(event, { 'X-Error-Detail': e.message });
+        }
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, 'An error occurred while fetching data');
     }

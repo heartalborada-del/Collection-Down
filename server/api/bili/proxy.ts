@@ -31,8 +31,6 @@ export default defineEventHandler(async (event) => {
             const head = await fetch(query.origin as string, {
                 ...fetchPayload,
                 method: "HEAD",
-            }).then(response => {
-                return response
             });
             if (!head.ok) {
                 setResponseHeader(event, "X-Error-Message", "Failed to fetch resource for range validation");
@@ -63,7 +61,13 @@ export default defineEventHandler(async (event) => {
                 }
             }
         }
-        return fetch(query.origin as string, fetchPayload)
+        const resp = await fetch(query.origin as string, fetchPayload);
+        for (const [k, v] of resp.headers) {
+            setResponseHeader(event, k, v as string);
+        }
+        setResponseStatus(event, resp.status);
+        const buffer = await resp.arrayBuffer();
+        return Buffer.from(buffer);
     } catch (err) {
         setResponseHeader(event, "X-Error-Message", `An error occurred while fetching data.`);
         setResponseHeader(event, "X-Error-Message", (err as Error).message);

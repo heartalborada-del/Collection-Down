@@ -78,7 +78,7 @@ async function fetchData() {
       data: []
     }
     selectedSets.value = new Map()
-    using _ = await lock.lock();
+    let unlock = await lock.obtain();
     try {
       const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
       for (const collection of collections) {
@@ -100,7 +100,6 @@ async function fetchData() {
             cp.name = `杂项-${collection.name}`
         }
         ItemsArray.value.push(cp)
-
       }
     } catch {
       toast.add({
@@ -109,6 +108,7 @@ async function fetchData() {
         icon: 'i-mdi-alert-circle',
         color: 'error'
       })
+      unlock()
       return
     }
     toast.add({
@@ -117,6 +117,7 @@ async function fetchData() {
       icon: 'i-mdi-check-circle',
       color: 'success'
     })
+    unlock()
   } else if (ParsedResult.value.type === ParsedType.THEME) {
     ItemsArray.value = []
     currentPackage.value = {
@@ -125,27 +126,38 @@ async function fetchData() {
       data: []
     }
     selectedSets.value = new Map()
-    using _ = await lock.lock();
-    const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
-    for (const data of themeData) {
-      if (data.type === PackageType.Undefined) {
-        continue
+    let unlock = await lock.obtain();
+    try {
+      const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
+      for (const data of themeData) {
+        if (data.type === PackageType.Undefined) {
+          continue
+        }
+        const cp = data
+        switch (data.type) {
+          case PackageType.Card:
+            cp.name = `收藏集-${data.name}`
+            break
+          case PackageType.Theme:
+            cp.name = `主题-${data.name}`
+            break
+          case PackageType.Sticker:
+            cp.name = `表情包-${data.name}`
+            break
+          case PackageType.Other:
+            cp.name = `杂项-${data.name}`
+        }
+        ItemsArray.value.push(cp)
       }
-      const cp = data
-      switch (data.type) {
-        case PackageType.Card:
-          cp.name = `收藏集-${data.name}`
-          break
-        case PackageType.Theme:
-          cp.name = `主题-${data.name}`
-          break
-        case PackageType.Sticker:
-          cp.name = `表情包-${data.name}`
-          break
-        case PackageType.Other:
-          cp.name = `杂项-${data.name}`
-      }
-      ItemsArray.value.push(cp)
+    } catch {
+      toast.add({
+        title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
+        description: `请检查ID是否正确或稍后重试`,
+        icon: 'i-mdi-alert-circle',
+        color: 'error'
+      })
+      unlock()
+      return
     }
     toast.add({
       title: `获取 主题ID ${ParsedResult.value.id} 成功`,
@@ -153,6 +165,7 @@ async function fetchData() {
       icon: 'i-mdi-check-circle',
       color: 'success'
     })
+    unlock()
   }
 }
 

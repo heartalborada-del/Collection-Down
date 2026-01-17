@@ -3,33 +3,43 @@ import type { BiliCardInfo, BiliRedeemInfo } from "~~/types/api/bili/types";
 import type { CardInfo, RedeemInfo, VideoResolution } from "~~/types/api/inner/types";
 import { FetchHeaders } from "~~/types/global";
 import { RedeemType } from "~~/types/api/enum";
+import { S } from "vue-router/dist/router-CWoNjPRp.mjs";
 
 export default defineEventHandler(async (event) => {
+    const { isDev } = useRuntimeConfig();
     try {
         const query = getQuery(event)
         const actId = query?.act_id as string | undefined;
         const lotteryId = query?.lottery_id as string | undefined;
         if (!lotteryId || !actId) {
+            setResponseStatus(event, 400);
             return new ApiResponse<null>(-1, "Invalid act_id or lottery_id parameter")
         }
-        return await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}&lottery_id=${lotteryId}`, { headers: FetchHeaders }).then((resp) => {
+        try {
+            const resp = await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}&lottery_id=${lotteryId}`, { headers: FetchHeaders });
             if (resp.status !== 200) {
+                setResponseStatus(event, resp.status || 502);
                 return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
             }
-            return resp.json().then(data => {
-                const origin = data as ApiResponse<{
-                    item_list: {
-                        item_type: number,
-                        card_item: BiliCardInfo
-                    }[]
-                    collect_list: BiliRedeemInfo[]
-                }>
-                if (origin.code !== 0)
-                    return new ApiResponse<null>(origin.code, `Bilibili api error, msg: ${origin.message}`);
-                if (!origin.data)
-                    return new ApiResponse<null>(-1, `Failed to fetch data`);
-                const items: CardInfo[] = [];
-                const redeems: RedeemInfo[] = [];
+            const data = await resp.json();
+            const origin = data as ApiResponse<{
+                item_list: {
+                    item_type: number,
+                    card_item: BiliCardInfo
+                }[]
+                collect_list: BiliRedeemInfo[]
+            }>
+            if (origin.code !== 0) {
+                setResponseStatus(event, 502);
+                return new ApiResponse<null>(origin.code, `Bilibili api error, msg: ${origin.message}`);
+            }
+            if (!origin.data) {
+                setResponseStatus(event, 502);
+                return new ApiResponse<null>(-1, `Failed to fetch data`);
+            }
+            const items: CardInfo[] = [];
+            const redeems: RedeemInfo[] = [];
+            if (origin.data.item_list) {
                 for (const item of origin.data.item_list) {
                     if (item.item_type !== 1)
                         continue;
@@ -45,6 +55,8 @@ export default defineEventHandler(async (event) => {
                         } as VideoResolution
                     } as CardInfo);
                 }
+            }
+            if (origin.data.collect_list) {
                 for (const redeem of origin.data.collect_list) {
                     if (redeem.redeem_item_type === RedeemType.COLLECTION_CARD) {
                         const card = (redeem as { card_item: { card_asset_info: { card_item: BiliCardInfo } } }).card_item.card_asset_info.card_item
@@ -71,20 +83,26 @@ export default defineEventHandler(async (event) => {
                         shared: redeem.lottery_id === 0
                     } as RedeemInfo)
                 }
-                return new ApiResponse<{
-                    items: CardInfo[],
-                    redeems: RedeemInfo[],
-                }>(0, undefined, {
-                    items: items,
-                    redeems: redeems
-                });
-            }).catch(() => {
-                return new ApiResponse<null>(-1, 'An error occurred while fetching data');
-            })
-        }).catch(() => {
+            }
+            setResponseStatus(event, 200);
+            return new ApiResponse<{
+                items: CardInfo[],
+                redeems: RedeemInfo[],
+            }>(0, undefined, {
+                items: items,
+                redeems: redeems
+            });
+        } catch (e) {
+            if (isDev && e instanceof Error) {
+                setHeaders(event, { 'X-Error-Detail': e.message });
+            }
+            setResponseStatus(event, 500);
             return new ApiResponse<null>(-1, 'An error occurred while fetching data');
-        })
-    } catch {
+        }
+    } catch (e) {
+        if (isDev && e instanceof Error) {
+            setHeaders(event, { 'X-Error-Detail': e.message });
+        }
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, 'An error occurred while fetching data');
     }

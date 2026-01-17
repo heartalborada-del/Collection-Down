@@ -195,7 +195,7 @@ const loadedCollectionIDs = ref<Array<{ act_id: string, act_title: string }>>([]
 const CSVSelectedID = ref<string>("")
 
 async function loadCSV() {
-  using _ = await CSVLock.lock();
+  let unlock = await CSVLock.obtain();
   fetch('/api/latestCollectionsMap')
     .then(resp => resp.json())
     .then(data => {
@@ -207,6 +207,7 @@ async function loadCSV() {
           icon: 'i-mdi-exclamation-thick',
           color: 'error'
         })
+        unlock()
         return
       }
       const parsedCSV1wPlus = Papa.parse<{ act_id: string; act_title: string }>(result.data['100000+'], {
@@ -224,6 +225,7 @@ async function loadCSV() {
         icon: 'i-mdi-check-bold',
         color: 'success',
       })
+      unlock()
     }).catch(() => {
       toast.add({
         title: '加载失败',
@@ -231,6 +233,7 @@ async function loadCSV() {
         icon: 'i-mdi-exclamation-thick',
         color: 'error'
       })
+      unlock()
     })
 }
 

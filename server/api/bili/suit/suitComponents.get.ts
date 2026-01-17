@@ -10,12 +10,14 @@ export default defineEventHandler(async (event) => {
         const query = getQuery(event)
         const idsQuery = query?.ids;
         if (!(typeof idsQuery === "string" || Array.isArray(idsQuery))) {
+            setResponseStatus(event, 400);
             return new ApiResponse<null>(-1, "Invalid ids parameter")
         }
         const ids: string[] = Array.isArray(idsQuery) ? idsQuery : [idsQuery];
         // precheck ids is number array
         for (const id of ids) {
             if (isNaN(Number(id))) {
+                setResponseStatus(event, 400);
                 return new ApiResponse<null>(-1, "Invalid ids parameter")
             }
         }
@@ -144,8 +146,14 @@ export default defineEventHandler(async (event) => {
             }
             results.push(result);
         }
+        setResponseStatus(event, 200);
         return new ApiResponse<SuitComponentResult[]>(0, undefined, results);
-    } catch {
+    } catch (e) {
+        const { isDev } = useRuntimeConfig();
+        if (isDev && e instanceof Error) {
+            setHeaders(event, { 'X-Error-Detail': e.message });
+        }
+        setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, "An unexpected error occurred")
     }
 })

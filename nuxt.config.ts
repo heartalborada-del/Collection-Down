@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     compatibilityDate: '2025-07-15',
-    modules: ['@nuxt/eslint', '@nuxt/ui'],
+    modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-umami'],
     css: ['~/assets/css/global.css'],
     ui: {
         fonts: false,
@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             GithubRawEndpoint: process.env.GITHUB_RAW_ENDPOINT || 'https://raw.githubusercontent.com',
+            EnableTrace: process.env.UMAMI_ENABLED === 'true' || false,
         },
         isDev: process.env.DEV_MODE === 'true' || false,
     },
@@ -29,11 +30,29 @@ export default defineNuxtConfig({
         },
     },
     nitro: {
+        compressPublicAssets: true,
         vercel: {
             functions: {
                 maxDuration: 60,
                 memory: 512,
             }
         },
+        cloudflare: {
+            deployConfig: true,
+            nodeCompat: true,
+        },
+        rollupConfig: {
+            external: ['papaparse']
+        }
+    },
+    umami: {
+        enabled: process.env.UMAMI_ENABLED === 'true',
+        host: process.env.UMAMI_HOST,
+        id: process.env.UMAMI_ID,
+        tag: process.env.UMAMI_TAG,
+        urlOptions: {
+            trailingSlash: "never",
+            excludeHash: true,
+        }
     }
 })

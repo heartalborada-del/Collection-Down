@@ -2694,11 +2694,6 @@
   resolved "https://registry.npmmirror.com/@vercel/oidc/-/oidc-3.0.5.tgz#bd8db7ee777255c686443413492db4d98ef49657"
   integrity sha512-fnYhv671l+eTTp48gB4zEsTW/YtRgRPnkI2nT7x6qw5rkI1Lq2hTmQIpHPgyThI0znLK+vX2n9XxKdXZ7BUbbw==
 
-"@vercel/speed-insights@^1.3.1":
-  version "1.3.1"
-  resolved "https://registry.npmmirror.com/@vercel/speed-insights/-/speed-insights-1.3.1.tgz#df8baeba65a1aaaf11adbd09d3fe7edc6b2a493a"
-  integrity sha512-PbEr7FrMkUrGYvlcLHGkXdCkxnylCWePx7lPxxq36DNdfo9mcUjLOmqOyPDHAOgnfqgGGdmE3XI9L/4+5fr+vQ==
-
 "@vitejs/plugin-vue-jsx@^5.1.2":
   version "5.1.3"
   resolved "https://registry.npmmirror.com/@vitejs/plugin-vue-jsx/-/plugin-vue-jsx-5.1.3.tgz#79afd09aaf8eb6ace83d2a122c255c10946f4151"
@@ -6607,6 +6602,14 @@ nuxt-component-meta@0.16.0:
     ufo "^1.6.1"
     vue-component-meta "^3.1.5"
 
+nuxt-umami@3.2.1:
+  version "3.2.1"
+  resolved "https://registry.npmmirror.com/nuxt-umami/-/nuxt-umami-3.2.1.tgz#03284f3ab6c64a28cea62c461dbb1c1928122dc3"
+  integrity sha512-82cf3kcrMn4Iq0rJ2Blfl48AqLWqRubEpxOinOoxqW7taZAd5SgZcCdCj7y4qXSt0W5DhBYgaq4IboyGFHoVUQ==
+  dependencies:
+    "@nuxt/kit" "^3.15.4"
+    request-ip "^3.3.0"
+
 nuxt@^4.2.0:
   version "4.2.2"
   resolved "https://registry.npmmirror.com/nuxt/-/nuxt-4.2.2.tgz#f2579b99ad6d4a7ab8606f5d1131784716673309"
@@ -7659,6 +7662,11 @@ remark-stringify@^11.0.0:
     "@types/mdast" "^4.0.0"
     mdast-util-to-markdown "^2.0.0"
     unified "^11.0.0"
+
+request-ip@^3.3.0:
+  version "3.3.0"
+  resolved "https://registry.npmmirror.com/request-ip/-/request-ip-3.3.0.tgz#863451e8fec03847d44f223e30a5d63e369fa611"
+  integrity sha512-cA6Xh6e0fDBBBwH77SLJaJPBmD3nWVAcF9/XAcsrIHdjhFzFiB5aNQFytdjCGPezU3ROwrR11IddKAM08vohxA==
 
 require-directory@^2.1.1:
   version "2.1.1"
@@ -8947,11 +8955,6 @@ vue@^3.4.5, vue@^3.5.13, vue@^3.5.22, vue@^3.5.25:
     "@vue/runtime-dom" "3.5.26"
     "@vue/server-renderer" "3.5.26"
     "@vue/shared" "3.5.26"
-
-wasm-vips@^0.0.16:
-  version "0.0.16"
-  resolved "https://registry.npmmirror.com/wasm-vips/-/wasm-vips-0.0.16.tgz#4519f25fdb07234cd0ec10850972c4a42773173d"
-  integrity sha512-4/bEq8noAFt7DX3VT+Vt5AgNtnnOLwvmrDbduWfiv9AV+VYkbUU4f9Dam9e6khRqPinyClFHCqiwATTTJEiGwA==
 
 web-namespaces@^2.0.0:
   version "2.0.1"

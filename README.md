@@ -2,7 +2,7 @@
 
 ![Vercel Deploy](https://deploy-badge.vercel.app/vercel/collection-down)
 ![Netlify Deploy](http://img.shields.io/netlify/e6d5a4e0-dee1-4261-833e-2f47f509c68f?logo=netlify)
-![Cloudflare]{https://deploy-badge.vercel.app/?url=http%3A%2F%2Fcollection-down.heartalborada.workers.dev&style=flat-square&logo=cloudflare&name=Cloudflare)
+![Cloudflare](https://deploy-badge.vercel.app/?url=http%3A%2F%2Fcollection-down.heartalborada.workers.dev&style=flat-square&logo=cloudflare&name=Cloudflare)
 又一个Bilibili收藏集下载工具，支持下载视频，图片，表情包等
 
 此项目旨在给予B站用户更好的站装扮以及收藏集下载体验

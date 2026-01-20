@@ -1,6 +1,6 @@
 import type { LotteryListItem } from "~~/types/api/bili/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
-import { CardInfo, EmojiInfo, LoadingInfo, OtherInfo, type DetailedData, type EmojiPackageInfo, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, EmojiPackageInfo, LoadingInfo, OtherInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
@@ -115,7 +115,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                     ]
                 } as DetailedData)
                 break
-            case RedeemType.STATIC_EMOJI_PACKAGE: {
+            case RedeemType.STATIC_EMOJI_PACKAGE, RedeemType.ANIMATED_EMOJI_PACKAGE: {
                 const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`)
                 if (!data.ok) {
                     continue;
@@ -135,7 +135,15 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
             case RedeemType.SUIT_PART: {
                 const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
                 results.push(...suitDetails)
-                break
+                /*suitDetails.forEach((value)=>{
+                    value.data = value.data.filter((dataItem)=>{
+                        if(dataItem instanceof EmojiPackageInfo)
+                            return false;
+                        return true;
+                    })
+                    results.push(value);
+                })
+                    */
             }
         }
     }

@@ -23,6 +23,11 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     const merged = await Promise.allSettled(promises)
 
     merged.forEach(item => {
+        console.log(item);
+        if (item.status === 'rejected') {
+            console.warn(`Failed to fetch lottery details`);
+            console.warn(item.reason);
+        }
         if (item.status === 'fulfilled' && item.value)
             item.value.forEach((item: DetailedData) => {
                 ItemsArray.push({
@@ -31,9 +36,10 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
                     data: item.data,
                     type: item.type
                 })
+
             })
     })
-
+    //console.log(ItemsArray);
     return ItemsArray
 }
 
@@ -102,39 +108,49 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
         if (onlyShared && !redeem.shared)
             continue;
         switch (redeem.type) {
-            case RedeemType.BADGE, RedeemType.AVATAR_FRAME:
+            case RedeemType.AVATAR_FRAME:
+            case RedeemType.BADGE:
+                let id = function () {
+                    if (redeem.ids && redeem.ids.length > 0 && redeem.ids[0]) {
+                        return parseInt(redeem.ids[0], 10)
+                    }
+                    return -1;
+                }();
                 results.push({
-                    id: parseInt(redeem.ids[0] ? redeem.ids[0] : "-1", 10),
+                    id: id,
                     name: redeem.name,
                     type: PackageType.Other,
                     data: [new OtherInfo({
                         name: redeem.name,
                         img: redeem.image,
-                        id: parseInt(redeem.ids[0] ? redeem.ids[0] : "-1", 10)
+                        id: id
                     })
                     ]
                 } as DetailedData)
-                break
-            case RedeemType.STATIC_EMOJI_PACKAGE, RedeemType.ANIMATED_EMOJI_PACKAGE: {
+                break;
+            case RedeemType.ANIMATED_EMOJI_PACKAGE:
+            case RedeemType.STATIC_EMOJI_PACKAGE: {
                 const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`)
                 if (!data.ok) {
-                    continue;
+                    break;
                 }
                 const res = (await data.json()) as ApiResponse<EmojiPackageInfo>
                 if (res.code !== 0 || !res.data) {
-                    continue;
+                    break;
                 }
                 results.push({
-                    id: lotteryId,
+                    id: redeem.ids[0] ? parseInt(redeem.ids[0], 10) : -1,
                     name: res.data.name,
                     type: PackageType.Sticker,
                     data: (res.data.emojis.map(emoji => { return new EmojiInfo(emoji) }))
                 } as DetailedData)
                 break
             }
+
             case RedeemType.SUIT_PART: {
                 const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
                 results.push(...suitDetails)
+                break;
                 /*suitDetails.forEach((value)=>{
                     value.data = value.data.filter((dataItem)=>{
                         if(dataItem instanceof EmojiPackageInfo)

@@ -3,6 +3,7 @@ import { FetchHeaders } from "~~/types/global";
 import type { BiliEmojiPackageInfo } from "~~/types/api/bili/types";
 import type { EmojiInfo, EmojiPackageInfo } from "~~/types/api/inner/types";
 import { PartIdType } from "~~/types/api/enum";
+import { da } from "@nuxt/ui/runtime/locale/index.js";
 
 export default defineEventHandler(async (event) => {
     try {
@@ -21,6 +22,9 @@ export default defineEventHandler(async (event) => {
         const data = await resp.json() as ApiResponse<{
             name: string;
             part_id: number;
+            properties: {
+                item_emoji_list: string;
+            },
             suit_items: {
                 emoji: BiliEmojiPackageInfo[];
             };
@@ -38,16 +42,35 @@ export default defineEventHandler(async (event) => {
             return new ApiResponse<null>(-1, `The provided package_id does not correspond to an emoji package`);
         }
         const emojiList: EmojiInfo[] = [];
-        for (const emoji of data.data.suit_items.emoji) {
-            emojiList.push({
-                item_id: emoji.itemId,
-                name: emoji.name,
-                images: {
-                    static: emoji.properties.image,
-                    gif: emoji.properties.image_gif,
-                    webp: emoji.properties.image_webp,
-                }
-            })
+        if (data.data.properties.item_emoji_list) {
+            JSON.parse(data.data.properties.item_emoji_list).forEach((emote: {
+                name: string;
+                image: string;
+                image_gif: string;
+                image_webp: string;
+            }) => {
+                emojiList.push({
+                    item_id: 0,
+                    name: emote.name,
+                    images: {
+                        static: emote.image,
+                        gif: emote.image_gif,
+                        webp: emote.image_webp,
+                    }
+                })
+            });
+        } else {
+            for (const emoji of data.data.suit_items.emoji) {
+                emojiList.push({
+                    item_id: emoji.itemId,
+                    name: emoji.name,
+                    images: {
+                        static: emoji.properties.image,
+                        gif: emoji.properties.image_gif,
+                        webp: emoji.properties.image_webp,
+                    }
+                })
+            }
         }
         setResponseStatus(event, 200);
         return new ApiResponse<EmojiPackageInfo>(0, undefined, {

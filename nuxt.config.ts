@@ -50,9 +50,10 @@ export default defineNuxtConfig({
         host: process.env.UMAMI_HOST,
         id: process.env.UMAMI_ID,
         tag: process.env.UMAMI_TAG,
+        ignoreLocalhost: true,
+        autoTrack: true,
         urlOptions: {
             trailingSlash: "never",
-            excludeHash: true,
         }
     }
 })

@@ -17,20 +17,17 @@
         <img alt="Netlify Deploy"
           src="https://img.shields.io/netlify/63f96f92-e29f-489a-b1e2-f79570c7e323?style=flat-square&logo=netlify"
           style="margin-bottom: 0;margin-right: 0.25rem">
-        netlify
       </a>
       与
       <a href="https://cd-vercel.griseo.top" class="underline flex">
         <img alt="Vercel Deploy" src="https://deploy-badge.vercel.app/vercel/collection-down?style=flat-square"
           style="margin-bottom: 0;margin-right: 0.25rem">
-        vercel
       </a>
       以及
       <a href="https://cd-cloudflare.griseo.top" class="underline flex">
         <img alt="Cloudflare Deploy"
-          src="https://deploy-badge.vercel.app/?url=http%3A%2F%2Fcollection-down.heartalborada.workers.dev&style=flat-square&logo=cloudflare&name=Cloudflare"
+          src="https://deploy-badge.vercel.app/?url=http%3A%2F%2Fcd-cloudflare.griseo.top&style=flat-square&logo=cloudflare&name=Cloudflare"
           style="margin-bottom: 0;margin-right: 0.25rem">
-        Cloudflare
       </a>
     </p>
   </div>

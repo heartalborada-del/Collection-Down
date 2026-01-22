@@ -3,7 +3,6 @@ import QrcodeDecoder from "qrcode-decoder";
 import { GetForwardedLink, ParsedType, ParseIdFromLink } from "~/utils/Preprocess";
 import type { CollectionCSVData, SearchInfo } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
-import { Mutex } from "mutex-ts";
 import type { SelectItem, TabsItem } from "@nuxt/ui";
 import Papa from 'papaparse';
 
@@ -47,7 +46,8 @@ const ParsedResult: Ref<{ type: ParsedType; id: string }> = ref({ type: ParsedTy
 const searchPage = ref(1)
 const searchItems = ref<SearchInfo[]>([])
 
-const searchLock = new Mutex()
+// 简化并发控制，避免重复触发：使用布尔锁代替 Mutex
+const searching = ref(false)
 
 function parseQRCode(e: Event) {
   if (!(e.target instanceof HTMLInputElement && e.target === QRScan.value && QRScan.value?.files?.length && QRScan.value?.files?.length > 0)) return
@@ -94,7 +94,9 @@ function parseQRCode(e: Event) {
 }
 
 async function searchForKeyword(keyword: string, page: number) {
-  const unlock = await searchLock.obtain()
+  if (searching.value) return
+  searching.value = true
+  const { public: { EnableTrace } } = useRuntimeConfig()
   if (page < 1) {
     page = 1
   }
@@ -102,18 +104,21 @@ async function searchForKeyword(keyword: string, page: number) {
     searchItems.value = []
   }
   if (keyword.trim().length === 0) {
-    unlock()
+    searching.value = false
     return toast.add({
       title: '请输入搜索关键词',
       icon: 'i-mdi-exclamation-thick',
       color: 'warning'
     })
   }
+  // 前端上报：搜索提交
+  try { EnableTrace && umTrackEvent('search_submit', { q: keyword, page, len: keyword.length }) } catch {}
   fetch(`/api/bili/collection/search?&key_word=${encodeURIComponent(keyword)}&page=${page}`, {
     method: 'GET'
   })
     .then(resp => {
       if (!resp.ok) {
+        try { EnableTrace && umTrackEvent('search_http_error', { q: keyword, page, status: resp.status }) } catch {}
         toast.add({
           title: '搜索时出现错误',
           description: `服务器返回错误：${resp.status}`,
@@ -127,6 +132,7 @@ async function searchForKeyword(keyword: string, page: number) {
     .then(data => data as ApiResponse<SearchInfo[]>)
     .then(result => {
       if (result.code !== 0 || !result.data) {
+        try { EnableTrace && umTrackEvent('search_api_error', { q: keyword, page, code: result.code }) } catch {}
         toast.add({
           title: '搜索时出现错误',
           description: `错误信息：${result.message}`,
@@ -136,6 +142,7 @@ async function searchForKeyword(keyword: string, page: number) {
         throw "skip"
       }
       if (result.data.length === 0) {
+        try { EnableTrace && umTrackEvent('search_empty', { q: keyword, page }) } catch {}
         if (page === 1) {
           toast.add({
             title: '未找到相关结果',
@@ -151,12 +158,14 @@ async function searchForKeyword(keyword: string, page: number) {
         }
         throw "skip"
       }
+      try { EnableTrace && umTrackEvent('search_results', { q: keyword, page, count: result.data.length }) } catch {}
       searchItems.value = [...searchItems.value, ...result.data];
     })
     .catch(error => {
       if (error === "skip") {
         return
       }
+      try { EnableTrace && umTrackEvent('search_error', { q: keyword, page }) } catch {}
       toast.add({
         title: '搜索时出现错误',
         description: '请稍后重试。',
@@ -165,7 +174,7 @@ async function searchForKeyword(keyword: string, page: number) {
       })
       throw (error)
     }).finally(() => {
-      unlock()
+      searching.value = false
     });
 }
 
@@ -182,6 +191,8 @@ function switchToDetailPage() {
 function updateResult(type: ParsedType, id: string) {
   ParsedResult.value.type = type
   ParsedResult.value.id = id
+  const { public: { EnableTrace } } = useRuntimeConfig()
+  try { EnableTrace && umTrackEvent('search_select', { type, id }) } catch {}
   toast.add({
     title: '解析成功',
     description: '点击下一步继续。',
@@ -190,24 +201,27 @@ function updateResult(type: ParsedType, id: string) {
   })
 }
 
-const CSVLock = new Mutex()
+const loadingCSV = ref(false)
 const loadedCollectionIDs = ref<Array<{ act_id: string, act_title: string }>>([])
 const CSVSelectedID = ref<string>("")
 
 async function loadCSV() {
-  let unlock = await CSVLock.obtain();
+  if (loadingCSV.value) return
+  loadingCSV.value = true
+  const { public: { EnableTrace } } = useRuntimeConfig()
+  try { EnableTrace && umTrackEvent('csv_load_start') } catch {}
   fetch('/api/latestCollectionsMap')
     .then(resp => resp.json())
     .then(data => {
       const result = data as ApiResponse<CollectionCSVData>
       if (result.code !== 0 || !result.data) {
+        try { EnableTrace && umTrackEvent('csv_load_error', { code: result.code }) } catch {}
         toast.add({
           title: '加载失败',
           description: `错误信息: ${result.message}`,
           icon: 'i-mdi-exclamation-thick',
           color: 'error'
         })
-        unlock()
         return
       }
       const parsedCSV1wPlus = Papa.parse<{ act_id: string; act_title: string }>(result.data['100000+'], {
@@ -219,22 +233,22 @@ async function loadCSV() {
         skipEmptyLines: true,
       }).data as { act_id: string; act_title: string }[];
       loadedCollectionIDs.value = [...parsedCSV1wPlus, ...parsedCSV100to300]
+      try { EnableTrace && umTrackEvent('csv_load_success', { count: loadedCollectionIDs.value.length }) } catch {}
       toast.add({
         title: '加载成功, 共 ' + loadedCollectionIDs.value.length + ' 条数据',
         description: '请从下拉菜单中选择收藏集',
         icon: 'i-mdi-check-bold',
         color: 'success',
       })
-      unlock()
     }).catch(() => {
+      try { EnableTrace && umTrackEvent('csv_load_error') } catch {}
       toast.add({
         title: '加载失败',
         description: '请稍后重试',
         icon: 'i-mdi-exclamation-thick',
         color: 'error'
       })
-      unlock()
-    })
+    }).finally(() => { loadingCSV.value = false })
 }
 
 const tabOrientation = ref<'horizontal' | 'vertical'>('horizontal')

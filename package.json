@@ -16,7 +16,6 @@
     "@nuxt/ui": "4.1.0",
     "eslint": "^9.0.0",
     "jszip": "^3.10.1",
-    "mutex-ts": "^1.2.1",
     "nuxt": "^4.2.0",
     "nuxt-umami": "3.2.1",
     "object-hash": "^3.0.0",

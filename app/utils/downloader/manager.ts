@@ -1,4 +1,3 @@
-import { MutexRW } from "mutex-ts";
 import { DEFAULT_DOWNLOAD_TASK_OPTIONS, DownloadTask, type DownloadTaskOptions } from "./task";
 import type { DownloadItem } from "./types";
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ParsedType } from "~/utils/Preprocess";
-import { Mutex } from "mutex-ts";
 import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, LoadingInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
 import { ItemType, PackageType } from "~~/types/api/enum";
 import type { TreeItem } from "@nuxt/ui";
@@ -33,7 +32,8 @@ const selectItem = ref<{
   }
 ])
 
-const lock = new Mutex()
+// 简化并发控制，使用布尔锁防止重复请求
+const fetching = ref(false)
 
 const currentPackage = ref<DetailedData>({
   id: 0,
@@ -70,6 +70,9 @@ watch(ParsedResult, (newVal: { type: ParsedType; id: string }) => {
 }, { deep: true, immediate: true })
 
 async function fetchData() {
+  if (fetching.value) return
+  fetching.value = true
+  const { public: { EnableTrace } } = useRuntimeConfig()
   if (ParsedResult.value.type === ParsedType.DLC) {
     ItemsArray.value = []
     currentPackage.value = {
@@ -78,8 +81,8 @@ async function fetchData() {
       data: []
     }
     selectedSets.value = new Map()
-    let unlock = await lock.obtain();
     try {
+      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'DLC', id: ParsedResult.value.id }) } catch {}
       const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
       for (const collection of collections) {
         if (collection.type === PackageType.Undefined) {
@@ -102,22 +105,22 @@ async function fetchData() {
         ItemsArray.value.push(cp)
       }
     } catch {
+      try { EnableTrace && umTrackEvent('detail_error', { type: 'DLC', id: ParsedResult.value.id }) } catch {}
       toast.add({
         title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
         description: `请检查ID是否正确或稍后重试`,
         icon: 'i-mdi-alert-circle',
         color: 'error'
       })
-      unlock()
       return
     }
+    try { EnableTrace && umTrackEvent('detail_success', { type: 'DLC', id: ParsedResult.value.id, count: ItemsArray.value.length }) } catch {}
     toast.add({
       title: `获取 卡池ID ${ParsedResult.value.id} 成功`,
       description: `获得 ${ItemsArray.value.length} 个收藏集及其附属数据`,
       icon: 'i-mdi-check-circle',
       color: 'success'
     })
-    unlock()
   } else if (ParsedResult.value.type === ParsedType.THEME) {
     ItemsArray.value = []
     currentPackage.value = {
@@ -126,8 +129,8 @@ async function fetchData() {
       data: []
     }
     selectedSets.value = new Map()
-    let unlock = await lock.obtain();
     try {
+      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'THEME', id: ParsedResult.value.id }) } catch {}
       const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
       for (const data of themeData) {
         if (data.type === PackageType.Undefined) {
@@ -150,23 +153,24 @@ async function fetchData() {
         ItemsArray.value.push(cp)
       }
     } catch {
+      try { EnableTrace && umTrackEvent('detail_error', { type: 'THEME', id: ParsedResult.value.id }) } catch {}
       toast.add({
         title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
         description: `请检查ID是否正确或稍后重试`,
         icon: 'i-mdi-alert-circle',
         color: 'error'
       })
-      unlock()
       return
     }
+    try { EnableTrace && umTrackEvent('detail_success', { type: 'THEME', id: ParsedResult.value.id, count: ItemsArray.value.length }) } catch {}
     toast.add({
       title: `获取 主题ID ${ParsedResult.value.id} 成功`,
       description: `获得 ${ItemsArray.value.length} 个主题数据`,
       icon: 'i-mdi-check-circle',
       color: 'success'
     })
-    unlock()
   }
+  fetching.value = false
 }
 
 function queryCardIsSelected(cardName: string, packageName: string): boolean {

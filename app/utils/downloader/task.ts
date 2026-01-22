@@ -1,23 +1,29 @@
 import { DownloaderErrorEnum, DownloadError } from "~/utils/downloader/errors";
-import { MutexRW } from "mutex-ts";
 import type { DownloadItem } from "./types";
 
 export type DownloadTaskOptions = {
     maxThreads: number;
     chunkSize: number;
+    // 分块失败的最大重试次数（每个分块单独计数）
+    maxRetries?: number;
+    // 重试的基础退避时间（毫秒），指数退避：base * 2^attempt
+    retryBaseDelayMs?: number;
 }
 
 export const DEFAULT_DOWNLOAD_TASK_OPTIONS: DownloadTaskOptions = {
     maxThreads: 4,
     chunkSize: 1024 * 1024, // 1 MB
+    maxRetries: 2,
+    retryBaseDelayMs: 300,
 }
 
 export class DownloadTask {
-    private readonly mutex = new MutexRW();
+    // 预分配的目标缓冲区
     private bytebuffer: Uint8Array = new Uint8Array(0);
-    private readonly shutdownSignal = new AbortController()
+    // 统一的取消信号（供外部取消，内部所有 fetch 共享）
+    private readonly shutdownSignal = new AbortController();
 
-    // 新增类级别的进度/文件大小字段，供各 chunk 流式更新使用
+    // 进度/总大小，供外部 UI 监听
     private downloaded: number = 0;
     private fileSize: number = -1;
 
@@ -30,11 +36,16 @@ export class DownloadTask {
      * @private
      */
     private async getFileSize(url: string): Promise<number> {
-        const response = await fetch(url, { method: 'HEAD', signal: this.shutdownSignal.signal });
+        // 使用 HEAD 探测是否支持 Range 下载与内容长度
+        const response = await fetch(url, { method: 'HEAD', signal: this.shutdownSignal.signal, cache: 'no-store' });
         if (!response.ok || response.headers.get('Accept-Ranges')?.toLowerCase() !== 'bytes')
             return -1;
         const contentLength = response.headers.get('Content-Length');
         return contentLength ? parseInt(contentLength, 10) : -1;
+    }
+
+    private sleep(ms: number) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     /**
@@ -44,76 +55,44 @@ export class DownloadTask {
     public async download(): Promise<Uint8Array> {
         const options = this.options ?? DEFAULT_DOWNLOAD_TASK_OPTIONS;
         const fileSize = await this.getFileSize(this.item.Url);
-        this.fileSize = fileSize; // 保存到类字段
-        this.downloaded = 0; // 初始化为 0
+        this.fileSize = fileSize;
+        this.downloaded = 0;
 
+        // 不支持 Range 或无法获知大小：退回单连接下载。
         if (fileSize === -1) {
-            // Fallback to single-threaded download
-            const response = await fetch(this.item.Url);
+            const response = await fetch(this.item.Url, { signal: this.shutdownSignal.signal, cache: 'no-store' });
             if (!response.ok) {
                 throw new DownloadError(DownloaderErrorEnum.NetworkError);
             }
             const data = new Uint8Array(await response.arrayBuffer());
-            // 保存到任务状态，确保 OnProgress 与内部状态一致
             this.bytebuffer = data;
             this.fileSize = data.length;
             this.downloaded = data.length;
             this.item.OnProgress?.(this.downloaded, this.fileSize);
             return data;
         }
-        const maxThreads = options.maxThreads;
-        let currentThreadCount = 0, index = 0;
+
+        // 支持 Range：构建分块任务并通过简单任务池并发执行。
         this.bytebuffer = new Uint8Array(fileSize);
-
-        const afterChuckComplete = async (_start: number, _end: number) => {
-            // 不再在这里累计 downloaded（stream 已经在 downloadChunk 中实时更新）
-            // 仅负责调度下一个 chunk
-            if (this.downloaded < this.fileSize) {
-                const RW = await this.mutex.obtainRW();
-                let nextStart = 0, nextEnd = 0;
-                let hasNext = false;
-                try {
-                    nextStart = index * options.chunkSize;
-                    if (nextStart >= this.fileSize) {
-                    } else {
-                        nextEnd = Math.min(nextStart + options.chunkSize - 1, this.fileSize - 1);
-                        index += 1;
-                        hasNext = true;
-                    }
-                } finally {
-                    RW();
-                }
-                if (hasNext) {
-                    this.downloadChunk(this.item.Url, nextStart, nextEnd).then(() => {
-                        afterChuckComplete(nextStart, nextEnd);
-                    });
-                }
-            }
+        const ranges: Array<{ start: number; end: number }> = [];
+        for (let start = 0; start < fileSize; start += options.chunkSize) {
+            const end = Math.min(start + options.chunkSize - 1, fileSize - 1);
+            ranges.push({ start, end });
         }
 
-        while (currentThreadCount < maxThreads) {
-            // 在持锁期间计算并捕获 start/end，避免在释放锁后被其他线程修改导致重复或重叠分片
-            const RW = await this.mutex.obtainRW();
-            let start = 0, end = 0;
-            let shouldBreak = false;
-            try {
-                start = index * options.chunkSize;
-                if (start >= fileSize) {
-                    shouldBreak = true;
-                } else {
-                    end = Math.min(start + options.chunkSize - 1, fileSize - 1);
-                    index += 1;
-                    currentThreadCount += 1;
-                }
-            } finally {
-                RW();
+        // 简单任务池：限制同时进行的分块请求数
+        const limit = Math.max(1, options.maxThreads);
+        let idx = 0;
+        const workers = new Array(Math.min(limit, ranges.length)).fill(0).map(async () => {
+            while (true) {
+                const current = idx++;
+                if (current >= ranges.length) break;
+                const { start, end } = ranges[current]!;
+                await this.downloadChunk(this.item.Url, start, end);
             }
-            if (shouldBreak) break;
-            await this.downloadChunk(this.item.Url, start, end).then(() => {
-                afterChuckComplete(start, end);
-            })
-        }
-        return this.bytebuffer
+        });
+        await Promise.all(workers);
+        return this.bytebuffer;
     }
 
     /**
@@ -133,58 +112,64 @@ export class DownloadTask {
      * @private
      */
     private async downloadChunk(url: string, start: number, end: number): Promise<boolean> {
-        const response = await fetch(url, {
-            headers: {
-                'Range': `bytes=${start}-${end}`
-            },
-            signal: this.shutdownSignal.signal
-        });
-        if (!response.ok) {
-            throw new DownloadError(DownloaderErrorEnum.NetworkError);
-        }
+        const options = this.options ?? DEFAULT_DOWNLOAD_TASK_OPTIONS;
+        const maxRetries = options.maxRetries ?? DEFAULT_DOWNLOAD_TASK_OPTIONS.maxRetries!;
+        const baseDelay = options.retryBaseDelayMs ?? DEFAULT_DOWNLOAD_TASK_OPTIONS.retryBaseDelayMs!;
 
-        // 使用流式读取，边读边写入 bytebuffer，并在每次写入后更新 progress
-        const reader = response.body?.getReader();
-        if (!reader) {
-            // 退回到一次性读取的逻辑（兼容性）
-            const data = new Uint8Array(await response.arrayBuffer());
-            const RW = await this.mutex.obtainRW()
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            let addedThisAttempt = 0; // 本次尝试期间已计入的进度，失败需回滚
             try {
-                this.bytebuffer.set(data, start);
-                // 更新已下载字节并通知
-                this.downloaded += data.length;
-            } finally {
-                RW();
-            }
-            this.item.OnProgress?.(this.downloaded, this.fileSize);
-            return true;
-        }
+                const response = await fetch(url, {
+                    headers: { 'Range': `bytes=${start}-${end}` },
+                    signal: this.shutdownSignal.signal,
+                    cache: 'no-store',
+                });
+                if (!response.ok) {
+                    throw new DownloadError(DownloaderErrorEnum.NetworkError);
+                }
 
-        let writePos = start;
-        try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                if (value && value.length > 0) {
-                    const RW = await this.mutex.obtainRW();
-                    try {
-                        // 写入缓冲区
+                const reader = response.body?.getReader();
+                if (!reader) {
+                    // 环境不支持 ReadableStream：一次性读取
+                    const data = new Uint8Array(await response.arrayBuffer());
+                    this.bytebuffer.set(data, start);
+                    this.downloaded += data.length;
+                    this.item.OnProgress?.(this.downloaded, this.fileSize);
+                    return true;
+                }
+
+                let writePos = start;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    if (value && value.length > 0) {
                         this.bytebuffer.set(value, writePos);
                         writePos += value.length;
-                        // 更新全局已下载字节数
                         this.downloaded += value.length;
-                    } finally {
-                        RW();
+                        addedThisAttempt += value.length;
+                        this.item.OnProgress?.(this.downloaded, this.fileSize);
                     }
-                    // 在释放锁之后触发进度回调
+                }
+                return true; // 分块成功完成
+            } catch (e: any) {
+                // 如果是主动取消，直接抛出终止
+                const name = e?.name || e?.constructor?.name;
+                if (name === 'AbortError') throw e;
+
+                // 回滚本次尝试期间累加的进度，避免重试导致进度超量
+                if (addedThisAttempt > 0) {
+                    this.downloaded = Math.max(0, this.downloaded - addedThisAttempt);
                     this.item.OnProgress?.(this.downloaded, this.fileSize);
                 }
-            }
-        } catch (e) {
-            // 如果是中断导致的异常，向上抛出或按需忽略
-            throw e;
-        }
 
-        return true;
+                if (attempt < maxRetries) {
+                    const delay = baseDelay * Math.pow(2, attempt);
+                    await this.sleep(delay);
+                    continue;
+                }
+                throw new DownloadError(DownloaderErrorEnum.NetworkError);
+            }
+        }
+        return false;
     }
 }

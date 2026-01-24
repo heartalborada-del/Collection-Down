@@ -82,7 +82,7 @@ async function fetchData() {
     }
     selectedSets.value = new Map()
     try {
-      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'DLC', id: ParsedResult.value.id }) } catch {}
+      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'DLC', id: ParsedResult.value.id }) } catch { }
       const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
       for (const collection of collections) {
         if (collection.type === PackageType.Undefined) {
@@ -105,7 +105,6 @@ async function fetchData() {
         ItemsArray.value.push(cp)
       }
     } catch {
-      try { EnableTrace && umTrackEvent('detail_error', { type: 'DLC', id: ParsedResult.value.id }) } catch {}
       toast.add({
         title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
         description: `请检查ID是否正确或稍后重试`,
@@ -114,7 +113,6 @@ async function fetchData() {
       })
       return
     }
-    try { EnableTrace && umTrackEvent('detail_success', { type: 'DLC', id: ParsedResult.value.id, count: ItemsArray.value.length }) } catch {}
     toast.add({
       title: `获取 卡池ID ${ParsedResult.value.id} 成功`,
       description: `获得 ${ItemsArray.value.length} 个收藏集及其附属数据`,
@@ -130,7 +128,7 @@ async function fetchData() {
     }
     selectedSets.value = new Map()
     try {
-      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'THEME', id: ParsedResult.value.id }) } catch {}
+      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'THEME', id: ParsedResult.value.id }) } catch { }
       const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
       for (const data of themeData) {
         if (data.type === PackageType.Undefined) {
@@ -153,7 +151,6 @@ async function fetchData() {
         ItemsArray.value.push(cp)
       }
     } catch {
-      try { EnableTrace && umTrackEvent('detail_error', { type: 'THEME', id: ParsedResult.value.id }) } catch {}
       toast.add({
         title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
         description: `请检查ID是否正确或稍后重试`,
@@ -162,7 +159,6 @@ async function fetchData() {
       })
       return
     }
-    try { EnableTrace && umTrackEvent('detail_success', { type: 'THEME', id: ParsedResult.value.id, count: ItemsArray.value.length }) } catch {}
     toast.add({
       title: `获取 主题ID ${ParsedResult.value.id} 成功`,
       description: `获得 ${ItemsArray.value.length} 个主题数据`,

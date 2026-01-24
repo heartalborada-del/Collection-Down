@@ -50,11 +50,13 @@ const searchItems = ref<SearchInfo[]>([])
 const searching = ref(false)
 
 function parseQRCode(e: Event) {
+  const { public: { EnableTrace } } = useRuntimeConfig()
   if (!(e.target instanceof HTMLInputElement && e.target === QRScan.value && QRScan.value?.files?.length && QRScan.value?.files?.length > 0)) return
   const file = e.target?.files?.[0]
   if (!file) return
   const URI = window.webkitURL.createObjectURL(file) || window.URL.createObjectURL(file)
   const qr = new QrcodeDecoder()
+  try { EnableTrace && umTrackEvent('qrcode') } catch { }
   qr.decodeFromImage(URI).then((res) => {
     if (!res) {
       return toast.add({
@@ -112,13 +114,13 @@ async function searchForKeyword(keyword: string, page: number) {
     })
   }
   // 前端上报：搜索提交
-  try { EnableTrace && umTrackEvent('search_submit', { q: keyword, page, len: keyword.length }) } catch {}
+  try { EnableTrace && umTrackEvent('search', { keyword: keyword }) } catch { }
   fetch(`/api/bili/collection/search?&key_word=${encodeURIComponent(keyword)}&page=${page}`, {
     method: 'GET'
   })
     .then(resp => {
       if (!resp.ok) {
-        try { EnableTrace && umTrackEvent('search_http_error', { q: keyword, page, status: resp.status }) } catch {}
+
         toast.add({
           title: '搜索时出现错误',
           description: `服务器返回错误：${resp.status}`,
@@ -132,7 +134,7 @@ async function searchForKeyword(keyword: string, page: number) {
     .then(data => data as ApiResponse<SearchInfo[]>)
     .then(result => {
       if (result.code !== 0 || !result.data) {
-        try { EnableTrace && umTrackEvent('search_api_error', { q: keyword, page, code: result.code }) } catch {}
+
         toast.add({
           title: '搜索时出现错误',
           description: `错误信息：${result.message}`,
@@ -142,7 +144,7 @@ async function searchForKeyword(keyword: string, page: number) {
         throw "skip"
       }
       if (result.data.length === 0) {
-        try { EnableTrace && umTrackEvent('search_empty', { q: keyword, page }) } catch {}
+
         if (page === 1) {
           toast.add({
             title: '未找到相关结果',
@@ -158,14 +160,14 @@ async function searchForKeyword(keyword: string, page: number) {
         }
         throw "skip"
       }
-      try { EnableTrace && umTrackEvent('search_results', { q: keyword, page, count: result.data.length }) } catch {}
+
       searchItems.value = [...searchItems.value, ...result.data];
     })
     .catch(error => {
       if (error === "skip") {
         return
       }
-      try { EnableTrace && umTrackEvent('search_error', { q: keyword, page }) } catch {}
+
       toast.add({
         title: '搜索时出现错误',
         description: '请稍后重试。',
@@ -192,7 +194,7 @@ function updateResult(type: ParsedType, id: string) {
   ParsedResult.value.type = type
   ParsedResult.value.id = id
   const { public: { EnableTrace } } = useRuntimeConfig()
-  try { EnableTrace && umTrackEvent('search_select', { type, id }) } catch {}
+
   toast.add({
     title: '解析成功',
     description: '点击下一步继续。',
@@ -209,13 +211,14 @@ async function loadCSV() {
   if (loadingCSV.value) return
   loadingCSV.value = true
   const { public: { EnableTrace } } = useRuntimeConfig()
-  try { EnableTrace && umTrackEvent('csv_load_start') } catch {}
+  try { EnableTrace && umTrackEvent('csv') } catch { }
+
   fetch('/api/latestCollectionsMap')
     .then(resp => resp.json())
     .then(data => {
       const result = data as ApiResponse<CollectionCSVData>
       if (result.code !== 0 || !result.data) {
-        try { EnableTrace && umTrackEvent('csv_load_error', { code: result.code }) } catch {}
+
         toast.add({
           title: '加载失败',
           description: `错误信息: ${result.message}`,
@@ -233,7 +236,7 @@ async function loadCSV() {
         skipEmptyLines: true,
       }).data as { act_id: string; act_title: string }[];
       loadedCollectionIDs.value = [...parsedCSV1wPlus, ...parsedCSV100to300]
-      try { EnableTrace && umTrackEvent('csv_load_success', { count: loadedCollectionIDs.value.length }) } catch {}
+
       toast.add({
         title: '加载成功, 共 ' + loadedCollectionIDs.value.length + ' 条数据',
         description: '请从下拉菜单中选择收藏集',
@@ -241,7 +244,7 @@ async function loadCSV() {
         color: 'success',
       })
     }).catch(() => {
-      try { EnableTrace && umTrackEvent('csv_load_error') } catch {}
+
       toast.add({
         title: '加载失败',
         description: '请稍后重试',

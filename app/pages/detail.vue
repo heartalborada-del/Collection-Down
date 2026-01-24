@@ -82,7 +82,7 @@ async function fetchData() {
     }
     selectedSets.value = new Map()
     try {
-      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'DLC', id: ParsedResult.value.id }) } catch { }
+      try { EnableTrace && umTrackEvent('detail', { type: 'DLC', id: ParsedResult.value.id }) } catch { }
       const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
       for (const collection of collections) {
         if (collection.type === PackageType.Undefined) {
@@ -128,7 +128,7 @@ async function fetchData() {
     }
     selectedSets.value = new Map()
     try {
-      try { EnableTrace && umTrackEvent('detail_fetch', { type: 'THEME', id: ParsedResult.value.id }) } catch { }
+      try { EnableTrace && umTrackEvent('detail', { type: 'THEME', id: ParsedResult.value.id }) } catch { }
       const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
       for (const data of themeData) {
         if (data.type === PackageType.Undefined) {

@@ -1,12 +1,15 @@
 {
   "compatibility_date": "2025-10-28",
-  "build": {
-    "command": "npm run build",
-    "cwd": ".."
-  },
   "name": "collection-down",
   "compatibility_flags": [
     "nodejs_compat",
     "no_nodejs_compat_v2"
-  ]
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./.output/public/"
+  },
+  "observability": {
+    "enabled": true
+  }
 }

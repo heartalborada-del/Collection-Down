@@ -1,12 +1,12 @@
 {
-  "compatibility_date": "2025-07-15",
-  "pages_build_output_dir": "..",
+  "compatibility_date": "2025-10-28",
+  "build": {
+    "command": "npm run build",
+    "cwd": ".."
+  },
   "name": "collection-down",
   "compatibility_flags": [
     "nodejs_compat",
     "no_nodejs_compat_v2"
-  ],
-  "build": {
-    "command": "npm run build"
-  }
+  ]
 }

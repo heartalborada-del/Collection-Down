@@ -1,6 +1,6 @@
 import type { LotteryListItem } from "~~/types/api/bili/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
-import { CardInfo, EmojiInfo, EmojiPackageInfo, LoadingInfo, OtherInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, EmojiPackageInfo, LoadingInfo, OtherInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
@@ -207,7 +207,7 @@ async function GetSuitMigratedData(partIds: number[]) {
             (Object.keys(element.elements) as Array<keyof typeof element.elements>).forEach(key => {
                 if (key === 'package_url') return;
                 const val = element.elements[key];
-                if (typeof val === 'string') {
+                if (typeof val === 'string' && val.length > 0) {
                     OtherInfoArray.push(new OtherInfo({
                         name: String(key),
                         img: val,
@@ -229,10 +229,23 @@ async function GetSuitMigratedData(partIds: number[]) {
                     package: [],
                 };
             }
+            themePackage[element.name]?.package.push(new ThumbupInfo({
+                name: "thumbup",
+                preview: element.preview,
+                url: element.ani,
+            }));
+        })
+        arr.loadings?.forEach(element => {
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = {
+                    id: id,
+                    package: [],
+                };
+            }
             themePackage[element.name]?.package.push(new LoadingInfo({
                 name: "loading",
                 preview: element.preview,
-                url: element.ani,
+                animated: element.animation,
             }));
         })
         arr.spaceBackgrounds?.forEach(element => {

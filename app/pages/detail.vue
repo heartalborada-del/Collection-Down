@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ParsedType } from "~/utils/Preprocess";
-import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, LoadingInfo, OtherInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, LoadingInfo, OtherInfo, ThumbupInfo, type PackageDataType } from "~~/types/api/inner/types";
 import { ItemType, PackageType } from "~~/types/api/enum";
 import type { TreeItem } from "@nuxt/ui";
 import type { TreeItemSelectEvent } from 'reka-ui'
@@ -189,7 +189,7 @@ function setActiveCard(currentCard: PackageDataType, packageName: string | undef
   if (currentPackage.value.id === 0 || !packageName) {
     return
   }
-  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo || currentCard instanceof LoadingInfo) {
+  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo || currentCard instanceof LoadingInfo || currentCard instanceof ThumbupInfo) {
     if (!selectedSets.value.has(packageName)) {
       selectedSets.value.set(packageName, new Set())
     }
@@ -360,8 +360,16 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         continue
       } else if (target instanceof LoadingInfo) {
         files.push(new DownloadMetaData({
+          url: target.animated!,
+          filename: `${path}/loading/${target.name}.${GetFileExtensionFromUrl(target.animated!)}`,
+          type: ItemType.WebpSticker,
+          name: target.name
+        }))
+        continue
+      } else if (target instanceof ThumbupInfo) {
+        files.push(new DownloadMetaData({
           url: target.url!,
-          filename: `${path}/loading/${target.name}.png`,
+          filename: `${path}/thumbup/${target.name}.png}`,
           type: ItemType.SVGA,
           name: target.name
         }))

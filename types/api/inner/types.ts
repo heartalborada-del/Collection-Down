@@ -110,7 +110,7 @@ export class OtherInfo {
     }
 }
 
-export class LoadingInfo {
+export class ThumbupInfo {
     name: string;
     preview: string;
     url: string;
@@ -119,6 +119,18 @@ export class LoadingInfo {
         this.name = data.name;
         this.preview = data.preview;
         this.url = data.url;
+    }
+}
+
+export class LoadingInfo {
+    name: string;
+    preview: string;
+    animated: string;
+
+    constructor(data: { name: string; preview: string; animated: string }) {
+        this.name = data.name;
+        this.preview = data.preview;
+        this.animated = data.animated;
     }
 }
 
@@ -150,7 +162,7 @@ export class DownloadMetaData {
     }
 }
 
-export type PackageDataType = CardInfo | EmojiInfo | OtherInfo | LoadingInfo;
+export type PackageDataType = CardInfo | EmojiInfo | OtherInfo | ThumbupInfo | LoadingInfo;
 
 export type CollectionCSVData = {
     '100-300': string;

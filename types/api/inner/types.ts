@@ -169,6 +169,12 @@ export type CollectionCSVData = {
     '100000+': string;
 };
 
+export type CSVDefinition = {
+    act_id: string;
+    act_title: string;
+    status: string;
+};
+
 export type SuitComponentResult = {
     target: number;
     emojis?: EmojiPackageInfo[];

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import QrcodeDecoder from "qrcode-decoder";
 import { GetForwardedLink, ParsedType, ParseIdFromLink } from "~/utils/Preprocess";
-import type { CollectionCSVData, SearchInfo } from "~~/types/api/inner/types";
+import type { CollectionCSVData, CSVDefinition, SearchInfo } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 import type { SelectItem, TabsItem } from "@nuxt/ui";
 import Papa from 'papaparse';
@@ -230,12 +230,15 @@ async function loadCSV() {
       const parsedCSV1wPlus = Papa.parse<{ act_id: string; act_title: string }>(result.data['100000+'], {
         header: true,
         skipEmptyLines: true,
-      }).data as { act_id: string; act_title: string }[];
+      }).data as CSVDefinition[];
       const parsedCSV100to300 = Papa.parse<{ act_id: string; act_title: string }>(result.data['100-300'], {
         header: true,
         skipEmptyLines: true,
-      }).data as { act_id: string; act_title: string }[];
-      loadedCollectionIDs.value = [...parsedCSV1wPlus, ...parsedCSV100to300]
+      }).data as CSVDefinition[];
+      loadedCollectionIDs.value = [...parsedCSV100to300, ...parsedCSV1wPlus.filter(item => item.status.toLowerCase() === "true")].map(item => ({
+        act_id: item.act_id,
+        act_title: item.act_title
+      }))
 
       toast.add({
         title: '加载成功, 共 ' + loadedCollectionIDs.value.length + ' 条数据',
@@ -353,7 +356,6 @@ const checkScreenSize = () => {
                     @change.stop="updateResult(ParsedType.DLC, CSVSelectedID)">
                     <template #item-label="{ item }">
                       {{ item.act_title }}
-
                       <span class="text-muted">
                         {{ item.act_id }}
                       </span>
@@ -361,8 +363,8 @@ const checkScreenSize = () => {
                   </USelectMenu>
                 </div>
                 <p>鸣谢: <a style="text-decoration: underline;"
-                    href="https://github.com/CloudyEagle/bilibili-collections-archive" target="_blank"
-                    rel="noopener noreferrer">CloudyEagle</a></p>
+                    href="https://github.com/CaleyGoldue/bilibili-collections-archive" target="_blank"
+                    rel="noopener noreferrer">CloudyEagle, CaleyGoldue</a></p>
               </div>
             </Transition>
           </template>

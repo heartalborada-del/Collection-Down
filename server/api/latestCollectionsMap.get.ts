@@ -20,8 +20,7 @@ export default defineEventHandler(async (event) => {
         redirect: 'follow',
         headers: {
           'If-None-Match': Etags['100000+'],
-        },
-        cache: 'default'
+        }
       }
     )
     Etags['100000+'] = w1_resp.headers.get('ETag') || ''
@@ -34,8 +33,7 @@ export default defineEventHandler(async (event) => {
         redirect: 'follow',
         headers: {
           'If-None-Match': Etags['100-300'],
-        },
-        cache: 'default'
+        }
       }
     )
     Etags['100-300'] = w2_resp.headers.get('ETag') || ''

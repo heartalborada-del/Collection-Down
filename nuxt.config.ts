@@ -41,9 +41,6 @@ export default defineNuxtConfig({
             deployConfig: true,
             nodeCompat: true,
         },
-        rollupConfig: {
-            external: ['papaparse']
-        }
     },
     umami: {
         enabled: process.env.UMAMI_ENABLED === 'true',

@@ -112,11 +112,13 @@ function isAllDownloadsCompleted(): boolean {
                         if (downloader) {
                             downloader.cancelAllDownloads();
                         }
+                        const { public: { isEdgeOneCompatible } } = useRuntimeConfig()
                         downloader = new Downloader({
                             maxConcurrentDownloads: ParallelDownloads,
                             taskOptions: {
                                 maxThreads: SingleDownloadThread,
                                 chunkSize: 5 * 1024 * 1024, // 5 MB
+                                EdgeOneCompatible: isEdgeOneCompatible ? true : false,
                             }
                         });
                         fileMetadatas.forEach(async file => {

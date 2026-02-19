@@ -8,6 +8,7 @@ export type DownloadTaskOptions = {
     maxRetries?: number;
     // 重试的基础退避时间（毫秒），指数退避：base * 2^attempt
     retryBaseDelayMs?: number;
+    EdgeOneCompatible?: boolean; // 是否启用针对 EdgeOne 的兼容性调整
 }
 
 export const DEFAULT_DOWNLOAD_TASK_OPTIONS: DownloadTaskOptions = {
@@ -15,6 +16,7 @@ export const DEFAULT_DOWNLOAD_TASK_OPTIONS: DownloadTaskOptions = {
     chunkSize: 1024 * 1024, // 1 MB
     maxRetries: 2,
     retryBaseDelayMs: 300,
+    EdgeOneCompatible: false,
 }
 
 export class DownloadTask {
@@ -40,7 +42,14 @@ export class DownloadTask {
         const response = await fetch(url, { method: 'HEAD', signal: this.shutdownSignal.signal, cache: 'no-store' });
         if (!response.ok || response.headers.get('Accept-Ranges')?.toLowerCase() !== 'bytes')
             return -1;
-        const contentLength = response.headers.get('Content-Length');
+        let contentLength = response.headers.get('Content-Length');
+        if (this.options?.EdgeOneCompatible) {
+            // EdgeOne 兼容：优先使用备份的原始 Content-Length
+            const backupLength = response.headers.get('X-Length-Backup');
+            if (backupLength) {
+                contentLength = backupLength;
+            }
+        }
         return contentLength ? parseInt(contentLength, 10) : -1;
     }
 

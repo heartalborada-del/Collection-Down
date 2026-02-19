@@ -64,7 +64,9 @@ export default defineEventHandler(async (event) => {
         const resp = await fetch(query.origin as string, fetchPayload);
         for (const [k, v] of resp.headers) {
             if (k.toLowerCase() === 'content-length') {
+                //神秘edgeone重写我headers，导致range请求的content-length不正确，所以备份一下原始content-length
                 setResponseHeader(event, "X-Length-Backup", v);
+                setResponseHeader(event, "Content-Length", 0);
             }
             setResponseHeader(event, k, v as string);
         }

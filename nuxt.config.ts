@@ -10,6 +10,7 @@ export default defineNuxtConfig({
         public: {
             GithubRawEndpoint: process.env.GITHUB_RAW_ENDPOINT || 'https://raw.githubusercontent.com',
             EnableTrace: process.env.UMAMI_ENABLED === 'true' || false,
+            isEdgeOneCompatible: process.env.EDGE_ONE_COMPATIBLE === 'true' || false,
         },
         isDev: process.env.DEV_MODE === 'true' || false,
     },
@@ -40,6 +41,9 @@ export default defineNuxtConfig({
         cloudflare: {
             deployConfig: true,
             nodeCompat: true,
+        },
+        replace: {
+            'typeof window': '`undefined`',
         },
     },
     umami: {

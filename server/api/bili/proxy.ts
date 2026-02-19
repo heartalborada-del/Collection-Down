@@ -63,6 +63,9 @@ export default defineEventHandler(async (event) => {
         }
         const resp = await fetch(query.origin as string, fetchPayload);
         for (const [k, v] of resp.headers) {
+            if (k.toLowerCase() === 'content-length') {
+                setResponseHeader(event, "X-Length-Backup", v);
+            }
             setResponseHeader(event, k, v as string);
         }
         setResponseStatus(event, resp.status);

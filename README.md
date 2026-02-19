@@ -1,8 +1,9 @@
 # [Collection Down](https://cd.griseo.top/)
 
-![Vercel Deploy](https://deploy-badge.vercel.app/?url=https%3A%2F%2Fcd-vercel.griseo.top&logo=vercel&name=Vercel)
-![Netlify Deploy](https://img.shields.io/netlify/e6d5a4e0-dee1-4261-833e-2f47f509c68f?logo=netlify)
-![Cloudflare](https://deploy-badge.vercel.app/?url=https%3A%2F%2Fcd-cloudflare.griseo.top&logo=cloudflare&name=Cloudflare)
+- [![EdgeOne](https://img.shields.io/website?url=https%3A%2F%2Fcd-eo.griseo.top&style=flat&logo=edgeone&label=EdgeOne) cd-eo.griseo.top](https://cd-eo.griseo.top)
+- [![Netlify Deploy](https://img.shields.io/netlify/e6d5a4e0-dee1-4261-833e-2f47f509c68f?logo=netlify) cd-netlify.griseo.top](https://cd-netlify.griseo.top)
+- [![Cloudflare](https://img.shields.io/website?url=https%3A%2F%2Fcd-cloudflare.griseo.top&style=flat&logo=cloudflare&label=Cloudflare) cd-cloudflare.griseo.top](https://cd-cloudflare.griseo.top)
+- [![Vercel Deploy](https://img.shields.io/website?url=https%3A%2F%2Fcd-vercel.griseo.top&style=flat&logo=vercel&label=Vercel) ~~cd-vercel.griseo.top~~](https://cd-vercel.griseo.top) **因超出限制而被暂停部署**
 
 又一个Bilibili收藏集下载工具，支持下载视频，图片，表情包等
 
@@ -15,6 +16,8 @@
 - [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)
 
 ## Deploy
+[![Use EdgeOne Pages to deploy](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https://github.com/heartalborada-del/Collection-Down)
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fheartalborada-del%2FCollection-Down)
 
 [![Deploy with Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https%3A%2F%2Fgithub.com%2Fheartalborada-del%2FCollection-Down)

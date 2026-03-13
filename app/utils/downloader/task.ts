@@ -31,6 +31,17 @@ export class DownloadTask {
 
     constructor(private item: DownloadItem, private options?: DownloadTaskOptions) { }
 
+    private getResolvedOptions(): DownloadTaskOptions {
+        const options = this.options ?? DEFAULT_DOWNLOAD_TASK_OPTIONS;
+
+        return {
+            ...DEFAULT_DOWNLOAD_TASK_OPTIONS,
+            ...options,
+            maxThreads: Math.max(1, Math.floor(Number(options.maxThreads) || DEFAULT_DOWNLOAD_TASK_OPTIONS.maxThreads)),
+            chunkSize: Math.max(1, Math.floor(Number(options.chunkSize) || DEFAULT_DOWNLOAD_TASK_OPTIONS.chunkSize)),
+        };
+    }
+
     /**
      * Get the size of the file to be downloaded.
      * <code>-1</code> if the size cannot be determined.
@@ -62,7 +73,7 @@ export class DownloadTask {
      * @constructor
      */
     public async download(): Promise<Uint8Array> {
-        const options = this.options ?? DEFAULT_DOWNLOAD_TASK_OPTIONS;
+        const options = this.getResolvedOptions();
         const fileSize = await this.getFileSize(this.item.Url);
         this.fileSize = fileSize;
         this.downloaded = 0;
@@ -73,12 +84,45 @@ export class DownloadTask {
             if (!response.ok) {
                 throw new DownloadError(DownloaderErrorEnum.NetworkError);
             }
-            const data = new Uint8Array(await response.arrayBuffer());
-            this.bytebuffer = data;
-            this.fileSize = data.length;
-            this.downloaded = data.length;
-            this.item.OnProgress?.(this.downloaded, this.fileSize);
-            return data;
+
+            const contentLength = response.headers.get('Content-Length') ?? response.headers.get('X-Length-Backup');
+            const total = contentLength ? parseInt(contentLength, 10) : -1;
+            this.fileSize = Number.isFinite(total) ? total : -1;
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                const data = new Uint8Array(await response.arrayBuffer());
+                this.bytebuffer = data;
+                this.fileSize = data.length;
+                this.downloaded = data.length;
+                this.item.OnProgress?.(this.downloaded, this.fileSize);
+                return data;
+            }
+
+            const chunks: Uint8Array[] = [];
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (value && value.length > 0) {
+                    chunks.push(value);
+                    this.downloaded += value.length;
+                    this.item.OnProgress?.(this.downloaded, this.fileSize);
+                }
+            }
+
+            const merged = new Uint8Array(this.downloaded);
+            let offset = 0;
+            for (const chunk of chunks) {
+                merged.set(chunk, offset);
+                offset += chunk.length;
+            }
+
+            this.bytebuffer = merged;
+            if (this.fileSize === -1) {
+                this.fileSize = merged.length;
+                this.item.OnProgress?.(this.downloaded, this.fileSize);
+            }
+            return merged;
         }
 
         // 支持 Range：构建分块任务并通过简单任务池并发执行。
@@ -90,7 +134,7 @@ export class DownloadTask {
         }
 
         // 简单任务池：限制同时进行的分块请求数
-        const limit = Math.max(1, options.maxThreads);
+        const limit = options.maxThreads;
         let idx = 0;
         const workers = new Array(Math.min(limit, ranges.length)).fill(0).map(async () => {
             while (true) {
@@ -121,7 +165,7 @@ export class DownloadTask {
      * @private
      */
     private async downloadChunk(url: string, start: number, end: number): Promise<boolean> {
-        const options = this.options ?? DEFAULT_DOWNLOAD_TASK_OPTIONS;
+        const options = this.getResolvedOptions();
         const maxRetries = options.maxRetries ?? DEFAULT_DOWNLOAD_TASK_OPTIONS.maxRetries!;
         const baseDelay = options.retryBaseDelayMs ?? DEFAULT_DOWNLOAD_TASK_OPTIONS.retryBaseDelayMs!;
 
@@ -160,9 +204,13 @@ export class DownloadTask {
                     }
                 }
                 return true; // 分块成功完成
-            } catch (e: any) {
+            } catch (e: unknown) {
                 // 如果是主动取消，直接抛出终止
-                const name = e?.name || e?.constructor?.name;
+                const name = e instanceof Error
+                    ? e.name
+                    : typeof e === "object" && e !== null && "name" in e
+                        ? String((e as { name?: unknown }).name)
+                        : undefined;
                 if (name === 'AbortError') throw e;
 
                 // 回滚本次尝试期间累加的进度，避免重试导致进度超量

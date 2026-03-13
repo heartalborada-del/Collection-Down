@@ -16,6 +16,7 @@ export class Downloader {
     private queue: DownloadItem[] = []; // Task queue
     private currentDownloads: number = 0;
     private downloadInstances: DownloadTask[] = [];
+    private isRunning: boolean = false;
 
     constructor(private readonly options?: DownloaderOptions) { }
 
@@ -28,11 +29,20 @@ export class Downloader {
     }
 
     public async startDownloads() {
-        for (var i = 0; i < this.options?.maxConcurrentDownloads!; i++) {
-            new Promise<void>(async (resolve) => {
-                await this.startNextDownload();
-                resolve();
-            });
+        if (this.isRunning) {
+            return;
+        }
+
+        this.isRunning = true;
+        const options = this.options ?? DEFAULT_DOWNLOADER_OPTIONS;
+        const concurrency = Math.max(1, Math.floor(options.maxConcurrentDownloads || 1));
+        const workerCount = Math.min(concurrency, this.queue.length);
+
+        try {
+            const workers = Array.from({ length: workerCount }, () => this.startNextDownload());
+            await Promise.all(workers);
+        } finally {
+            this.isRunning = false;
         }
     }
 
@@ -42,8 +52,8 @@ export class Downloader {
     }
 
     private async startNextDownload() {
-        let options = this.options ?? DEFAULT_DOWNLOADER_OPTIONS;
-        while (this.currentDownloads < options.maxConcurrentDownloads && this.queue.length > 0) {
+        const options = this.options ?? DEFAULT_DOWNLOADER_OPTIONS;
+        while (this.queue.length > 0) {
             const task = this.queue.shift()!; // 获取下一个下载任务
             const currentInstance = new DownloadTask(task, options.taskOptions);
             this.downloadInstances.push(currentInstance);
@@ -57,7 +67,6 @@ export class Downloader {
             } finally {
                 this.currentDownloads--; // 结束下载任务时减少当前下载数
                 this.downloadInstances = this.downloadInstances.filter(instance => instance !== currentInstance);
-                this.startNextDownload(); // 启动下一个下载
             }
         }
     }

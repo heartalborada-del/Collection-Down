@@ -23,7 +23,7 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     const merged = await Promise.allSettled(promises)
 
     merged.forEach(item => {
-        console.log(item);
+        //console.log(item);
         if (item.status === 'rejected') {
             console.warn(`Failed to fetch lottery details`);
             console.warn(item.reason);

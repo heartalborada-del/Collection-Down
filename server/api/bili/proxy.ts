@@ -62,17 +62,19 @@ export default defineEventHandler(async (event) => {
             }
         }
         const resp = await fetch(query.origin as string, fetchPayload);
+        const headers = new Headers();
         for (const [k, v] of resp.headers) {
             if (k.toLowerCase() === 'content-length') {
                 //神秘edgeone重写我headers，导致range请求的content-length不正确，所以备份一下原始content-length
-                setResponseHeader(event, "X-Length-Backup", v);
-                setResponseHeader(event, "Content-Length", 0);
+                headers.set("X-Length-Backup", v);
             }
-            setResponseHeader(event, k, v as string);
+            headers.set(k, v as string);
         }
-        setResponseStatus(event, resp.status);
-        const buffer = await resp.arrayBuffer();
-        return Buffer.from(buffer);
+        return new Response(resp.body, {
+            status: resp.status,
+            statusText: resp.statusText,
+            headers,
+        });
     } catch (err) {
         setResponseHeader(event, "X-Error-Message", `An error occurred while fetching data.`);
         setResponseHeader(event, "X-Error-Message", (err as Error).message);

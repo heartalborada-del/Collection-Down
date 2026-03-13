@@ -2,6 +2,12 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
+const { public: { BuildTimestamp } } = useRuntimeConfig()
+
+onMounted(() => {
+  console.info('[Collection Down] 编译时间戳:', BuildTimestamp)
+})
+
 const navigationItems = computed<NavigationMenuItem[]>(() => [
   {
     label: 'Home',
@@ -24,22 +30,14 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
 ])
 </script>
 
-<style>
-.page-enter-active,
-.page-leave-active {
-  transition: all 0.1s;
-}
-
-.page-enter-from,
-.page-leave-to {
-  opacity: 0;
-  filter: blur(1rem);
-}
-</style>
-
 <template>
   <UApp>
-    <UHeader mode="slideover">
+    <UHeader
+      mode="slideover"
+      :toggle="{
+        label: '菜单',
+      }"
+    >
       <template #title>
         Collection Down
       </template>
@@ -48,8 +46,14 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
         <UColorModeButton />
 
         <UTooltip text="Open on GitHub">
-          <UButton color="neutral" variant="ghost" to="https://github.com/heartalborada-del/Collection-Down"
-            target="_blank" icon="i-simple-icons-github" aria-label="GitHub" />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            to="https://github.com/heartalborada-del/Collection-Down"
+            target="_blank"
+            icon="i-simple-icons-github"
+            aria-label="GitHub"
+          />
         </UTooltip>
       </template>
       <template #body>
@@ -68,3 +72,16 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
     <UFooter />
   </UApp>
 </template>
+
+<style>
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.1s;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  filter: blur(1rem);
+}
+</style>

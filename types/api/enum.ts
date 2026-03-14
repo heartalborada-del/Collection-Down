@@ -30,7 +30,9 @@ export enum PackageType {
 export enum ItemType {
     // group bits: 0x100 = Card, 0x200 = Sticker, 0x300 = Other
     StaticCard = 0x100 | 1,
-    AnimatedCard = 0x100 | 2,
+    StaticCardWatermarked = 0x100 | 2,
+    AnimatedCard = 0x100 | 3,
+    AnimatedCardWatermarked = 0x100 | 4,
 
     WebpSticker = 0x200 | 1,
     GifSticker = 0x200 | 2,
@@ -47,7 +49,9 @@ export namespace ItemType {
     export function toString(t: ItemType): string {
         switch (t) {
             case ItemType.StaticCard: return "Static Card";
+            case ItemType.StaticCardWatermarked: return "Static Card (Watermarked)";
             case ItemType.AnimatedCard: return "Animated Card";
+            case ItemType.AnimatedCardWatermarked: return "Animated Card (Watermarked)";
             case ItemType.WebpSticker: return "WebP Sticker";
             case ItemType.GifSticker: return "GIF Sticker";
             case ItemType.StaticSticker: return "Static Sticker";

@@ -1,4 +1,9 @@
 import { BiliImgDomains, BiliVideoDomains, FetchHeaders, MAX_RANGE_SIZE } from "~~/types/global";
+
+const patterns = [...BiliImgDomains, ...BiliVideoDomains].map(domain => new URLPattern({
+    hostname: domain
+}));
+
 import { RangeValidator } from "~~/utils/rangeValidator";
 export default defineEventHandler(async (event) => {
     try {
@@ -7,14 +12,8 @@ export default defineEventHandler(async (event) => {
             setResponseHeader(event, "X-Error-Message", "Invalid request payload");
             return setResponseStatus(event, 400);
         }
-        const url = URL.parse(query.origin as string);
-        let isAllowedDomain = false;
-        for (const domain of [...BiliImgDomains, ...BiliVideoDomains]) {
-            if (url?.host === domain) {
-                isAllowedDomain = true;
-                break;
-            }
-        }
+        const host = URL.parse(query.origin as string)?.host;
+        let isAllowedDomain = patterns.some(pattern => pattern.test({ hostname: host }));
         if (!isAllowedDomain) {
             setResponseHeader(event, "X-Error-Message", "Domain not allowed");
             return setResponseStatus(event, 403);

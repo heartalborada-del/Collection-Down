@@ -23,7 +23,6 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     const merged = await Promise.allSettled(promises)
 
     merged.forEach(item => {
-        //console.log(item);
         if (item.status === 'rejected') {
             console.warn(`Failed to fetch lottery details`);
             console.warn(item.reason);
@@ -36,10 +35,8 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
                     data: item.data,
                     type: item.type
                 })
-
             })
     })
-    //console.log(ItemsArray);
     return ItemsArray
 }
 
@@ -80,6 +77,7 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
     }
     const cardObjects: CardInfo[] = [];
     (res.data?.items).forEach((card: CardInfo) => {
+        console.debug(`Processing card: ${card.name} (ID: ${card.id}), raw data:`, card);
         cardObjects.push(new CardInfo(card))
     })
     const returnValue: DetailedData[] = [{
@@ -159,7 +157,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                     })
                     results.push(value);
                 })
-                    */
+                */
             }
         }
     }
@@ -293,7 +291,6 @@ export enum Errors {
 
 //Promise reject structure:
 export class PromiseRejected {
-    constructor(public error: Errors, public message?: string, public code?: number) {
-    }
+    constructor(public error: Errors, public message?: string, public code?: number) { }
 }
 

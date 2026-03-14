@@ -2,13 +2,14 @@
 import { Parser } from '@heartalborada-del/svga';
 import JSZip from 'jszip';
 import { ref, watch } from 'vue';
+import { useDownloadSettingStore } from '~/store/downloadSetting';
 import { Downloader } from '~/utils/downloader/manager';
 import type { DownloadItem } from '~/utils/downloader/types';
 import { ItemType } from '~~/types/api/enum';
 import type { DownloadMetaData } from '~~/types/api/inner/types';
+import { CollectionCardDownloadType } from '~~/types/collection';
 
-const ParallelDownloads = ref(4);
-const SingleDownloadThread = ref(4);
+const store = useDownloadSettingStore();
 
 const props = defineProps<{
     open: boolean;
@@ -57,7 +58,8 @@ function isAllDownloadsCompleted(): boolean {
 <template>
     <UModal v-bind:open="open" :ui="{ footer: 'justify-end' }">
         <template #header>
-            <div class="text-lg md:text-xl font-bold">下载选项</div>
+            <div class="text-lg md:text-xl font-bold" v-if="step === 1">下载选项</div>
+            <div class="text-lg md:text-xl font-bold" v-if="step === 2">下载进度</div>
         </template>
 
         <template #body>
@@ -66,10 +68,34 @@ function isAllDownloadsCompleted(): boolean {
                 <USeparator size="md"></USeparator>
                 <div class="grid grid-cols-2 gap-x-6 md:gap-y-1 gap-y-4 items-center mb-4 mt-2">
                     <div class="text-left pl-2 text-nowrap">最大并行下载任务数</div>
-                    <UInputNumber v-model="ParallelDownloads" :min="1" :max="8" :step="1" />
+                    <UInputNumber v-model="store.maxParallelDownloads" :min="1" :max="16" :step="1" />
                     <div class="text-left pl-2 text-nowrap">单任务下载线程数</div>
-                    <UInputNumber v-model="SingleDownloadThread" :min="1" :max="6" :step="1" />
+                    <UInputNumber v-model="store.maxSingleDownloadThreads" :min="1" :max="8" :step="1" />
                 </div>
+                <div class="mb-2">
+                    收藏集下载类型设置
+                </div>
+                <USeparator size="md"></USeparator>
+                <USelect multiple :items="[
+                    {
+                        label: '视频',
+                        value: CollectionCardDownloadType.Video
+                    },
+                    {
+                        label: '视频（带水印）',
+                        value: CollectionCardDownloadType.VideoWatermarked
+                    },
+                    {
+                        label: '图片',
+                        value: CollectionCardDownloadType.Image
+                    },
+                    {
+                        label: '图片（带水印）',
+                        value: CollectionCardDownloadType.ImageWatermarked
+                    }
+                ]" v-model="store.collectionDownloadTypes" value-key="value" placeholder="选择收藏集下载类型"
+                    class="items-center mb-4 mt-2 w-full">
+                </USelect>
             </template>
             <template v-else>
                 <div class="mb-2">
@@ -114,9 +140,9 @@ function isAllDownloadsCompleted(): boolean {
                         }
                         const { public: { isEdgeOneCompatible } } = useRuntimeConfig()
                         downloader = new Downloader({
-                            maxConcurrentDownloads: ParallelDownloads,
+                            maxConcurrentDownloads: store.maxParallelDownloads,
                             taskOptions: {
-                                maxThreads: SingleDownloadThread,
+                                maxThreads: store.maxSingleDownloadThreads,
                                 chunkSize: 5 * 1024 * 1024, // 5 MB
                                 EdgeOneCompatible: isEdgeOneCompatible ? true : false,
                             }
@@ -137,6 +163,29 @@ function isAllDownloadsCompleted(): boolean {
                                 downloadData.set(file.filename, apng);
                                 downloadProgress.set(file.filename, 100);
                             } else {
+                                if (ItemType.isCard(file.type)) {
+                                    if (file.type === ItemType.StaticCard) {
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Video)) {
+                                            downloadProgress.delete(file.filename);
+                                            return;
+                                        }
+                                    } else if (file.type === ItemType.StaticCardWatermarked) {
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.VideoWatermarked)) {
+                                            downloadProgress.delete(file.filename);
+                                            return;
+                                        }
+                                    } else if (file.type === ItemType.AnimatedCard) {
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Image)) {
+                                            downloadProgress.delete(file.filename);
+                                            return;
+                                        }
+                                    } else if (file.type === ItemType.AnimatedCardWatermarked) {
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.ImageWatermarked)) {
+                                            downloadProgress.delete(file.filename);
+                                            return;
+                                        }
+                                    }
+                                }
                                 downloader.addDownload({
                                     Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
                                     OnProgress: (loaded: number, total: number) => {

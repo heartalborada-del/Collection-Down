@@ -1,4 +1,3 @@
-import { id } from "@nuxt/ui/runtime/locale/index.js";
 import type { ItemType, PackageType } from "../enum";
 
 export class VideoResolution {
@@ -18,6 +17,10 @@ export class CardInfo {
     img?: string;
     video?: string[];
     resolution: VideoResolution;
+    watermarked?: {
+        img?: string;
+        video?: string[];
+    };
 
     constructor(data: {
         type: number;
@@ -26,12 +29,14 @@ export class CardInfo {
         img?: string;
         video?: string[];
         resolution: VideoResolution | { width: number; height: number };
+        watermarked?: { img?: string; video?: string[] };
     }) {
         this.type = data.type;
         this.id = data.id;
         this.name = data.name;
         this.img = data.img;
         this.video = data.video;
+        this.watermarked = data.watermarked;
         this.resolution = data.resolution instanceof VideoResolution
             ? data.resolution
             : new VideoResolution(data.resolution);
@@ -43,9 +48,9 @@ export class RedeemInfo {
     name: string;
     image: string;
     shared?: boolean;
-    ids: string[];
+    ids: string[] | undefined;
 
-    constructor(data: { type: number; name: string; image: string; shared?: boolean; ids: string[] }) {
+    constructor(data: { type: number; name: string; image: string; shared?: boolean; ids: string[] | undefined }) {
         this.type = data.type;
         this.name = data.name;
         this.image = data.image;

@@ -1,7 +1,7 @@
 import { ApiResponse } from "~~/types/api/root";
 import { FetchHeaders } from "~~/types/global";
 import type { BiliEmojiPackageInfo } from "~~/types/api/bili/types";
-import type { EmojiInfo, EmojiPackageInfo } from "~~/types/api/inner/types";
+import { EmojiInfo, EmojiPackageInfo } from "~~/types/api/inner/types";
 import { PartIdType } from "~~/types/api/enum";
 
 export default defineEventHandler(async (event) => {
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
         }
         const emojiList: EmojiInfo[] = [];
         for (const emoji of data.data.suit_items.emoji) {
-            emojiList.push({
+            emojiList.push(new EmojiInfo({
                 item_id: emoji.itemId,
                 name: emoji.name,
                 images: {
@@ -47,14 +47,14 @@ export default defineEventHandler(async (event) => {
                     gif: emoji.properties.image_gif,
                     webp: emoji.properties.image_webp,
                 }
-            })
+            }))
         }
         setResponseStatus(event, 200);
-        return new ApiResponse<EmojiPackageInfo>(0, undefined, {
+        return new ApiResponse<EmojiPackageInfo>(0, undefined, new EmojiPackageInfo({
             name: data.data.name,
             item_id: packageId as unknown as number,
             emojis: emojiList,
-        });
+        }));
     } catch (e) {
         const { isDev } = useRuntimeConfig();
         if (isDev && e instanceof Error) {

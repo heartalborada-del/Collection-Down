@@ -213,7 +213,9 @@ async function loadCSV() {
   const { public: { EnableTrace } } = useRuntimeConfig()
   try { EnableTrace && umTrackEvent('csv') } catch { }
 
-  fetch('/api/latestCollectionsMap')
+  fetch('/api/latestCollectionsMap', {
+    cache: 'default'
+  })
     .then(resp => resp.json())
     .then(data => {
       const result = data as ApiResponse<CollectionCSVData>

@@ -1,9 +1,8 @@
 import { ApiResponse } from "~~/types/api/root";
 import type { BiliCardInfo, BiliRedeemInfo } from "~~/types/api/bili/types";
-import type { CardInfo, RedeemInfo, VideoResolution } from "~~/types/api/inner/types";
+import { CardInfo, RedeemInfo, VideoResolution } from "~~/types/api/inner/types";
 import { FetchHeaders } from "~~/types/global";
 import { RedeemType } from "~~/types/api/enum";
-import { S } from "vue-router/dist/router-CWoNjPRp.mjs";
 
 export default defineEventHandler(async (event) => {
     const { isDev } = useRuntimeConfig();
@@ -43,7 +42,7 @@ export default defineEventHandler(async (event) => {
                 for (const item of origin.data.item_list) {
                     if (item.item_type !== 1)
                         continue;
-                    items.push({
+                    items.push(new CardInfo({
                         type: item.card_item.card_type, // 1: video, 2: image
                         id: item.card_item.card_type_id,
                         name: item.card_item.card_name,
@@ -52,15 +51,19 @@ export default defineEventHandler(async (event) => {
                         resolution: {
                             width: item.card_item.width,
                             height: item.card_item.height
-                        } as VideoResolution
-                    } as CardInfo);
+                        } as VideoResolution,
+                        watermarked: {
+                            img: item.card_item.card_img_download,
+                            video: item.card_item.video_list_download
+                        }
+                    }));
                 }
             }
             if (origin.data.collect_list) {
                 for (const redeem of origin.data.collect_list) {
                     if (redeem.redeem_item_type === RedeemType.COLLECTION_CARD) {
                         const card = (redeem as { card_item: { card_asset_info: { card_item: BiliCardInfo } } }).card_item.card_asset_info.card_item
-                        items.push({
+                        items.push(new CardInfo({
                             type: card.card_type, // 1: video, 2: image
                             id: card.card_type_id,
                             name: card.card_name,
@@ -69,19 +72,23 @@ export default defineEventHandler(async (event) => {
                             resolution: {
                                 width: card.width,
                                 height: card.height
-                            } as VideoResolution
-                        } as CardInfo)
+                            } as VideoResolution,
+                            watermarked: {
+                                img: card.card_img_download,
+                                video: card.video_list_download
+                            }
+                        }))
                         continue
                     }
                     let ids = redeem.redeem_item_id?.split("&")
                     if (ids && ids.length === 1 && ids[0] === "") ids = undefined
-                    redeems.push({
+                    redeems.push(new RedeemInfo({
                         type: redeem.redeem_item_type,
                         name: redeem.redeem_item_name,
                         image: redeem.redeem_item_image,
                         ids: ids,
                         shared: redeem.lottery_id === 0
-                    } as RedeemInfo)
+                    }))
                 }
             }
             setResponseStatus(event, 200);

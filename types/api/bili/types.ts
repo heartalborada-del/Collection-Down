@@ -1,3 +1,5 @@
+import { s } from "vue-router/dist/router-CWoNjPRp.mjs";
+
 export interface LotteryListItem {
     lottery_id: number;
     lottery_name: string;
@@ -5,9 +7,11 @@ export interface LotteryListItem {
 
 export interface BiliCardInfo {
     card_img: string;
+    card_img_download: string;
     card_name: string;
     card_type: number
     video_list: string[];
+    video_list_download: string[];
     card_type_id: number;
     width: number;
     height: number;

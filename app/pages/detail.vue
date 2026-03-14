@@ -325,6 +325,24 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             name: target.name
           }))
         }
+        if (target.watermarked) {
+          if (target.watermarked.img) {
+            files.push(new DownloadMetaData({
+              url: target.watermarked.img!,
+              type: ItemType.StaticCardWatermarked,
+              filename: `${path}/static_watermarked/${target.name}.${GetFileExtensionFromUrl(target.watermarked.img)}`,
+              name: target.name
+            }))
+          }
+          if (target.watermarked.video) {
+            files.push(new DownloadMetaData({
+              url: target.watermarked.video![0]!,
+              type: ItemType.AnimatedCardWatermarked,
+              filename: `${path}/video_watermarked/${target.name}.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`,
+              name: target.name
+            }))
+          }
+        }
         continue
       } else if (target instanceof EmojiInfo) {
         files.push(new DownloadMetaData({

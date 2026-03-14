@@ -25,7 +25,7 @@ watch(() => props.open, (v) => {
     if (v) step.value = 1;
 });
 
-var downloader = ref<Downloader | null>(null);
+const downloader = ref<Downloader | null>(null);
 
 const downloadProgress = ref<Map<string, number>>(new Map());
 const downloadData = ref<Map<string, Blob>>(new Map());
@@ -65,7 +65,7 @@ function isAllDownloadsCompleted(): boolean {
         <template #body>
             <template v-if="step === 1">
                 <div class="mb-2">下载选项</div>
-                <USeparator size="md"></USeparator>
+                <USeparator size="md"/>
                 <div class="grid grid-cols-2 gap-x-6 md:gap-y-1 gap-y-4 items-center mb-4 mt-2">
                     <div class="text-left pl-2 text-nowrap">最大并行下载任务数</div>
                     <UInputNumber v-model="store.maxParallelDownloads" :min="1" :max="16" :step="1" />
@@ -75,7 +75,7 @@ function isAllDownloadsCompleted(): boolean {
                 <div class="mb-2">
                     收藏集下载类型设置
                 </div>
-                <USeparator size="md"></USeparator>
+                <USeparator size="md"/>
                 <USelect multiple :items="[
                     {
                         label: '视频',
@@ -151,9 +151,9 @@ function isAllDownloadsCompleted(): boolean {
                             if (!downloader) {
                                 return
                             }
-                            downloadProgress.set(file.filename, 0);
                             // 保存数据
                             if (file.type === ItemType.SVGA) {
+                                downloadProgress.set(file.filename, 0);
                                 // SVGA 文件特殊处理
                                 const parser = new Parser();
                                 downloadProgress.set(file.filename, 5);
@@ -165,27 +165,24 @@ function isAllDownloadsCompleted(): boolean {
                             } else {
                                 if (ItemType.isCard(file.type)) {
                                     if (file.type === ItemType.StaticCard) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Video)) {
-                                            downloadProgress.delete(file.filename);
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Image)) {
                                             return;
                                         }
                                     } else if (file.type === ItemType.StaticCardWatermarked) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.VideoWatermarked)) {
-                                            downloadProgress.delete(file.filename);
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.ImageWatermarked)) {
                                             return;
                                         }
                                     } else if (file.type === ItemType.AnimatedCard) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Image)) {
-                                            downloadProgress.delete(file.filename);
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Video)) {
                                             return;
                                         }
                                     } else if (file.type === ItemType.AnimatedCardWatermarked) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.ImageWatermarked)) {
-                                            downloadProgress.delete(file.filename);
+                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.VideoWatermarked)) {
                                             return;
                                         }
                                     }
                                 }
+                                downloadProgress.set(file.filename, 0);
                                 downloader.addDownload({
                                     Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
                                     OnProgress: (loaded: number, total: number) => {

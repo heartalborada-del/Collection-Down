@@ -1,8 +1,6 @@
 import { BiliImgDomains, BiliVideoDomains, FetchHeaders, MAX_RANGE_SIZE } from "~~/types/global";
-
-
-
 import { RangeValidator } from "~~/utils/rangeValidator";
+
 export default defineEventHandler(async (event) => {
     if (!globalThis.URLPattern) {
         await import('urlpattern-polyfill');
@@ -17,7 +15,7 @@ export default defineEventHandler(async (event) => {
             return setResponseStatus(event, 400);
         }
         const host = URL.parse(query.origin as string)?.host;
-        let isAllowedDomain = patterns.some(pattern => pattern.test({ hostname: host }));
+        const isAllowedDomain = patterns.some(pattern => pattern.test({ hostname: host }));
         if (!isAllowedDomain) {
             setResponseHeader(event, "X-Error-Message", "Domain not allowed");
             return setResponseStatus(event, 403);

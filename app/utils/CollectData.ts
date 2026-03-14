@@ -77,7 +77,6 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
     }
     const cardObjects: CardInfo[] = [];
     (res.data?.items).forEach((card: CardInfo) => {
-        console.debug(`Processing card: ${card.name} (ID: ${card.id}), raw data:`, card);
         cardObjects.push(new CardInfo(card))
     })
     const returnValue: DetailedData[] = [{
@@ -144,7 +143,6 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 } as DetailedData)
                 break
             }
-
             case RedeemType.SUIT_PART: {
                 const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
                 results.push(...suitDetails)

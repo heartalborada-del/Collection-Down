@@ -1,10 +1,29 @@
 import { ApiResponse } from "~~/types/api/root";
 import { FetchHeaders } from "~~/types/global";
 
+const ALLOWED_REDIRECT_HOSTS = new Set(["b23.tv"]);
+
+function isAllowedRedirectUrl(origin: unknown): origin is string {
+    if (typeof origin !== "string") {
+        return false;
+    }
+
+    try {
+        const url = new URL(origin);
+        return url.protocol === "https:"
+            && url.port === ""
+            && url.username === ""
+            && url.password === ""
+            && ALLOWED_REDIRECT_HOSTS.has(url.hostname);
+    } catch {
+        return false;
+    }
+}
+
 export default defineEventHandler(async (event) => {
     try {
-        const body = await readBody(event);
-        if (!body || !body.origin || !body.origin.startsWith("https://b23.tv")) {
+        const body = await readBody<{ origin?: unknown }>(event);
+        if (!isAllowedRedirectUrl(body?.origin)) {
             setResponseStatus(event, 400);
             return new ApiResponse<string>(-1, 'Invalid URL');
         }

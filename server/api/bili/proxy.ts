@@ -1,15 +1,15 @@
 import { BiliImgDomains, BiliVideoDomains, FetchHeaders, MAX_RANGE_SIZE } from "~~/types/global";
 
-if (!globalThis.URLPattern) {
-    await import('urlpattern-polyfill');
-}
 
-const patterns = [...BiliImgDomains, ...BiliVideoDomains].map(domain => new URLPattern({
-    hostname: domain
-}));
 
 import { RangeValidator } from "~~/utils/rangeValidator";
 export default defineEventHandler(async (event) => {
+    if (!globalThis.URLPattern) {
+        await import('urlpattern-polyfill');
+    }
+    const patterns = [...BiliImgDomains, ...BiliVideoDomains].map(domain => new URLPattern({
+        hostname: domain
+    }));
     try {
         const query = getQuery(event);
         if (!query || !query.origin) {

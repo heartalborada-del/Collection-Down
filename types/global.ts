@@ -10,5 +10,5 @@ export const MAX_RANGE_SIZE = -1
 export const BiliImgDomains = ['*.hdslb.com']
 export const BiliVideoDomains = [
     "*.bilivideo.com",
-    "upos-bstar1-mirrorakam.akamaized.net",
+    "*.akamaized.net",
 ]

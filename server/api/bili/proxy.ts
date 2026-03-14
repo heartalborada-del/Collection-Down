@@ -1,5 +1,9 @@
 import { BiliImgDomains, BiliVideoDomains, FetchHeaders, MAX_RANGE_SIZE } from "~~/types/global";
 
+if (!globalThis.URLPattern) {
+    await import('urlpattern-polyfill');
+}
+
 const patterns = [...BiliImgDomains, ...BiliVideoDomains].map(domain => new URLPattern({
     hostname: domain
 }));

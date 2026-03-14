@@ -26,6 +26,7 @@
     "qrcode-decoder": "^0.3.4",
     "typescript": "^5.6.3",
     "upng-js": "^2.1.0",
+    "urlpattern-polyfill": "^10.1.0",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3"
   },

@@ -10,7 +10,8 @@
 此项目旨在给予B站用户更好的站装扮以及收藏集下载体验
 
 基于Vue3+Nuxt.js开发
-
+## Group
+QQ Group: [1031419163](https://qun.qq.com/universal-share/share?ac=1&authKey=Z%2Fi6gDC%2F21mFPhcpKww4o3IsSMJnv%2FW5sp%2F70IwX4W7OQuROILQD509rAjudD4f5&busi_data=eyJncm91cENvZGUiOiIxMDMxNDE5MTYzIiwidG9rZW4iOiJ3WWN0QVpBdzc4TG84KzgvUGpKUVQ2K1ZBMHVRTjRpUGw0dm5qeTlVSEJJdkFrcTBTUWs2T1B6ZnlVMGIwb21BIiwidWluIjoiMzEyNTI3OTU2MiJ9&data=JhK6VLx_39V3raM4aXxYBOCwOsKY5aZdngAzlkZVjGijaiY5Rikl2Z_GhQWgajsX3ArSQL4YrbScK9FzZai37Q&svctype=4&tempid=h5_group_info)
 ## Thanks To
 - [bilibili-collections-archive](https://github.com/CloudyEagle/bilibili-collections-archive)
 - [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)

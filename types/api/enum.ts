@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/prefer-literal-enum-member */
 export enum RedeemType {
     BADGE = 1001,
     AVATAR_FRAME = 3,
@@ -39,9 +40,14 @@ export enum ItemType {
     StaticSticker = 0x200 | 3,
 
     Other = 0x300 | 1,
-    SVGA = 0x300 | 2
+    SVGA = 0x300 | 2,
+
+    PlayIconLottie = 0x400 | 1,
+    PlayIconStatic = 0x400 | 2,
+    PlayIconPreview = 0x400 | 3
 }
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace ItemType {
     export const GROUP_MASK = 0xF00;
     export function isCard(t: ItemType) { return (t & GROUP_MASK) === 0x100; }
@@ -57,6 +63,9 @@ export namespace ItemType {
             case ItemType.StaticSticker: return "Static Sticker";
             case ItemType.Other: return "Other";
             case ItemType.SVGA: return "SVGA";
+            case ItemType.PlayIconLottie: return "Play Icon (Lottie)";
+            case ItemType.PlayIconStatic: return "Play Icon (Static)";
+            case ItemType.PlayIconPreview: return "Play Icon (Preview)";
             default: return "Unknown";
         }
     }

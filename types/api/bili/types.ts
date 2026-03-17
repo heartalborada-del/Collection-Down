@@ -1,4 +1,3 @@
-import { s } from "vue-router/dist/router-CWoNjPRp.mjs";
 
 export interface LotteryListItem {
     lottery_id: number;
@@ -88,6 +87,7 @@ export interface ThumbupProperties {
 export interface ProgressbarProperties {
     drag_icon: string
     icon: string
+    static_icon_image: string
     drag_left_png: string
     drag_right_png: string
     middle_png: string

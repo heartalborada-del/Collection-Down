@@ -159,7 +159,7 @@ export default defineEventHandler(async (event) => {
 })
 
 function parseProgressBarIcon(id: number = 0, name: string = "", properties: ProgressbarProperties): PlayiconInfo | undefined {
-    if (properties.drag_icon && properties.icon) {
+    if (properties.drag_icon && properties.static_icon_image) {
         return new PlayiconInfo({
             isLottie: true,
             name: name,
@@ -167,9 +167,10 @@ function parseProgressBarIcon(id: number = 0, name: string = "", properties: Pro
             icon: new PlayiconInfo.LottieIcon({
                 drag: properties.drag_icon,
                 normal: properties.icon,
+                preview: properties.static_icon_image,
             })
         });
-    } else if (properties.drag_left_png && properties.drag_right_png && properties.icon) {
+    } else if (properties.drag_left_png && properties.drag_right_png && properties.static_icon_image) {
         return new PlayiconInfo({
             isLottie: false,
             name: name,
@@ -177,7 +178,8 @@ function parseProgressBarIcon(id: number = 0, name: string = "", properties: Pro
             icon: new PlayiconInfo.StaticIcon({
                 dragLeft: properties.drag_left_png,
                 dragRight: properties.drag_right_png,
-                normal: properties.icon,
+                normal: properties.middle_png,
+                preview: properties.static_icon_image,
             })
         });
     }

@@ -167,7 +167,7 @@ export class DownloadMetaData {
     }
 }
 
-export type PackageDataType = CardInfo | EmojiInfo | OtherInfo | ThumbupInfo | LoadingInfo;
+export type PackageDataType = CardInfo | EmojiInfo | OtherInfo | ThumbupInfo | LoadingInfo | PlayiconInfo | SkinInfo | SkinBackgroundInfo | RedeemInfo;
 
 export type CollectionCSVData = {
     '100-300': string;
@@ -224,19 +224,23 @@ export namespace PlayiconInfo {
     export class LottieIcon {
         drag: string
         normal: string
-        constructor(data: { drag: string; normal: string }) {
+        preview: string
+        constructor(data: { drag: string; normal: string; preview: string }) {
             this.drag = data.drag;
             this.normal = data.normal;
+            this.preview = data.preview;
         }
     }
     export class StaticIcon {
         dragLeft: string
         dragRight: string
         normal: string
-        constructor(data: { dragLeft: string; dragRight: string; normal: string }) {
+        preview: string
+        constructor(data: { dragLeft: string; dragRight: string; normal: string; preview: string }) {
             this.dragLeft = data.dragLeft;
             this.dragRight = data.dragRight;
             this.normal = data.normal;
+            this.preview = data.preview;
         }
     }
 }

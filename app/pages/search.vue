@@ -56,7 +56,8 @@ function parseQRCode(e: Event) {
   if (!file) return
   const URI = window.webkitURL.createObjectURL(file) || window.URL.createObjectURL(file)
   const qr = new QrcodeDecoder()
-  try { EnableTrace && umTrackEvent('qrcode') } catch { }
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  try { EnableTrace && umTrackEvent('qrcode') } catch { /* empty */ }
   qr.decodeFromImage(URI).then((res) => {
     if (!res) {
       return toast.add({
@@ -114,7 +115,8 @@ async function searchForKeyword(keyword: string, page: number) {
     })
   }
   // 前端上报：搜索提交
-  try { EnableTrace && umTrackEvent('search', { keyword: keyword }) } catch { }
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  try { EnableTrace && umTrackEvent('search', { keyword: keyword }) } catch { /* empty */ }
   fetch(`/api/bili/collection/search?&key_word=${encodeURIComponent(keyword)}&page=${page}`, {
     method: 'GET'
   })
@@ -193,8 +195,6 @@ function switchToDetailPage() {
 function updateResult(type: ParsedType, id: string) {
   ParsedResult.value.type = type
   ParsedResult.value.id = id
-  const { public: { EnableTrace } } = useRuntimeConfig()
-
   toast.add({
     title: '解析成功',
     description: '点击下一步继续。',
@@ -211,7 +211,8 @@ async function loadCSV() {
   if (loadingCSV.value) return
   loadingCSV.value = true
   const { public: { EnableTrace } } = useRuntimeConfig()
-  try { EnableTrace && umTrackEvent('csv') } catch { }
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  try { EnableTrace && umTrackEvent('csv') } catch { /* empty */ }
 
   fetch('/api/latestCollectionsMap', {
     cache: 'default'

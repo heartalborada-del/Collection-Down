@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Parser } from '@heartalborada-del/svga';
 import JSZip from 'jszip';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useDownloadSettingStore } from '~/store/downloadSetting';
 import { Downloader } from '~/utils/downloader/manager';
 import type { DownloadItem } from '~/utils/downloader/types';
@@ -31,6 +31,37 @@ const downloadProgress = ref<Map<string, number>>(new Map());
 const downloadData = ref<Map<string, Blob>>(new Map());
 const downloadUrls = ref<Map<string, string>>(new Map());
 
+/**
+ * 判断当前文件是否应被纳入下载列表。
+ */
+function shouldIncludeInFileList(file: DownloadMetaData): boolean {
+    if (!ItemType.isCard(file.type)) {
+        return true;
+    }
+
+    if (file.type === ItemType.StaticCard) {
+        return store.collectionDownloadTypes.includes(CollectionCardDownloadType.Image);
+    }
+    if (file.type === ItemType.StaticCardWatermarked) {
+        return store.collectionDownloadTypes.includes(CollectionCardDownloadType.ImageWatermarked);
+    }
+    if (file.type === ItemType.AnimatedCard) {
+        return store.collectionDownloadTypes.includes(CollectionCardDownloadType.Video);
+    }
+    if (file.type === ItemType.AnimatedCardWatermarked) {
+        return store.collectionDownloadTypes.includes(CollectionCardDownloadType.VideoWatermarked);
+    }
+
+    return true;
+}
+
+/**
+ * 重新构造后的最终下载列表：
+ * - 进度展示使用它
+ * - 实际下载入队使用它
+ */
+const fileList = computed(() => props.fileMetadatas.filter(shouldIncludeInFileList));
+
 function save() {
     const zip = new JSZip()
     downloadData.value.forEach((data, filename) => {
@@ -53,6 +84,9 @@ function isAllDownloadsCompleted(): boolean {
     }
     return true;
 }
+
+const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，通常用于动态效果展示。请使用支持 Lottie 格式的工具或库来查看和使用此文件。`], { type: 'text/plain' });
+
 </script>
 
 <template>
@@ -99,14 +133,14 @@ function isAllDownloadsCompleted(): boolean {
             </template>
             <template v-else>
                 <div class="mb-2">
-                    下载进度 总数: {{ fileMetadatas.length }} /
+                    下载进度 总数: {{ fileList.length }} /
                     完成: {{[...downloadProgress.values()].filter(v => v === 100).length}} /
                     失败: {{[...downloadProgress.values()].filter(v => v === -1).length}}
                 </div>
 
                 <USeparator size="md" />
                 <div class="mt-2">
-                    <div v-for="file in fileMetadatas" :key="file.filename" class="mb-4">
+                    <div v-for="file in fileList" :key="file.filename" class="mb-4">
                         <div class="flex items-center mb-1">
                             <UBadge color="secondary" variant="outline">{{ ItemType.toString(file.type) }}</UBadge>
                             <div class="mb-1 ml-2">{{ file.name }}</div>
@@ -143,11 +177,11 @@ function isAllDownloadsCompleted(): boolean {
                             maxConcurrentDownloads: store.maxParallelDownloads,
                             taskOptions: {
                                 maxThreads: store.maxSingleDownloadThreads,
-                                chunkSize: 5 * 1024 * 1024, // 5 MB
+                                chunkSize: 1 * 1024 * 1024, // 1 MB
                                 EdgeOneCompatible: isEdgeOneCompatible ? true : false,
                             }
                         });
-                        fileMetadatas.forEach(async file => {
+                        fileList.forEach(async file => {
                             if (!downloader) {
                                 return
                             }
@@ -163,24 +197,10 @@ function isAllDownloadsCompleted(): boolean {
                                 downloadData.set(file.filename, apng);
                                 downloadProgress.set(file.filename, 100);
                             } else {
-                                if (ItemType.isCard(file.type)) {
-                                    if (file.type === ItemType.StaticCard) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Image)) {
-                                            return;
-                                        }
-                                    } else if (file.type === ItemType.StaticCardWatermarked) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.ImageWatermarked)) {
-                                            return;
-                                        }
-                                    } else if (file.type === ItemType.AnimatedCard) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.Video)) {
-                                            return;
-                                        }
-                                    } else if (file.type === ItemType.AnimatedCardWatermarked) {
-                                        if (!store.collectionDownloadTypes.includes(CollectionCardDownloadType.VideoWatermarked)) {
-                                            return;
-                                        }
-                                    }
+                                if (file.type === ItemType.PlayIconLottie) {
+                                    //获取目录
+                                    const dir = file.filename.split('/').slice(0, -1).join('/');
+                                    downloadData.set(`${dir}/readme.txt`, LOTTIE_COMMENT);
                                 }
                                 downloadProgress.set(file.filename, 0);
                                 downloader.addDownload({

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CardInfo, EmojiInfo, LoadingInfo, OtherInfo, ThumbupInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, LoadingInfo, OtherInfo, PlayiconInfo, ThumbupInfo, type PackageDataType } from "~~/types/api/inner/types";
 
 const props = defineProps<{
   url: PackageDataType;
@@ -24,6 +24,8 @@ const showUrl = computed((): string => {
     return props.url.animated;
   } else if (props.url instanceof ThumbupInfo) {
     return props.url.preview;
+  } else if (props.url instanceof PlayiconInfo) {
+    return props.url.icon.preview;
   } else {
     return '';
   }
@@ -39,7 +41,7 @@ const id = Math.random().toString(36).substring(2, 15);
 <template>
   <UCard class="flex justify-center-safe show-card" variant="outline_nopadding" :class="{ highlight: props.highlight }">
     <img :key="id" loading="eager" :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl + '@100w')}`" :alt="name"
-      class="object-cover h-full" @click="emit('click', $event)" draggable="false" />
+      class="object-cover h-full" draggable="false" @click="emit('click', $event)"/>
   </UCard>
 </template>
 

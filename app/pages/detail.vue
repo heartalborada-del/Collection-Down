@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ParsedType } from "~/utils/Preprocess";
-import { CardInfo, DetailedData, DownloadMetaData, EmojiInfo, LoadingInfo, OtherInfo, ThumbupInfo, type PackageDataType } from "~~/types/api/inner/types";
+import { type DetailedData, CardInfo, DownloadMetaData, EmojiInfo, LoadingInfo, OtherInfo, ThumbupInfo, type PackageDataType, PlayiconInfo } from "~~/types/api/inner/types";
 import { ItemType, PackageType } from "~~/types/api/enum";
 import type { TreeItem } from "@nuxt/ui";
 import type { TreeItemSelectEvent } from 'reka-ui'
@@ -82,7 +82,8 @@ async function fetchData() {
     }
     selectedSets.value = new Map()
     try {
-      try { EnableTrace && umTrackEvent('detail', { type: 'DLC', id: ParsedResult.value.id }) } catch { }
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      try { EnableTrace && umTrackEvent('detail', { type: 'DLC', id: ParsedResult.value.id }) } catch { /* empty */ }
       const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
       for (const collection of collections) {
         if (collection.type === PackageType.Undefined) {
@@ -128,7 +129,8 @@ async function fetchData() {
     }
     selectedSets.value = new Map()
     try {
-      try { EnableTrace && umTrackEvent('detail', { type: 'THEME', id: ParsedResult.value.id }) } catch { }
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+      try { EnableTrace && umTrackEvent('detail', { type: 'THEME', id: ParsedResult.value.id }) } catch { /* empty */ }
       const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
       for (const data of themeData) {
         if (data.type === PackageType.Undefined) {
@@ -189,7 +191,7 @@ function setActiveCard(currentCard: PackageDataType, packageName: string | undef
   if (currentPackage.value.id === 0 || !packageName) {
     return
   }
-  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo || currentCard instanceof LoadingInfo || currentCard instanceof ThumbupInfo) {
+  if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo || currentCard instanceof LoadingInfo || currentCard instanceof ThumbupInfo || currentCard instanceof PlayiconInfo) {
     if (!selectedSets.value.has(packageName)) {
       selectedSets.value.set(packageName, new Set())
     }
@@ -300,8 +302,8 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
   const files: DownloadMetaData[] = []
   for (const [packageName, set] of selectedSets.value) {
     const targetPackage = ItemsArray.value.find(item => item.name === packageName)
-    let a = packageName.split('-')
-    const path = `${a[0]}/${a[1]}`
+    const a = packageName.split('-')
+    const path = `${a[0]}/${a.slice(1).join('-')}`
     if (!targetPackage) {
       continue
     }
@@ -389,6 +391,49 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           url: target.url!,
           filename: `${path}/thumbup/${target.name}.png}`,
           type: ItemType.SVGA,
+          name: target.name
+        }))
+        continue
+      } else if (target instanceof PlayiconInfo) {
+        if (target.isLottie) {
+          const  icon = target.icon as PlayiconInfo.LottieIcon
+          files.push(new DownloadMetaData({
+            url: icon.drag,
+            filename: `${path}/playicon/drag.json`,
+            type: ItemType.PlayIconLottie,
+            name: target.name
+          }))
+          files.push(new DownloadMetaData({
+            url: icon.normal!,
+            filename: `${path}/playicon/normal.json`,
+            type: ItemType.PlayIconLottie,
+            name: target.name
+          }))
+        } else {
+          const icon = target.icon as PlayiconInfo.StaticIcon
+          files.push(new DownloadMetaData({
+            url: icon.dragLeft!,
+            filename: `${path}/playicon/drag_left.png`,
+            type: ItemType.PlayIconStatic,
+            name: target.name
+          }))
+          files.push(new DownloadMetaData({
+            url: icon.normal!,
+            filename: `${path}/playicon/normal.png`,
+            type: ItemType.PlayIconStatic,
+            name: target.name
+          }))
+          files.push(new DownloadMetaData({
+            url: icon.dragRight!,
+            filename: `${path}/playicon/drag_right.png`,
+            type: ItemType.PlayIconStatic,
+            name: target.name
+          }) )
+        }
+        files.push(new DownloadMetaData({
+          url: target.icon.preview!,
+          filename: `${path}/playicon/preview.${GetFileExtensionFromUrl(target.icon.preview!)}`,
+          type: ItemType.PlayIconPreview,
           name: target.name
         }))
         continue

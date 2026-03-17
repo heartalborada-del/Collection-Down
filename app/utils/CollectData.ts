@@ -1,6 +1,6 @@
 import type { LotteryListItem } from "~~/types/api/bili/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
-import { CardInfo, EmojiInfo, EmojiPackageInfo, LoadingInfo, OtherInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, EmojiPackageInfo, LoadingInfo, OtherInfo, PlayiconInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
@@ -76,6 +76,7 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
         }
     }
     const cardObjects: CardInfo[] = [];
+    // eslint-disable-next-line no-unsafe-optional-chaining
     (res.data?.items).forEach((card: CardInfo) => {
         cardObjects.push(new CardInfo(card))
     })
@@ -107,24 +108,26 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
         switch (redeem.type) {
             case RedeemType.AVATAR_FRAME:
             case RedeemType.BADGE:
-                let id = function () {
-                    if (redeem.ids && redeem.ids.length > 0 && redeem.ids[0]) {
-                        return parseInt(redeem.ids[0], 10)
-                    }
-                    return -1;
-                }();
-                results.push({
-                    id: id,
-                    name: redeem.name,
-                    type: PackageType.Other,
-                    data: [new OtherInfo({
+                {
+                    const id = function () {
+                        if (redeem.ids && redeem.ids.length > 0 && redeem.ids[0]) {
+                            return parseInt(redeem.ids[0], 10)
+                        }
+                        return -1;
+                    }();
+                    results.push({
+                        id: id,
                         name: redeem.name,
-                        img: redeem.image,
-                        id: id
-                    })
-                    ]
-                } as DetailedData)
-                break;
+                        type: PackageType.Other,
+                        data: [new OtherInfo({
+                            name: redeem.name,
+                            img: redeem.image,
+                            id: id
+                        })
+                        ]
+                    } as DetailedData)
+                    break;
+                }
             case RedeemType.ANIMATED_EMOJI_PACKAGE:
             case RedeemType.STATIC_EMOJI_PACKAGE: {
                 const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`)
@@ -187,7 +190,7 @@ async function GetSuitMigratedData(partIds: number[]) {
         };
     } = {};
     data.data?.forEach(arr => {
-        let id = arr.target
+        const id = arr.target
         arr.emojis?.forEach(element => {
             returnValue.push({
                 id: element.item_id,
@@ -199,7 +202,7 @@ async function GetSuitMigratedData(partIds: number[]) {
             });
         });
         arr.skins?.forEach(element => {
-            let OtherInfoArray: OtherInfo[] = [];
+            const OtherInfoArray: OtherInfo[] = [];
             (Object.keys(element.elements) as Array<keyof typeof element.elements>).forEach(key => {
                 if (key === 'package_url') return;
                 const val = element.elements[key];
@@ -263,6 +266,12 @@ async function GetSuitMigratedData(partIds: number[]) {
                 }));
                 i++;
             });
+        });
+        arr.playIcons?.forEach(element => {
+            themePackage[element.name]?.package.push(new PlayiconInfo({
+                ...element,
+                name: "playicon",
+            }));
         });
     })
     for (const key in themePackage) {

@@ -309,7 +309,7 @@ const checkScreenSize = () => {
                 <div v-if="searchItems.length !== 0">
                   <UPageGrid>
                     <TransitionGroup name="suit-card" mode="out-in" appear>
-                      <UPageCard v-for="searchItem in searchItems" :key="searchItem.name" variant="outline_nopadding"
+                      <UPageCard v-for="searchItem in searchItems" :key="`${searchItem.type}-${searchItem.id}`" variant="outline_nopadding"
                         class="flex justify-center-safe bg-default ring ring-default"
                         @click="updateResult(searchItem.type === 0 ? ParsedType.DLC : ParsedType.THEME, searchItem.id.toString())">
                         <div class="flex flex-nowrap items-center suit-card h-full">

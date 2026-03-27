@@ -338,7 +338,7 @@ function download() {
 function getSelectedDownloadFiles(): Array<DownloadMetaData> {
   const files: DownloadMetaData[] = []
   const filenameCountMap = new Map<string, number>()
-  const getDeduplicatedFilename = (filename: string) => {
+  const getUniqueFilename = (filename: string) => {
     const nextCount = (filenameCountMap.get(filename) ?? 0) + 1
     filenameCountMap.set(filename, nextCount)
     if (nextCount === 1) {
@@ -361,14 +361,14 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         files.push(new DownloadMetaData({
           url: target.img!,
           type: ItemType.StaticCard,
-          filename: getDeduplicatedFilename(`${target.name}_card.${GetFileExtensionFromUrl(target.img!)}`),
+          filename: getUniqueFilename(`${target.name}_card.${GetFileExtensionFromUrl(target.img!)}`),
           name: target.name
         }))
         if (target.video) {
           files.push(new DownloadMetaData({
             url: target.video![0]!,
             type: ItemType.AnimatedCard,
-            filename: getDeduplicatedFilename(`${target.name}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
+            filename: getUniqueFilename(`${target.name}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
             name: target.name
           }))
         }
@@ -377,7 +377,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.img!,
               type: ItemType.StaticCardWatermarked,
-              filename: getDeduplicatedFilename(`${target.name}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
+              filename: getUniqueFilename(`${target.name}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
               name: target.name
             }))
           }
@@ -385,7 +385,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.video![0]!,
               type: ItemType.AnimatedCardWatermarked,
-              filename: getDeduplicatedFilename(`${target.name}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
+              filename: getUniqueFilename(`${target.name}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
               name: target.name
             }))
           }
@@ -395,14 +395,14 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         files.push(new DownloadMetaData({
           url: target.images.static!,
           type: ItemType.StaticSticker,
-          filename: getDeduplicatedFilename(`${target.name}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
+          filename: getUniqueFilename(`${target.name}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
           name: target.name
         }))
         if (target.images.webp) {
           files.push(new DownloadMetaData({
             url: target.images.webp!,
             type: ItemType.WebpSticker,
-            filename: getDeduplicatedFilename(`${target.name}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
+            filename: getUniqueFilename(`${target.name}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
             name: target.name
           }))
         }
@@ -410,7 +410,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           files.push(new DownloadMetaData({
             url: target.images.gif!,
             type: ItemType.GifSticker,
-            filename: getDeduplicatedFilename(`${target.name}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
+            filename: getUniqueFilename(`${target.name}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
             name: target.name
           }))
         }
@@ -418,7 +418,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
       } else if (target instanceof OtherInfo) {
         files.push(new DownloadMetaData({
           url: target.img!,
-          filename: getDeduplicatedFilename(`${target.name}_other.${GetFileExtensionFromUrl(target.img!)}`),
+          filename: getUniqueFilename(`${target.name}_other.${GetFileExtensionFromUrl(target.img!)}`),
           type: ItemType.Other,
           name: target.name
         }))
@@ -426,7 +426,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
       } else if (target instanceof LoadingInfo) {
         files.push(new DownloadMetaData({
           url: target.animated!,
-          filename: getDeduplicatedFilename(`${target.name}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
+          filename: getUniqueFilename(`${target.name}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
           type: ItemType.WebpSticker,
           name: target.name
         }))
@@ -434,7 +434,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
       } else if (target instanceof ThumbupInfo) {
         files.push(new DownloadMetaData({
           url: target.url!,
-          filename: getDeduplicatedFilename(`${target.name}_thumbup.png`),
+          filename: getUniqueFilename(`${target.name}_thumbup.png`),
           type: ItemType.SVGA,
           name: target.name
         }))
@@ -444,13 +444,13 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           const  icon = target.icon as PlayiconInfo.LottieIcon
           files.push(new DownloadMetaData({
             url: icon.drag,
-            filename: getDeduplicatedFilename(`${target.name}_playicon_drag.json`),
+            filename: getUniqueFilename(`${target.name}_playicon_drag.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: getDeduplicatedFilename(`${target.name}_playicon_normal.json`),
+            filename: getUniqueFilename(`${target.name}_playicon_normal.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
@@ -458,26 +458,26 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           const icon = target.icon as PlayiconInfo.StaticIcon
           files.push(new DownloadMetaData({
             url: icon.dragLeft!,
-            filename: getDeduplicatedFilename(`${target.name}_playicon_drag_left.png`),
+            filename: getUniqueFilename(`${target.name}_playicon_drag_left.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: getDeduplicatedFilename(`${target.name}_playicon_normal.png`),
+            filename: getUniqueFilename(`${target.name}_playicon_normal.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.dragRight!,
-            filename: getDeduplicatedFilename(`${target.name}_playicon_drag_right.png`),
+            filename: getUniqueFilename(`${target.name}_playicon_drag_right.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }) )
         }
         files.push(new DownloadMetaData({
           url: target.icon.preview!,
-          filename: getDeduplicatedFilename(`${target.name}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
+          filename: getUniqueFilename(`${target.name}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
           type: ItemType.PlayIconPreview,
           name: target.name
         }))

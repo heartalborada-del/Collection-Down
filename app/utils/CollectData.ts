@@ -186,11 +186,11 @@ async function GetSuitMigratedData(partIds: number[]) {
     const themePackage: {
         [key: string]: {
             id: number,
+            name: string,
             package: PackageDataType[],
         };
     } = {};
     data.data?.forEach(arr => {
-        const id = arr.target
         arr.emojis?.forEach(element => {
             returnValue.push({
                 id: element.item_id,
@@ -213,54 +213,62 @@ async function GetSuitMigratedData(partIds: number[]) {
                     }));
                 }
             });
-            if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = {
-                    id: id,
+            const packageKey = `${element.id}_${element.name}`;
+            if (themePackage[packageKey] === undefined) {
+                themePackage[packageKey] = {
+                    id: element.id,
+                    name: element.name,
                     package: [],
                 };
             }
-            themePackage[element.name]?.package.push(...OtherInfoArray);
+            themePackage[packageKey]?.package.push(...OtherInfoArray);
         });
         arr.thumbUps?.forEach(element => {
-            if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = {
-                    id: id,
+            const packageKey = `${element.id}_${element.name}`;
+            if (themePackage[packageKey] === undefined) {
+                themePackage[packageKey] = {
+                    id: element.id,
+                    name: element.name,
                     package: [],
                 };
             }
-            themePackage[element.name]?.package.push(new ThumbupInfo({
+            themePackage[packageKey]?.package.push(new ThumbupInfo({
                 name: "thumbup",
                 preview: element.preview,
                 url: element.ani,
             }));
         })
         arr.loadings?.forEach(element => {
-            if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = {
-                    id: id,
+            const packageKey = `${element.id}_${element.name}`;
+            if (themePackage[packageKey] === undefined) {
+                themePackage[packageKey] = {
+                    id: element.id,
+                    name: element.name,
                     package: [],
                 };
             }
-            themePackage[element.name]?.package.push(new LoadingInfo({
+            themePackage[packageKey]?.package.push(new LoadingInfo({
                 name: "loading",
                 preview: element.preview,
                 animated: element.animation,
             }));
         })
         arr.spaceBackgrounds?.forEach(element => {
-            if (themePackage[element.name] === undefined) {
-                themePackage[element.name] = {
-                    id: id,
+            const packageKey = `${element.id}_${element.name}`;
+            if (themePackage[packageKey] === undefined) {
+                themePackage[packageKey] = {
+                    id: element.id,
+                    name: element.name,
                     package: [],
                 };
             }
             let i = 1;
             element.urls.forEach((url) => {
-                themePackage[element.name]?.package.push(new OtherInfo({
+                themePackage[packageKey]?.package.push(new OtherInfo({
                     name: `background_landscape_${i}`,
                     img: url.landscape,
                 }));
-                themePackage[element.name]?.package.push(new OtherInfo({
+                themePackage[packageKey]?.package.push(new OtherInfo({
                     name: `background_portrait_${i}`,
                     img: url.portrait,
                 }));
@@ -268,7 +276,15 @@ async function GetSuitMigratedData(partIds: number[]) {
             });
         });
         arr.playIcons?.forEach(element => {
-            themePackage[element.name]?.package.push(new PlayiconInfo({
+            const packageKey = `${element.id}_${element.name}`;
+            if (themePackage[packageKey] === undefined) {
+                themePackage[packageKey] = {
+                    id: element.id,
+                    name: element.name,
+                    package: [],
+                };
+            }
+            themePackage[packageKey]?.package.push(new PlayiconInfo({
                 ...element,
                 name: "playicon",
             }));
@@ -278,7 +294,7 @@ async function GetSuitMigratedData(partIds: number[]) {
         if (themePackage[key] === undefined || themePackage[key].package.length === 0) continue;
         returnValue.push({
             id: themePackage[key].id,
-            name: key,
+            name: themePackage[key].name,
             type: PackageType.Theme,
             data: themePackage[key].package,
         });

@@ -338,6 +338,22 @@ function download() {
 function getSelectedDownloadFiles(): Array<DownloadMetaData> {
   const files: DownloadMetaData[] = []
   const filenameCountMap = new Map<string, number>()
+  const getNameIdPrefix = (item: PackageDataType): string => {
+    const name = getSafeName(item.name)
+    if (item instanceof CardInfo) {
+      return `${name}-${hasValidId(item.id) ? item.id : 0}`
+    }
+    if (item instanceof EmojiInfo) {
+      return `${name}-${hasValidId(item.item_id) ? item.item_id : 0}`
+    }
+    if (item instanceof OtherInfo) {
+      return `${name}-${hasValidId(item.id) ? item.id : 0}`
+    }
+    if (item instanceof PlayiconInfo) {
+      return `${name}-${hasValidId(item.id) ? item.id : 0}`
+    }
+    return `${name}-0`
+  }
   const getUniqueFilename = (filename: string) => {
     const nextCount = (filenameCountMap.get(filename) ?? 0) + 1
     filenameCountMap.set(filename, nextCount)
@@ -358,17 +374,18 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         continue
       }
       if (target instanceof CardInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.img!,
           type: ItemType.StaticCard,
-          filename: getUniqueFilename(`${target.name}_card.${GetFileExtensionFromUrl(target.img!)}`),
+          filename: getUniqueFilename(`${nameIdPrefix}_card.${GetFileExtensionFromUrl(target.img!)}`),
           name: target.name
         }))
         if (target.video) {
           files.push(new DownloadMetaData({
             url: target.video![0]!,
             type: ItemType.AnimatedCard,
-            filename: getUniqueFilename(`${target.name}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
+            filename: getUniqueFilename(`${nameIdPrefix}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
             name: target.name
           }))
         }
@@ -377,7 +394,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.img!,
               type: ItemType.StaticCardWatermarked,
-              filename: getUniqueFilename(`${target.name}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
+              filename: getUniqueFilename(`${nameIdPrefix}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
               name: target.name
             }))
           }
@@ -385,24 +402,25 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.video![0]!,
               type: ItemType.AnimatedCardWatermarked,
-              filename: getUniqueFilename(`${target.name}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
+              filename: getUniqueFilename(`${nameIdPrefix}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
               name: target.name
             }))
           }
         }
         continue
       } else if (target instanceof EmojiInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.images.static!,
           type: ItemType.StaticSticker,
-          filename: getUniqueFilename(`${target.name}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
+          filename: getUniqueFilename(`${nameIdPrefix}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
           name: target.name
         }))
         if (target.images.webp) {
           files.push(new DownloadMetaData({
             url: target.images.webp!,
             type: ItemType.WebpSticker,
-            filename: getUniqueFilename(`${target.name}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
+            filename: getUniqueFilename(`${nameIdPrefix}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
             name: target.name
           }))
         }
@@ -410,47 +428,51 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           files.push(new DownloadMetaData({
             url: target.images.gif!,
             type: ItemType.GifSticker,
-            filename: getUniqueFilename(`${target.name}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
+            filename: getUniqueFilename(`${nameIdPrefix}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
             name: target.name
           }))
         }
         continue
       } else if (target instanceof OtherInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.img!,
-          filename: getUniqueFilename(`${target.name}_other.${GetFileExtensionFromUrl(target.img!)}`),
+          filename: getUniqueFilename(`${nameIdPrefix}_other.${GetFileExtensionFromUrl(target.img!)}`),
           type: ItemType.Other,
           name: target.name
         }))
         continue
       } else if (target instanceof LoadingInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.animated!,
-          filename: getUniqueFilename(`${target.name}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
+          filename: getUniqueFilename(`${nameIdPrefix}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
           type: ItemType.WebpSticker,
           name: target.name
         }))
         continue
       } else if (target instanceof ThumbupInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.url!,
-          filename: getUniqueFilename(`${target.name}_thumbup.png`),
+          filename: getUniqueFilename(`${nameIdPrefix}_thumbup.png`),
           type: ItemType.SVGA,
           name: target.name
         }))
         continue
       } else if (target instanceof PlayiconInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         if (target.isLottie) {
           const  icon = target.icon as PlayiconInfo.LottieIcon
           files.push(new DownloadMetaData({
             url: icon.drag,
-            filename: getUniqueFilename(`${target.name}_playicon_drag.json`),
+            filename: getUniqueFilename(`${nameIdPrefix}_playicon_drag.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: getUniqueFilename(`${target.name}_playicon_normal.json`),
+            filename: getUniqueFilename(`${nameIdPrefix}_playicon_normal.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
@@ -458,26 +480,26 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           const icon = target.icon as PlayiconInfo.StaticIcon
           files.push(new DownloadMetaData({
             url: icon.dragLeft!,
-            filename: getUniqueFilename(`${target.name}_playicon_drag_left.png`),
+            filename: getUniqueFilename(`${nameIdPrefix}_playicon_drag_left.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: getUniqueFilename(`${target.name}_playicon_normal.png`),
+            filename: getUniqueFilename(`${nameIdPrefix}_playicon_normal.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.dragRight!,
-            filename: getUniqueFilename(`${target.name}_playicon_drag_right.png`),
+            filename: getUniqueFilename(`${nameIdPrefix}_playicon_drag_right.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }) )
         }
         files.push(new DownloadMetaData({
           url: target.icon.preview!,
-          filename: getUniqueFilename(`${target.name}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
+          filename: getUniqueFilename(`${nameIdPrefix}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
           type: ItemType.PlayIconPreview,
           name: target.name
         }))

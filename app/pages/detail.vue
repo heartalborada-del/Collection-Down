@@ -40,7 +40,7 @@ const currentPackage = ref<DetailedData>({
   type: PackageType.Undefined,
   data: []
 })
-const selectedSets = ref<Map<string, Set<string>>>(new Map())
+const selectedSets = ref<Map<DetailedData, Set<string>>>(new Map())
 
 const checked = ref<boolean | 'indeterminate'>(false);
 
@@ -171,32 +171,32 @@ async function fetchData() {
   fetching.value = false
 }
 
-function queryCardIsSelected(cardName: string, packageName: string): boolean {
-  const cardMap = selectedSets.value.get(packageName)
+function queryCardIsSelected(cardName: string, pkg: DetailedData): boolean {
+  const cardMap = selectedSets.value.get(pkg)
   if (cardMap?.has(cardName)) {
     return true
   }
   return false
 }
 
-function removeCardByName(cardName: string, packageName: string) {
-  const cardMap = selectedSets.value.get(packageName)
+function removeCardByName(cardName: string, pkg: DetailedData) {
+  const cardMap = selectedSets.value.get(pkg)
   if (cardMap?.has(cardName)) {
     cardMap?.delete(cardName)
   }
   refreshSelectedCards();
 }
 
-function setActiveCard(currentCard: PackageDataType, packageName: string | undefined) {
-  if (currentPackage.value.id === 0 || !packageName) {
+function setActiveCard(currentCard: PackageDataType, pkg: DetailedData | undefined) {
+  if (currentPackage.value.id === 0 || !pkg) {
     return
   }
   if (currentCard instanceof CardInfo || currentCard instanceof OtherInfo || currentCard instanceof EmojiInfo || currentCard instanceof LoadingInfo || currentCard instanceof ThumbupInfo || currentCard instanceof PlayiconInfo) {
-    if (!selectedSets.value.has(packageName)) {
-      selectedSets.value.set(packageName, new Set())
+    if (!selectedSets.value.has(pkg)) {
+      selectedSets.value.set(pkg, new Set())
     }
-    const cardMap = selectedSets.value.get(packageName)
-    if (cardMap?.has(currentCard.name) && cardMap?.has(currentCard.name)) {
+    const cardMap = selectedSets.value.get(pkg)
+    if (cardMap?.has(currentCard.name)) {
       cardMap?.delete(currentCard.name)
     } else {
       cardMap?.add(currentCard.name)
@@ -215,9 +215,9 @@ function toggleSelectAllCards() {
       card = card as CardInfo
       newSet.add(card.name)
     })
-    selectedSets.value.set(currentPackage.value.name!, newSet)
+    selectedSets.value.set(currentPackage.value, newSet)
   } else {
-    selectedSets.value.set(currentPackage.value.name!, new Set())
+    selectedSets.value.set(currentPackage.value, new Set())
   }
 }
 
@@ -225,7 +225,7 @@ function refreshSelectedCards() {
   if (currentPackage.value.id === 0) {
     return
   }
-  const cardMap = selectedSets.value.get(currentPackage.value.name!)
+  const cardMap = selectedSets.value.get(currentPackage.value)
   if (cardMap?.size === currentPackage.value.data.length) {
     checked.value = true
   } else {
@@ -246,30 +246,29 @@ watch(selectedSets, () => {
     { label: '表情包', children: [] },
     { label: '杂项', children: [] }
   ]
-  for (const [packageName, cardSet] of selectedSets.value) {
+  for (const [pkg, cardSet] of selectedSets.value) {
     const packageItem: TreeItem = {
-      label: packageName,
+      label: pkg.name,
       children: []
     }
     if (cardSet.size === 0) {
       continue
     }
-    const targetPackage = ItemsArray.value.find(item => item.name === packageName)
-    if (targetPackage?.type === PackageType.Card) {
+    if (pkg.type === PackageType.Card) {
       treeData[0].children!.push(packageItem)
-    } else if (targetPackage?.type === PackageType.Theme) {
+    } else if (pkg.type === PackageType.Theme) {
       treeData[1].children!.push(packageItem)
-    } else if (targetPackage?.type === PackageType.Sticker) {
+    } else if (pkg.type === PackageType.Sticker) {
       treeData[2].children!.push(packageItem)
-    } else if (targetPackage?.type === PackageType.Other) {
+    } else if (pkg.type === PackageType.Other) {
       treeData[3].children!.push(packageItem)
     }
     cardSet.forEach(cardName => {
       packageItem.children!.push({
         label: cardName,
         slot: 'checkable' as const,
-        package: targetPackage?.id,
-        packageName: packageName
+        package: pkg.id,
+        packageRef: pkg
       })
     })
   }
@@ -300,15 +299,11 @@ function download() {
 
 function getSelectedDownloadFiles(): Array<DownloadMetaData> {
   const files: DownloadMetaData[] = []
-  for (const [packageName, set] of selectedSets.value) {
-    const targetPackage = ItemsArray.value.find(item => item.name === packageName)
-    const a = packageName.split('-')
+  for (const [pkg, set] of selectedSets.value) {
+    const a = pkg.name!.split('-')
     const path = `${a[0]}/${a.slice(1).join('-')}`
-    if (!targetPackage) {
-      continue
-    }
     for (const name of set) {
-      const target = targetPackage.data.find(card => card.name === name)
+      const target = pkg.data.find(card => card.name === name)
       if (!target) {
         continue
       }
@@ -474,8 +469,8 @@ const downloadFiles = ref<DownloadMetaData[]>([])
       <div class="flex justify-center-safe items-center flex-wrap gap-2 h-full">
         <TransitionGroup name="opacity-card" appear>
           <ShowCard v-for="object in currentPackage.data" :key="MD5(object)" :url="object"
-            @click="setActiveCard(object, currentPackage.name)"
-            :highlight="queryCardIsSelected(object.name, currentPackage.name!)">
+            @click="setActiveCard(object, currentPackage)"
+            :highlight="queryCardIsSelected(object.name, currentPackage)">
           </ShowCard>
         </TransitionGroup>
       </div>
@@ -488,8 +483,8 @@ const downloadFiles = ref<DownloadMetaData[]>([])
         }" v-if="generatedTreeData.length !== 0">
           <template #checkable="{ item }">
             <UCheckbox class="w-full text-left" :key="treeDataKey" :model-value="true" @change="() => {
-              let data = (item as { package: number, packageName: string, label: string })
-              removeCardByName(data.label, data.packageName);
+              let data = (item as { package: number, packageRef: DetailedData, label: string })
+              removeCardByName(data.label, data.packageRef);
             }" :label="(item as { label: string }).label"></UCheckbox>
           </template>
         </UTree>

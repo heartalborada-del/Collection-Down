@@ -43,6 +43,11 @@ const currentPackage = ref<DetailedData>({
 const selectedSets = ref<Map<DetailedData, Set<string>>>(new Map())
 
 const checked = ref<boolean | 'indeterminate'>(false);
+const hasValidId = (id?: number) => Number.isFinite(id) && (id as number) > 0
+const getSafeName = (name?: string) => {
+  const trimmed = (name ?? '').trim()
+  return trimmed.length > 0 ? trimmed : 'unknown'
+}
 
 if (route.query) {
   if (route.query.type && typeof route.query.type === 'string') {
@@ -171,18 +176,48 @@ async function fetchData() {
   fetching.value = false
 }
 
-function queryCardIsSelected(cardName: string, pkg: DetailedData): boolean {
+function getCardSelectKey(item: PackageDataType): string {
+  if (item instanceof CardInfo) {
+    return hasValidId(item.id) ? `card:${item.id}` : `card:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof EmojiInfo) {
+    return hasValidId(item.item_id) ? `emoji:${item.item_id}` : `emoji:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof OtherInfo) {
+    return hasValidId(item.id) ? `other:${item.id}` : `other:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof PlayiconInfo) {
+    return hasValidId(item.id) ? `playicon:${item.id}` : `playicon:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof LoadingInfo) {
+    return `loading:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof ThumbupInfo) {
+    return `thumbup:name:${getSafeName(item.name)}`
+  }
+  return `unknown:name:${getSafeName(item.name)}`
+}
+
+function buildCardKeyMap(pkg: DetailedData): Map<string, PackageDataType> {
+  const map = new Map<string, PackageDataType>()
+  for (const card of pkg.data) {
+    map.set(getCardSelectKey(card), card)
+  }
+  return map
+}
+
+function queryCardIsSelected(card: PackageDataType, pkg: DetailedData): boolean {
   const cardMap = selectedSets.value.get(pkg)
-  if (cardMap?.has(cardName)) {
+  if (cardMap?.has(getCardSelectKey(card))) {
     return true
   }
   return false
 }
 
-function removeCardByName(cardName: string, pkg: DetailedData) {
+function removeCardByKey(cardKey: string, pkg: DetailedData) {
   const cardMap = selectedSets.value.get(pkg)
-  if (cardMap?.has(cardName)) {
-    cardMap?.delete(cardName)
+  if (cardMap?.has(cardKey)) {
+    cardMap?.delete(cardKey)
   }
   refreshSelectedCards();
 }
@@ -196,10 +231,11 @@ function setActiveCard(currentCard: PackageDataType, pkg: DetailedData | undefin
       selectedSets.value.set(pkg, new Set())
     }
     const cardMap = selectedSets.value.get(pkg)
-    if (cardMap?.has(currentCard.name)) {
-      cardMap?.delete(currentCard.name)
+    const cardKey = getCardSelectKey(currentCard)
+    if (cardMap?.has(cardKey)) {
+      cardMap?.delete(cardKey)
     } else {
-      cardMap?.add(currentCard.name)
+      cardMap?.add(cardKey)
     }
   }
   refreshSelectedCards()
@@ -212,8 +248,7 @@ function toggleSelectAllCards() {
   if (checked.value === true) {
     const newSet = new Set<string>()
     currentPackage.value.data.forEach((card) => {
-      card = card as CardInfo
-      newSet.add(card.name)
+      newSet.add(getCardSelectKey(card))
     })
     selectedSets.value.set(currentPackage.value, newSet)
   } else {
@@ -263,11 +298,14 @@ watch(selectedSets, () => {
     } else if (pkg.type === PackageType.Other) {
       treeData[3].children!.push(packageItem)
     }
-    cardSet.forEach(cardName => {
+    const cardKeyMap = buildCardKeyMap(pkg)
+    cardSet.forEach(cardKey => {
+      const target = cardKeyMap.get(cardKey)
       packageItem.children!.push({
-        label: cardName,
+        label: target?.name ?? 'Unknown Item',
         slot: 'checkable' as const,
         package: pkg.id,
+        cardKey: cardKey,
         packageRef: pkg
       })
     })
@@ -302,8 +340,9 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
   for (const [pkg, set] of selectedSets.value) {
     const a = pkg.name!.split('-')
     const path = `${a[0]}/${a.slice(1).join('-')}`
-    for (const name of set) {
-      const target = pkg.data.find(card => card.name === name)
+    const cardKeyMap = buildCardKeyMap(pkg)
+    for (const cardKey of set) {
+      const target = cardKeyMap.get(cardKey)
       if (!target) {
         continue
       }
@@ -384,7 +423,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
       } else if (target instanceof ThumbupInfo) {
         files.push(new DownloadMetaData({
           url: target.url!,
-          filename: `${path}/thumbup/${target.name}.png}`,
+          filename: `${path}/thumbup/${target.name}.png`,
           type: ItemType.SVGA,
           name: target.name
         }))
@@ -470,7 +509,7 @@ const downloadFiles = ref<DownloadMetaData[]>([])
         <TransitionGroup name="opacity-card" appear>
           <ShowCard v-for="object in currentPackage.data" :key="MD5(object)" :url="object"
             @click="setActiveCard(object, currentPackage)"
-            :highlight="queryCardIsSelected(object.name, currentPackage)">
+            :highlight="queryCardIsSelected(object, currentPackage)">
           </ShowCard>
         </TransitionGroup>
       </div>
@@ -483,8 +522,8 @@ const downloadFiles = ref<DownloadMetaData[]>([])
         }" v-if="generatedTreeData.length !== 0">
           <template #checkable="{ item }">
             <UCheckbox class="w-full text-left" :key="treeDataKey" :model-value="true" @change="() => {
-              let data = (item as { package: number, packageRef: DetailedData, label: string })
-              removeCardByName(data.label, data.packageRef);
+              let data = (item as { package: number, packageRef: DetailedData, label: string, cardKey: string })
+              removeCardByKey(data.cardKey, data.packageRef);
             }" :label="(item as { label: string }).label"></UCheckbox>
           </template>
         </UTree>

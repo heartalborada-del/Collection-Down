@@ -52,10 +52,16 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
     if (res.code !== 0 || !res.data) {
         return Promise.reject(new PromiseRejected(Errors.API, res.message, res.code))
     }
-    const parsedRedeems = await ParseRedeemInfo(res.data.redeems, lotteryId)
+    const cardObjects: CardInfo[] = [];
+    // eslint-disable-next-line no-unsafe-optional-chaining
+    (res.data?.items).forEach((card: CardInfo) => {
+        cardObjects.push(new CardInfo(card))
+    })
+    const fallbackId = cardObjects.find(card => card.id > 0)?.id ?? lotteryId
+    const parsedRedeems = await ParseRedeemInfo(res.data.redeems, fallbackId)
     const migratedRedeems: DetailedData[] = []
     const otherRedeems: DetailedData = {
-        id: lotteryId,
+        id: fallbackId,
         name: lotteryName,
         data: [] as OtherInfo[],
         type: PackageType.Other
@@ -67,7 +73,7 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
                     new OtherInfo({
                         name: redeem.name ?? '',
                         img: (item as OtherInfo).img,
-                        id: lotteryId
+                        id: (item as OtherInfo).id
                     })
                 );
             })
@@ -75,13 +81,8 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
             migratedRedeems.push(redeem)
         }
     }
-    const cardObjects: CardInfo[] = [];
-    // eslint-disable-next-line no-unsafe-optional-chaining
-    (res.data?.items).forEach((card: CardInfo) => {
-        cardObjects.push(new CardInfo(card))
-    })
     const returnValue: DetailedData[] = [{
-        id: lotteryId,
+        id: fallbackId,
         name: lotteryName,
         data: cardObjects,
         type: PackageType.Card
@@ -92,7 +93,7 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
         returnValue.push(otherRedeems)
     }
     if (allowShared) {
-        const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems)
+        const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems, fallbackId)
         returnValue.push(...sharedRedeems)
     }
     return returnValue
@@ -111,9 +112,12 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 {
                     const id = function () {
                         if (redeem.ids && redeem.ids.length > 0 && redeem.ids[0]) {
-                            return parseInt(redeem.ids[0], 10)
+                            const parsed = parseInt(redeem.ids[0], 10)
+                            if (Number.isFinite(parsed) && parsed > 0) {
+                                return parsed
+                            }
                         }
-                        return -1;
+                        return lotteryId;
                     }();
                     results.push({
                         id: id,
@@ -138,8 +142,9 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 if (res.code !== 0 || !res.data) {
                     break;
                 }
+                const id = redeem.ids[0] ? parseInt(redeem.ids[0], 10) : lotteryId
                 results.push({
-                    id: redeem.ids[0] ? parseInt(redeem.ids[0], 10) : -1,
+                    id: Number.isFinite(id) && id > 0 ? id : lotteryId,
                     name: res.data.name,
                     type: PackageType.Sticker,
                     data: (res.data.emojis.map(emoji => { return new EmojiInfo(emoji) }))
@@ -165,8 +170,8 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
     return results
 }
 
-async function ParseRedeemOnlyShared(redeems: RedeemInfo[]): Promise<DetailedData[]> {
-    return ParseRedeemInfo(redeems, -1, true)
+async function ParseRedeemOnlyShared(redeems: RedeemInfo[], fallbackId: number): Promise<DetailedData[]> {
+    return ParseRedeemInfo(redeems, fallbackId, true)
 }
 
 async function GetSuitMigratedData(partIds: number[]) {
@@ -300,4 +305,3 @@ export enum Errors {
 export class PromiseRejected {
     constructor(public error: Errors, public message?: string, public code?: number) { }
 }
-

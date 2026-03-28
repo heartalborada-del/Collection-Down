@@ -367,6 +367,10 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
     return `${filename.slice(0, splitIndex)}_${nextCount - 1}${filename.slice(splitIndex)}`
   }
   for (const [pkg, set] of selectedSets.value) {
+    const packageName = getSafeName(pkg.name)
+    const groupNameParts = packageName.split('-')
+    const subGroupName = groupNameParts.slice(1).join('-')
+    const basePath = subGroupName ? `${groupNameParts[0]}/${subGroupName}` : groupNameParts[0]
     const cardKeyMap = buildCardKeyMap(pkg)
     for (const cardKey of set) {
       const target = cardKeyMap.get(cardKey)
@@ -378,14 +382,14 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         files.push(new DownloadMetaData({
           url: target.img!,
           type: ItemType.StaticCard,
-          filename: getUniqueFilename(`${nameIdPrefix}_card.${GetFileExtensionFromUrl(target.img!)}`),
+          filename: getUniqueFilename(`${basePath}/static/${nameIdPrefix}_card.${GetFileExtensionFromUrl(target.img!)}`),
           name: target.name
         }))
         if (target.video) {
           files.push(new DownloadMetaData({
             url: target.video![0]!,
             type: ItemType.AnimatedCard,
-            filename: getUniqueFilename(`${nameIdPrefix}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
+            filename: getUniqueFilename(`${basePath}/video/${nameIdPrefix}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
             name: target.name
           }))
         }
@@ -394,7 +398,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.img!,
               type: ItemType.StaticCardWatermarked,
-              filename: getUniqueFilename(`${nameIdPrefix}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
+              filename: getUniqueFilename(`${basePath}/static_watermarked/${nameIdPrefix}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
               name: target.name
             }))
           }
@@ -402,7 +406,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.video![0]!,
               type: ItemType.AnimatedCardWatermarked,
-              filename: getUniqueFilename(`${nameIdPrefix}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
+              filename: getUniqueFilename(`${basePath}/video_watermarked/${nameIdPrefix}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
               name: target.name
             }))
           }
@@ -413,14 +417,14 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         files.push(new DownloadMetaData({
           url: target.images.static!,
           type: ItemType.StaticSticker,
-          filename: getUniqueFilename(`${nameIdPrefix}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
+          filename: getUniqueFilename(`${basePath}/png/${nameIdPrefix}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
           name: target.name
         }))
         if (target.images.webp) {
           files.push(new DownloadMetaData({
             url: target.images.webp!,
             type: ItemType.WebpSticker,
-            filename: getUniqueFilename(`${nameIdPrefix}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
+            filename: getUniqueFilename(`${basePath}/webp/${nameIdPrefix}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
             name: target.name
           }))
         }
@@ -428,7 +432,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           files.push(new DownloadMetaData({
             url: target.images.gif!,
             type: ItemType.GifSticker,
-            filename: getUniqueFilename(`${nameIdPrefix}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
+            filename: getUniqueFilename(`${basePath}/gif/${nameIdPrefix}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
             name: target.name
           }))
         }
@@ -437,7 +441,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.img!,
-          filename: getUniqueFilename(`${nameIdPrefix}_other.${GetFileExtensionFromUrl(target.img!)}`),
+          filename: getUniqueFilename(`${basePath}/${nameIdPrefix}_other.${GetFileExtensionFromUrl(target.img!)}`),
           type: ItemType.Other,
           name: target.name
         }))
@@ -446,7 +450,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.animated!,
-          filename: getUniqueFilename(`${nameIdPrefix}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
+          filename: getUniqueFilename(`${basePath}/loading/${nameIdPrefix}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
           type: ItemType.WebpSticker,
           name: target.name
         }))
@@ -455,7 +459,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
         const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.url!,
-          filename: getUniqueFilename(`${nameIdPrefix}_thumbup.png`),
+          filename: getUniqueFilename(`${basePath}/thumbup/${nameIdPrefix}_thumbup.png`),
           type: ItemType.SVGA,
           name: target.name
         }))
@@ -466,13 +470,13 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           const  icon = target.icon as PlayiconInfo.LottieIcon
           files.push(new DownloadMetaData({
             url: icon.drag,
-            filename: getUniqueFilename(`${nameIdPrefix}_playicon_drag.json`),
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_drag.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: getUniqueFilename(`${nameIdPrefix}_playicon_normal.json`),
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_normal.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
@@ -480,26 +484,26 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           const icon = target.icon as PlayiconInfo.StaticIcon
           files.push(new DownloadMetaData({
             url: icon.dragLeft!,
-            filename: getUniqueFilename(`${nameIdPrefix}_playicon_drag_left.png`),
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_drag_left.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: getUniqueFilename(`${nameIdPrefix}_playicon_normal.png`),
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_normal.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.dragRight!,
-            filename: getUniqueFilename(`${nameIdPrefix}_playicon_drag_right.png`),
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_drag_right.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
-          }) )
+          }))
         }
         files.push(new DownloadMetaData({
           url: target.icon.preview!,
-          filename: getUniqueFilename(`${nameIdPrefix}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
+          filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
           type: ItemType.PlayIconPreview,
           name: target.name
         }))

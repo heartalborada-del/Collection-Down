@@ -43,6 +43,11 @@ const currentPackage = ref<DetailedData>({
 const selectedSets = ref<Map<DetailedData, Set<string>>>(new Map())
 
 const checked = ref<boolean | 'indeterminate'>(false);
+const hasValidId = (id?: number) => Number.isFinite(id) && (id as number) > 0
+const getSafeName = (name?: string) => {
+  const trimmed = (name ?? '').trim()
+  return trimmed.length > 0 ? trimmed : 'unknown'
+}
 
 if (route.query) {
   if (route.query.type && typeof route.query.type === 'string') {
@@ -171,18 +176,48 @@ async function fetchData() {
   fetching.value = false
 }
 
-function queryCardIsSelected(cardName: string, pkg: DetailedData): boolean {
+function getCardSelectKey(item: PackageDataType): string {
+  if (item instanceof CardInfo) {
+    return hasValidId(item.id) ? `card:${item.id}` : `card:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof EmojiInfo) {
+    return hasValidId(item.item_id) ? `emoji:${item.item_id}` : `emoji:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof OtherInfo) {
+    return hasValidId(item.id) ? `other:${item.id}` : `other:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof PlayiconInfo) {
+    return hasValidId(item.id) ? `playicon:${item.id}` : `playicon:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof LoadingInfo) {
+    return `loading:name:${getSafeName(item.name)}`
+  }
+  if (item instanceof ThumbupInfo) {
+    return `thumbup:name:${getSafeName(item.name)}`
+  }
+  return `unknown:name:${getSafeName(item.name)}`
+}
+
+function buildCardKeyMap(pkg: DetailedData): Map<string, PackageDataType> {
+  const map = new Map<string, PackageDataType>()
+  for (const card of pkg.data) {
+    map.set(getCardSelectKey(card), card)
+  }
+  return map
+}
+
+function queryCardIsSelected(card: PackageDataType, pkg: DetailedData): boolean {
   const cardMap = selectedSets.value.get(pkg)
-  if (cardMap?.has(cardName)) {
+  if (cardMap?.has(getCardSelectKey(card))) {
     return true
   }
   return false
 }
 
-function removeCardByName(cardName: string, pkg: DetailedData) {
+function removeCardByKey(cardKey: string, pkg: DetailedData) {
   const cardMap = selectedSets.value.get(pkg)
-  if (cardMap?.has(cardName)) {
-    cardMap?.delete(cardName)
+  if (cardMap?.has(cardKey)) {
+    cardMap?.delete(cardKey)
   }
   refreshSelectedCards();
 }
@@ -196,10 +231,11 @@ function setActiveCard(currentCard: PackageDataType, pkg: DetailedData | undefin
       selectedSets.value.set(pkg, new Set())
     }
     const cardMap = selectedSets.value.get(pkg)
-    if (cardMap?.has(currentCard.name)) {
-      cardMap?.delete(currentCard.name)
+    const cardKey = getCardSelectKey(currentCard)
+    if (cardMap?.has(cardKey)) {
+      cardMap?.delete(cardKey)
     } else {
-      cardMap?.add(currentCard.name)
+      cardMap?.add(cardKey)
     }
   }
   refreshSelectedCards()
@@ -212,8 +248,7 @@ function toggleSelectAllCards() {
   if (checked.value === true) {
     const newSet = new Set<string>()
     currentPackage.value.data.forEach((card) => {
-      card = card as CardInfo
-      newSet.add(card.name)
+      newSet.add(getCardSelectKey(card))
     })
     selectedSets.value.set(currentPackage.value, newSet)
   } else {
@@ -263,11 +298,14 @@ watch(selectedSets, () => {
     } else if (pkg.type === PackageType.Other) {
       treeData[3].children!.push(packageItem)
     }
-    cardSet.forEach(cardName => {
+    const cardKeyMap = buildCardKeyMap(pkg)
+    cardSet.forEach(cardKey => {
+      const target = cardKeyMap.get(cardKey)
       packageItem.children!.push({
-        label: cardName,
+        label: target?.name ?? 'Unknown Item',
         slot: 'checkable' as const,
         package: pkg.id,
+        cardKey: cardKey,
         packageRef: pkg
       })
     })
@@ -299,26 +337,59 @@ function download() {
 
 function getSelectedDownloadFiles(): Array<DownloadMetaData> {
   const files: DownloadMetaData[] = []
+  const filenameCountMap = new Map<string, number>()
+  const getNameIdPrefix = (item: PackageDataType): string => {
+    const name = getSafeName(item.name)
+    if (item instanceof CardInfo) {
+      return `${name}-${hasValidId(item.id) ? item.id : 0}`
+    }
+    if (item instanceof EmojiInfo) {
+      return `${name}-${hasValidId(item.item_id) ? item.item_id : 0}`
+    }
+    if (item instanceof OtherInfo) {
+      return `${name}-${hasValidId(item.id) ? item.id : 0}`
+    }
+    if (item instanceof PlayiconInfo) {
+      return `${name}-${hasValidId(item.id) ? item.id : 0}`
+    }
+    return `${name}-0`
+  }
+  const getUniqueFilename = (filename: string) => {
+    const nextCount = (filenameCountMap.get(filename) ?? 0) + 1
+    filenameCountMap.set(filename, nextCount)
+    if (nextCount === 1) {
+      return filename
+    }
+    const splitIndex = filename.lastIndexOf('.')
+    if (splitIndex <= 0) {
+      return `${filename}_${nextCount - 1}`
+    }
+    return `${filename.slice(0, splitIndex)}_${nextCount - 1}${filename.slice(splitIndex)}`
+  }
   for (const [pkg, set] of selectedSets.value) {
-    const a = pkg.name!.split('-')
-    const path = `${a[0]}/${a.slice(1).join('-')}`
-    for (const name of set) {
-      const target = pkg.data.find(card => card.name === name)
+    const packageName = getSafeName(pkg.name)
+    const groupNameParts = packageName.split('-')
+    const subGroupName = groupNameParts.slice(1).join('-')
+    const basePath = subGroupName ? `${groupNameParts[0]}/${subGroupName}` : groupNameParts[0]
+    const cardKeyMap = buildCardKeyMap(pkg)
+    for (const cardKey of set) {
+      const target = cardKeyMap.get(cardKey)
       if (!target) {
         continue
       }
       if (target instanceof CardInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.img!,
           type: ItemType.StaticCard,
-          filename: `${path}/static/${target.name}.${GetFileExtensionFromUrl(target.img!)}`,
+          filename: getUniqueFilename(`${basePath}/static/${nameIdPrefix}_card.${GetFileExtensionFromUrl(target.img!)}`),
           name: target.name
         }))
         if (target.video) {
           files.push(new DownloadMetaData({
             url: target.video![0]!,
             type: ItemType.AnimatedCard,
-            filename: `${path}/video/${target.name}.${GetFileExtensionFromUrl(target.video![0]!)}`,
+            filename: getUniqueFilename(`${basePath}/video/${nameIdPrefix}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
             name: target.name
           }))
         }
@@ -327,7 +398,7 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.img!,
               type: ItemType.StaticCardWatermarked,
-              filename: `${path}/static_watermarked/${target.name}.${GetFileExtensionFromUrl(target.watermarked.img)}`,
+              filename: getUniqueFilename(`${basePath}/static_watermarked/${nameIdPrefix}_watermarked.${GetFileExtensionFromUrl(target.watermarked.img)}`),
               name: target.name
             }))
           }
@@ -335,24 +406,25 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
             files.push(new DownloadMetaData({
               url: target.watermarked.video![0]!,
               type: ItemType.AnimatedCardWatermarked,
-              filename: `${path}/video_watermarked/${target.name}.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`,
+              filename: getUniqueFilename(`${basePath}/video_watermarked/${nameIdPrefix}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
               name: target.name
             }))
           }
         }
         continue
       } else if (target instanceof EmojiInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.images.static!,
           type: ItemType.StaticSticker,
-          filename: `${path}/png/${target.name}.${GetFileExtensionFromUrl(target.images.static!)}`,
+          filename: getUniqueFilename(`${basePath}/png/${nameIdPrefix}_sticker_static.${GetFileExtensionFromUrl(target.images.static!)}`),
           name: target.name
         }))
         if (target.images.webp) {
           files.push(new DownloadMetaData({
             url: target.images.webp!,
             type: ItemType.WebpSticker,
-            filename: `${path}/webp/${target.name}.${GetFileExtensionFromUrl(target.images.webp!)}`,
+            filename: getUniqueFilename(`${basePath}/webp/${nameIdPrefix}_sticker_webp.${GetFileExtensionFromUrl(target.images.webp!)}`),
             name: target.name
           }))
         }
@@ -360,47 +432,51 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           files.push(new DownloadMetaData({
             url: target.images.gif!,
             type: ItemType.GifSticker,
-            filename: `${path}/gif/${target.name}.${GetFileExtensionFromUrl(target.images.gif!)}`,
+            filename: getUniqueFilename(`${basePath}/gif/${nameIdPrefix}_sticker_gif.${GetFileExtensionFromUrl(target.images.gif!)}`),
             name: target.name
           }))
         }
         continue
       } else if (target instanceof OtherInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.img!,
-          filename: `${path}/${target.name}.${GetFileExtensionFromUrl(target.img!)}`,
+          filename: getUniqueFilename(`${basePath}/${nameIdPrefix}_other.${GetFileExtensionFromUrl(target.img!)}`),
           type: ItemType.Other,
           name: target.name
         }))
         continue
       } else if (target instanceof LoadingInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.animated!,
-          filename: `${path}/loading/${target.name}.${GetFileExtensionFromUrl(target.animated!)}`,
+          filename: getUniqueFilename(`${basePath}/loading/${nameIdPrefix}_loading.${GetFileExtensionFromUrl(target.animated!)}`),
           type: ItemType.WebpSticker,
           name: target.name
         }))
         continue
       } else if (target instanceof ThumbupInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         files.push(new DownloadMetaData({
           url: target.url!,
-          filename: `${path}/thumbup/${target.name}.png}`,
+          filename: getUniqueFilename(`${basePath}/thumbup/${nameIdPrefix}_thumbup.png`),
           type: ItemType.SVGA,
           name: target.name
         }))
         continue
       } else if (target instanceof PlayiconInfo) {
+        const nameIdPrefix = getNameIdPrefix(target)
         if (target.isLottie) {
           const  icon = target.icon as PlayiconInfo.LottieIcon
           files.push(new DownloadMetaData({
             url: icon.drag,
-            filename: `${path}/playicon/drag.json`,
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_drag.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: `${path}/playicon/normal.json`,
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_normal.json`),
             type: ItemType.PlayIconLottie,
             name: target.name
           }))
@@ -408,26 +484,26 @@ function getSelectedDownloadFiles(): Array<DownloadMetaData> {
           const icon = target.icon as PlayiconInfo.StaticIcon
           files.push(new DownloadMetaData({
             url: icon.dragLeft!,
-            filename: `${path}/playicon/drag_left.png`,
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_drag_left.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.normal!,
-            filename: `${path}/playicon/normal.png`,
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_normal.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
           }))
           files.push(new DownloadMetaData({
             url: icon.dragRight!,
-            filename: `${path}/playicon/drag_right.png`,
+            filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_drag_right.png`),
             type: ItemType.PlayIconStatic,
             name: target.name
-          }) )
+          }))
         }
         files.push(new DownloadMetaData({
           url: target.icon.preview!,
-          filename: `${path}/playicon/preview.${GetFileExtensionFromUrl(target.icon.preview!)}`,
+          filename: getUniqueFilename(`${basePath}/playicon/${nameIdPrefix}_playicon_preview.${GetFileExtensionFromUrl(target.icon.preview!)}`),
           type: ItemType.PlayIconPreview,
           name: target.name
         }))
@@ -470,7 +546,7 @@ const downloadFiles = ref<DownloadMetaData[]>([])
         <TransitionGroup name="opacity-card" appear>
           <ShowCard v-for="object in currentPackage.data" :key="MD5(object)" :url="object"
             @click="setActiveCard(object, currentPackage)"
-            :highlight="queryCardIsSelected(object.name, currentPackage)">
+            :highlight="queryCardIsSelected(object, currentPackage)">
           </ShowCard>
         </TransitionGroup>
       </div>
@@ -483,8 +559,8 @@ const downloadFiles = ref<DownloadMetaData[]>([])
         }" v-if="generatedTreeData.length !== 0">
           <template #checkable="{ item }">
             <UCheckbox class="w-full text-left" :key="treeDataKey" :model-value="true" @change="() => {
-              let data = (item as { package: number, packageRef: DetailedData, label: string })
-              removeCardByName(data.label, data.packageRef);
+              let data = (item as { package: number, packageRef: DetailedData, label: string, cardKey: string })
+              removeCardByKey(data.cardKey, data.packageRef);
             }" :label="(item as { label: string }).label"></UCheckbox>
           </template>
         </UTree>

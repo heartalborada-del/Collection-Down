@@ -6,6 +6,7 @@ export type DownloadTaskOptions = {
     maxThreads: number;
     chunkSize: number;
     onProgress?: (loaded: number, total: number) => void;
+    maxRetries?: number;
 }
 
 export class DownloadTask {
@@ -70,11 +71,36 @@ export class DownloadTask {
     public async download(): Promise<void> {
         const size = await this.getFileSize();
         if (size <= 0) {
-            const resp = await fetch(this.URL, {signal: this.signal.signal})
-            if (!resp.ok) {
-                throw new HTTPError(resp.status, resp.statusText);
-            } else if (!resp.body) {
-                throw new HTTPError(resp.status, "Response body is null");
+            let resp: Response | null = null;
+            const maxRetries = this.options.maxRetries ?? 3;
+            let lastError: unknown = null;
+            
+            for (let i = 0; i <= maxRetries; i++) {
+                let fetchResp: Response | null = null;
+                try {
+                    fetchResp = await fetch(this.URL, {signal: this.signal.signal});
+                } catch (e) {
+                    if (this.signal.signal.aborted) throw e;
+                    lastError = e;
+                    if (i === maxRetries) throw e;
+                    continue;
+                }
+                
+                if (!fetchResp.ok) {
+                    if (fetchResp.status >= 400 && fetchResp.status < 500 && fetchResp.status !== 408) {
+                        throw new HTTPError(fetchResp.status, fetchResp.statusText);
+                    }
+                    lastError = new Error(`HTTP ${fetchResp.status}`);
+                    if (i === maxRetries) throw lastError;
+                    continue;
+                }
+                
+                resp = fetchResp;
+                break;
+            }
+
+            if (!resp || !resp.body) {
+                throw new HTTPError(500, "Response body is null or fetch failed");
             }
             
             // Read stream to report progress for single-thread fallback
@@ -167,25 +193,59 @@ export class DownloadTask {
         }
     }
 
-    private async downloadSubTask(chunkSize: number, fileSize: number, index: number, isLastChunk: boolean): Promise<number> {
+    private async downloadSubTask(chunkSize: number, fileSize: number, index: number, isLastChunk: boolean, retryCount: number = 0): Promise<number> {
         const start = (index - 1) * chunkSize;
         const end = isLastChunk ? fileSize - 1 : index * chunkSize - 1;
-        const resp = await fetch(this.URL, {
-            signal: this.signal.signal,
-            cache: 'no-store',
-            headers: {
-                'Range': `bytes=${start}-${end}`
+        let lastError: unknown;
+        
+        let resp: Response | null = null;
+        try {
+            resp = await fetch(this.URL, {
+                signal: this.signal.signal,
+                cache: 'no-store',
+                headers: {
+                    'Range': `bytes=${start}-${end}`
+                }
+            });
+        } catch (error) {
+            if (this.signal.signal.aborted) throw error;
+            lastError = error;
+        }
+        
+        if (resp) {
+            if (!resp.ok) {
+                if (resp.status >= 400 && resp.status < 500 && resp.status !== 408) {
+                    throw new HTTPError(resp.status, resp.statusText);
+                }
+                lastError = new Error(`HTTP ${resp.status}`);
+            } else {
+                let buf: ArrayBuffer;
+                try {
+                    buf = await resp.arrayBuffer();
+                } catch (error) {
+                    if (this.signal.signal.aborted) throw error;
+                    lastError = error;
+                    buf = new ArrayBuffer(0); // Will trigger retry below
+                }
+                
+                if (buf.byteLength > 0) {
+                    if (this.storage) {
+                        try {
+                            await this.storage.writeChunk(index, new Uint8Array(buf));
+                        } catch (error) {
+                            if (this.signal.signal.aborted) throw error;
+                            lastError = error;
+                        }
+                    }
+                    if (!lastError) return buf.byteLength;
+                }
             }
-        });
-
-        if (!resp.ok) {
-            throw new HTTPError(resp.status, resp.statusText);
         }
-
-        const buf = await resp.arrayBuffer();
-        if (this.storage) {
-            await this.storage.writeChunk(index, new Uint8Array(buf));
+        
+        const maxRetries = this.options.maxRetries ?? 3;
+        if (retryCount < maxRetries) {
+            return this.downloadSubTask(chunkSize, fileSize, index, isLastChunk, retryCount + 1);
         }
-        return buf.byteLength;
+        throw lastError;
     }
 }

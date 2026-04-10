@@ -1,6 +1,7 @@
 export type DownloadItem = {
     Url: string;
+    FileFullDirectory: string;
     OnProgress?: (loaded: number, total: number) => void;
-    OnFailed?: (error: any) => void;
-    OnSuccess?: (data: Blob) => void;
+    OnFailed?: (error: unknown) => void;
+    OnSuccess?: () => void;
 }

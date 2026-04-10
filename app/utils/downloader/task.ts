@@ -1,232 +1,191 @@
-import { DownloaderErrorEnum, DownloadError } from "~/utils/downloader/errors";
-import type { DownloadItem } from "./types";
+import type {ZipWriter} from "@zip.js/zip.js";
+import {HTTPError} from "~/utils/downloader/error";
+import {type ChunkStorage, IDBChunkStorage, OPFSChunkStorage} from "~/utils/downloader/cacheStorage";
 
 export type DownloadTaskOptions = {
     maxThreads: number;
     chunkSize: number;
-    // 分块失败的最大重试次数（每个分块单独计数）
-    maxRetries?: number;
-    // 重试的基础退避时间（毫秒），指数退避：base * 2^attempt
-    retryBaseDelayMs?: number;
-    EdgeOneCompatible?: boolean; // 是否启用针对 EdgeOne 的兼容性调整
-}
-
-export const DEFAULT_DOWNLOAD_TASK_OPTIONS: DownloadTaskOptions = {
-    maxThreads: 4,
-    chunkSize: 1024 * 1024, // 1 MB
-    maxRetries: 2,
-    retryBaseDelayMs: 300,
-    EdgeOneCompatible: false,
+    onProgress?: (loaded: number, total: number) => void;
 }
 
 export class DownloadTask {
-    // 预分配的目标缓冲区
-    private bytebuffer: Uint8Array = new Uint8Array(0);
-    // 统一的取消信号（供外部取消，内部所有 fetch 共享）
-    private readonly shutdownSignal = new AbortController();
+    private readonly signal = new AbortController();
+    private storage: ChunkStorage | null = null;
+    private taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-    // 进度/总大小，供外部 UI 监听
-    private downloaded: number = 0;
-    private fileSize: number = -1;
+    public constructor(private FileWriter: ZipWriter<unknown>, private FileFullDirectory: string, private URL: string, private options: DownloadTaskOptions) {}
 
-    constructor(private item: DownloadItem, private options?: DownloadTaskOptions) { }
-
-    private getResolvedOptions(): DownloadTaskOptions {
-        const options = this.options ?? DEFAULT_DOWNLOAD_TASK_OPTIONS;
-
-        return {
-            ...DEFAULT_DOWNLOAD_TASK_OPTIONS,
-            ...options,
-            maxThreads: Math.max(1, Math.floor(Number(options.maxThreads) || DEFAULT_DOWNLOAD_TASK_OPTIONS.maxThreads)),
-            chunkSize: Math.max(1, Math.floor(Number(options.chunkSize) || DEFAULT_DOWNLOAD_TASK_OPTIONS.chunkSize)),
-        };
+    public shutdown() {
+        this.signal.abort("Task Cancelled");
     }
 
-    /**
-     * Get the size of the file to be downloaded.
-     * <code>-1</code> if the size cannot be determined.
-     * @param url
-     * @private
-     */
-    private async getFileSize(url: string): Promise<number> {
-        // 使用 HEAD 探测是否支持 Range 下载与内容长度
-        const response = await fetch(url, { method: 'HEAD', signal: this.shutdownSignal.signal, cache: 'no-store' });
-        if (!response.ok || response.headers.get('Accept-Ranges')?.toLowerCase() !== 'bytes')
-            return -1;
-        let contentLength = response.headers.get('Content-Length');
-        if (this.options?.EdgeOneCompatible) {
-            // EdgeOne 兼容：优先使用备份的原始 Content-Length
-            const backupLength = response.headers.get('X-Length-Backup');
-            if (backupLength) {
-                contentLength = backupLength;
-            }
+    private async checkSupportOPFS(): Promise<boolean> {
+        try {
+            const root = await navigator.storage.getDirectory();
+            return !!root;
+        } catch {
+            return false;
         }
-        return contentLength ? parseInt(contentLength, 10) : -1;
     }
 
-    private sleep(ms: number) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
-    /**
-     * Start the download task.
-     * @constructor
-     */
-    public async download(): Promise<Uint8Array> {
-        const options = this.getResolvedOptions();
-        const fileSize = await this.getFileSize(this.item.Url);
-        this.fileSize = fileSize;
-        this.downloaded = 0;
-
-        // 不支持 Range 或无法获知大小：退回单连接下载。
-        if (fileSize === -1) {
-            const response = await fetch(this.item.Url, { signal: this.shutdownSignal.signal, cache: 'no-store' });
-            if (!response.ok) {
-                throw new DownloadError(DownloaderErrorEnum.NetworkError);
-            }
-
-            const contentLength = response.headers.get('Content-Length') ?? response.headers.get('X-Length-Backup');
-            const total = contentLength ? parseInt(contentLength, 10) : -1;
-            this.fileSize = Number.isFinite(total) ? total : -1;
-
-            const reader = response.body?.getReader();
-            if (!reader) {
-                const data = new Uint8Array(await response.arrayBuffer());
-                this.bytebuffer = data;
-                this.fileSize = data.length;
-                this.downloaded = data.length;
-                this.item.OnProgress?.(this.downloaded, this.fileSize);
-                return data;
-            }
-
-            const chunks: Uint8Array[] = [];
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                if (value && value.length > 0) {
-                    chunks.push(value);
-                    this.downloaded += value.length;
-                    this.item.OnProgress?.(this.downloaded, this.fileSize);
+    // Only support same-origin due to security
+    private async getFileSize(): Promise<number> {
+        try {
+            const response = await fetch(this.URL, {
+                method: 'GET',
+                signal: this.signal.signal,
+                cache: 'no-store',
+                headers: {
+                    'Range': 'bytes=0-0'
                 }
-            }
-
-            const merged = new Uint8Array(this.downloaded);
-            let offset = 0;
-            for (const chunk of chunks) {
-                merged.set(chunk, offset);
-                offset += chunk.length;
-            }
-
-            this.bytebuffer = merged;
-            if (this.fileSize === -1) {
-                this.fileSize = merged.length;
-                this.item.OnProgress?.(this.downloaded, this.fileSize);
-            }
-            return merged;
-        }
-
-        // 支持 Range：构建分块任务并通过简单任务池并发执行。
-        this.bytebuffer = new Uint8Array(fileSize);
-        const ranges: Array<{ start: number; end: number }> = [];
-        for (let start = 0; start < fileSize; start += options.chunkSize) {
-            const end = Math.min(start + options.chunkSize - 1, fileSize - 1);
-            ranges.push({ start, end });
-        }
-
-        // 简单任务池：限制同时进行的分块请求数
-        const limit = options.maxThreads;
-        let idx = 0;
-        const workers = new Array(Math.min(limit, ranges.length)).fill(0).map(async () => {
-            while (true) {
-                const current = idx++;
-                if (current >= ranges.length) break;
-                const { start, end } = ranges[current]!;
-                await this.downloadChunk(this.item.Url, start, end);
-            }
-        });
-        await Promise.all(workers);
-        return this.bytebuffer;
-    }
-
-    /**
-     * Will throw an error, just ignore it
-     * @constructor
-     */
-    public shutdown(): boolean {
-        this.shutdownSignal.abort("Shutdown requested");
-        return true;
-    }
-
-    /**
-     * Download a chunk of the file.
-     * @param url
-     * @param start
-     * @param end
-     * @private
-     */
-    private async downloadChunk(url: string, start: number, end: number): Promise<boolean> {
-        const options = this.getResolvedOptions();
-        const maxRetries = options.maxRetries ?? DEFAULT_DOWNLOAD_TASK_OPTIONS.maxRetries!;
-        const baseDelay = options.retryBaseDelayMs ?? DEFAULT_DOWNLOAD_TASK_OPTIONS.retryBaseDelayMs!;
-
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            let addedThisAttempt = 0; // 本次尝试期间已计入的进度，失败需回滚
-            try {
-                const response = await fetch(url, {
-                    headers: { 'Range': `bytes=${start}-${end}` },
-                    signal: this.shutdownSignal.signal,
-                    cache: 'no-store',
-                });
-                if (!response.ok) {
-                    throw new DownloadError(DownloaderErrorEnum.NetworkError);
-                }
-
-                const reader = response.body?.getReader();
-                if (!reader) {
-                    // 环境不支持 ReadableStream：一次性读取
-                    const data = new Uint8Array(await response.arrayBuffer());
-                    this.bytebuffer.set(data, start);
-                    this.downloaded += data.length;
-                    this.item.OnProgress?.(this.downloaded, this.fileSize);
-                    return true;
-                }
-
-                let writePos = start;
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    if (value && value.length > 0) {
-                        this.bytebuffer.set(value, writePos);
-                        writePos += value.length;
-                        this.downloaded += value.length;
-                        addedThisAttempt += value.length;
-                        this.item.OnProgress?.(this.downloaded, this.fileSize);
+            });
+            // Support -> 206
+            if (response.status === 206) {
+                const contentRange = response.headers.get('content-range');
+                if (contentRange) {
+                    // Content-Range pattern: bytes 0-0/123456
+                    const match = contentRange.match(/\/(\d+)$/);
+                    if (match && match[1]) {
+                        return parseInt(match[1], 10);
                     }
                 }
-                return true; // 分块成功完成
-            } catch (e: unknown) {
-                // 如果是主动取消，直接抛出终止
-                const name = e instanceof Error
-                    ? e.name
-                    : typeof e === "object" && e !== null && "name" in e
-                        ? String((e as { name?: unknown }).name)
-                        : undefined;
-                if (name === 'AbortError') throw e;
 
-                // 回滚本次尝试期间累加的进度，避免重试导致进度超量
-                if (addedThisAttempt > 0) {
-                    this.downloaded = Math.max(0, this.downloaded - addedThisAttempt);
-                    this.item.OnProgress?.(this.downloaded, this.fileSize);
+                // check backup header
+                const backupLength = response.headers.get('X-Length-Backup');
+                if (backupLength) {
+                    return parseInt(backupLength, 10);
                 }
+            }
+            
+            //Fallback
+            return -1;
+        } catch {
+            return -1;
+        }
+    }
+    
+    /*
+     * @throw HTTPError
+     */
+    public async download(): Promise<void> {
+        const size = await this.getFileSize();
+        if (size <= 0) {
+            const resp = await fetch(this.URL, {signal: this.signal.signal})
+            if (!resp.ok) {
+                throw new HTTPError(resp.status, resp.statusText);
+            } else if (!resp.body) {
+                throw new HTTPError(resp.status, "Response body is null");
+            }
+            
+            // Read stream to report progress for single-thread fallback
+            const total = parseInt(resp.headers.get("Content-Length") ?? "1", 10);
+            let loaded = 0;
+            const reader = resp.body.getReader();
 
-                if (attempt < maxRetries) {
-                    const delay = baseDelay * Math.pow(2, attempt);
-                    await this.sleep(delay);
-                    continue;
+            const progressStream = new ReadableStream({
+                pull: async (controller) => {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        controller.close();
+                        this.options.onProgress?.(total, total);
+                        return;
+                    }
+                    loaded += value.byteLength;
+                    this.options.onProgress?.(loaded, total);
+                    controller.enqueue(value);
+                },
+                cancel: () => {
+                    reader.cancel();
                 }
-                throw new DownloadError(DownloaderErrorEnum.NetworkError);
+            });
+
+            await this.FileWriter.add(this.FileFullDirectory, progressStream)
+        } else {
+            const chunkSize = this.options.chunkSize;
+            const maxThreads = this.options.maxThreads;
+            const chunksCount = Math.ceil(size / chunkSize);
+
+            const useOPFS = await this.checkSupportOPFS();
+            this.storage = useOPFS ? new OPFSChunkStorage(this.taskId) : new IDBChunkStorage(this.taskId);
+
+            let loadedBytes = 0;
+            try {
+                let currentIndex = 1;
+                let activeThreads = 0;
+                await new Promise<void>((resolve, reject) => {
+                    const next = async () => {
+                        if (this.signal.signal.aborted) {
+                            return reject(new Error("Task Cancelled"));
+                        }
+
+                        let chunkIndex = 0;
+                        if (currentIndex <= chunksCount) {
+                            chunkIndex = currentIndex++;
+                            activeThreads++;
+                        } else {
+                            if (activeThreads === 0) resolve();
+                            return;
+                        }
+
+                        try {
+                            const downloadedSize = await this.downloadSubTask(chunkSize, size, chunkIndex, chunkIndex === chunksCount);
+                            loadedBytes += downloadedSize;
+                            this.options.onProgress?.(loadedBytes, size);
+
+                            activeThreads--;
+                            next();
+                        } catch (e) {
+                            reject(e);
+                        }
+                    };
+
+                    for (let i = 0; i < Math.min(maxThreads, chunksCount); i++) {
+                        next();
+                    }
+                });
+
+                // Assemble the file and add to ZipWriter using a ReadableStream
+                let chunkIndex = 1;
+                const storage = this.storage!;
+                const stream = new ReadableStream({
+                    async pull(controller) {
+                        if (chunkIndex > chunksCount) {
+                            controller.close();
+                            return;
+                        }
+                        const data = await storage.getChunk(chunkIndex++);
+                        controller.enqueue(data);
+                    }
+                });
+
+                await this.FileWriter.add(this.FileFullDirectory, stream);
+            } finally {
+                if (this.storage) {
+                    await this.storage.clear();
+                }
             }
         }
-        return false;
+    }
+
+    private async downloadSubTask(chunkSize: number, fileSize: number, index: number, isLastChunk: boolean): Promise<number> {
+        const start = (index - 1) * chunkSize;
+        const end = isLastChunk ? fileSize - 1 : index * chunkSize - 1;
+        const resp = await fetch(this.URL, {
+            signal: this.signal.signal,
+            cache: 'no-store',
+            headers: {
+                'Range': `bytes=${start}-${end}`
+            }
+        });
+
+        if (!resp.ok) {
+            throw new HTTPError(resp.status, resp.statusText);
+        }
+
+        const buf = await resp.arrayBuffer();
+        if (this.storage) {
+            await this.storage.writeChunk(index, new Uint8Array(buf));
+        }
+        return buf.byteLength;
     }
 }

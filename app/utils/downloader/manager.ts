@@ -1,42 +1,43 @@
-import { DEFAULT_DOWNLOAD_TASK_OPTIONS, DownloadTask, type DownloadTaskOptions } from "./task";
+import { DownloadTask, type DownloadTaskOptions } from "./task";
 import type { DownloadItem } from "./types";
-
+import { ZipWriter, BlobWriter } from "@zip.js/zip.js";
 
 /**
- * 下载器配置：控制并发数与单任务配置。
+ * 下载器配置：控制并发数与单任务分片配置。
  */
 export type DownloaderOptions = {
-    /** 最大并发下载数（至少会被修正为 1） */
+    /** 最大并发下载数 */
     maxConcurrentDownloads: number;
     /** 传递给 DownloadTask 的配置 */
-    taskOptions?: DownloadTaskOptions;
+    taskOptions: DownloadTaskOptions;
 }
 
-/**
- * 默认下载器配置。
- */
 export const DEFAULT_DOWNLOADER_OPTIONS: DownloaderOptions = {
     maxConcurrentDownloads: 3,
-    taskOptions: DEFAULT_DOWNLOAD_TASK_OPTIONS,
+    taskOptions: {
+        maxThreads: 3,
+        chunkSize: 1024 * 1024 * 2 // 2MB per chunk
+    },
 }
 
 /**
- * 下载管理器：
- * - 维护任务队列
+ * 新版下载分块队列管理管理器：
+ * - 维护任务队列，包含打入 Zip 的动作
  * - 按并发限制启动下载
- * - 支持统一取消
+ * - 支持全局统一取消
  */
 export class Downloader {
-    /** 等待下载的任务队列（先进先出） */
+    /** 等待下载的任务队列 */
     private queue: DownloadItem[] = [];
-    /** 当前正在下载的任务数量 */
-    private currentDownloads: number = 0;
-    /** 当前活跃的下载实例，用于取消时统一 shutdown */
+    /** 正在执行的任务实例列表 */
     private downloadInstances: DownloadTask[] = [];
-    /** 防止重复调用 startDownloads 导致重复启动 worker */
     private isRunning: boolean = false;
-
-    constructor(private readonly options?: DownloaderOptions) { }
+    private blobWriter: BlobWriter | null = new BlobWriter("application/zip");
+    private zipWriter: ZipWriter<Blob> | null;
+    private finish: boolean = false;
+    constructor(private readonly options: DownloaderOptions = DEFAULT_DOWNLOADER_OPTIONS) {
+        this.zipWriter = new ZipWriter<Blob>(this.blobWriter!);
+    }
 
     /** 添加单个下载任务到队列 */
     public addDownload(item: DownloadItem) {
@@ -48,32 +49,55 @@ export class Downloader {
         items.forEach(item => this.addDownload(item));
     }
 
+    /** 直接混入本地原始数据到最终的 Zip 中 */
+    public async addRawData(fileDirectory: string, blob: Blob) {
+        if (!this.zipWriter) throw new Error("ZipWriter is already closed or not initialized.");
+        await this.zipWriter.add(fileDirectory, blob.stream());
+    }
+
     /**
-     * 启动下载流程：
-     * 1. 根据配置计算并发 worker 数
-     * 2. 每个 worker 循环从队列取任务并执行
-     * 3. 全部 worker 结束后退出
+     * 启动下载流程
      */
     public async startDownloads() {
-        // 已在运行时直接返回，避免重复启动。
         if (this.isRunning) {
             return;
         }
 
         this.isRunning = true;
-        const options = this.options ?? DEFAULT_DOWNLOADER_OPTIONS;
-        // 并发数兜底为 >= 1 的整数。
-        const concurrency = Math.max(1, Math.floor(options.maxConcurrentDownloads || 1));
-        // worker 数不需要超过队列长度。
+
+        const o = this.options;
+        const concurrency = Math.max(1, Math.floor(o.maxConcurrentDownloads || 1));
         const workerCount = Math.min(concurrency, this.queue.length);
 
         try {
             const workers = Array.from({ length: workerCount }, () => this.startNextDownload());
             await Promise.all(workers);
         } finally {
-            // 无论成功或失败都要重置运行状态。
             this.isRunning = false;
+            this.finish = true;
         }
+    }
+
+    /**
+     * 将下载的内容保存为 Zip Blob，并彻底关闭 writer。
+     * 你可以在该方法返回后，将其转为 BlobUrl 给用户下载。
+     */
+    public async save(): Promise<Blob | null> {
+        if (this.finish && this.zipWriter && this.blobWriter) {
+            await this.zipWriter.close();
+            const blob = await this.blobWriter.getData();
+            this.blobWriter = null;
+            this.zipWriter = null;
+            return blob;
+        }
+        return null;
+    }
+
+    /**
+     *  检查是否所有下载任务都已完成（无论成功或失败）。如果队列为空且没有活跃任务，则认为完成。
+     */
+    public isFinish(): boolean {
+        return this.finish;
     }
 
     /**
@@ -82,33 +106,47 @@ export class Downloader {
      * - 清空剩余队列
      */
     public cancelAllDownloads() {
-        this.downloadInstances.forEach(instance => instance.shutdown()); // 调用每个下载实例的取消方法
-        this.queue = []; // 清空队列
+        this.downloadInstances.forEach(instance => instance.shutdown());
+        this.queue = [];
     }
 
     /**
-     * worker 主循环：持续从队列中取任务并下载，直到队列为空。
+     * worker 主循环：持续从队列中取任务并下载流打入 zip
      */
     private async startNextDownload() {
-        const options = this.options ?? DEFAULT_DOWNLOADER_OPTIONS;
+        const o = this.options;
         while (this.queue.length > 0) {
-            const task = this.queue.shift()!; // 获取下一个下载任务
-            const currentInstance = new DownloadTask(task, options.taskOptions);
-            this.downloadInstances.push(currentInstance);
-            this.currentDownloads++; // 增加当前下载数
+            const taskItem = this.queue.shift()!;
+
+            if (!this.zipWriter) throw new Error("ZipWriter is already closed or not initialized.");
+
+            const taskOpts = {
+                ...o.taskOptions,
+                onProgress: taskItem.OnProgress
+            };
+
+            const task = new DownloadTask(
+                this.zipWriter,
+                taskItem.FileFullDirectory,
+                taskItem.Url,
+                taskOpts
+            );
+
+            this.downloadInstances.push(task);
+
             try {
-                // 下载成功后转为 Blob，回调给业务层。
-                const data = await currentInstance.download();
-                const blob = new Blob([data as unknown as BlobPart])
-                task.OnSuccess?.(blob);
+                await task.download();
+                taskItem.OnSuccess?.();
             } catch (error) {
-                // 下载失败时把错误抛给任务失败回调。
-                task.OnFailed?.(error);
+                taskItem.OnFailed?.(error);
             } finally {
-                this.currentDownloads--; // 结束下载任务时减少当前下载数
-                // 从活跃实例列表中移除当前任务。
-                this.downloadInstances = this.downloadInstances.filter(instance => instance !== currentInstance);
+                // 从活跃任务队列中移除自己
+                const idx = this.downloadInstances.indexOf(task);
+                if (idx !== -1) {
+                    this.downloadInstances.splice(idx, 1);
+                }
             }
         }
     }
 }
+

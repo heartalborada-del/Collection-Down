@@ -38,52 +38,10 @@ export default defineEventHandler(async (event) => {
                 }
             }
         }
-        /*         const rangeHeader = getHeader(event, 'range');
-                if (rangeHeader && event.method === 'GET') {
-                    //precheck with HEAD request
-                    const head = await fetch(query.origin as string, {
-                        ...fetchPayload,
-                        method: "HEAD",
-                    });
-                    if (!head.ok) {
-                        setResponseHeader(event, "X-Error-Message", "Failed to fetch resource for range validation");
-                        return setResponseStatus(event, head.status);
-                    } else {
-                        if (head.headers.get('accept-ranges') === 'bytes') {
-                            const contentLength = head.headers.get('content-length');
-                            if (contentLength) {
-                                const size = parseInt(contentLength, 10)
-                                //validate range
-                                //maybe throw error
-                                const range = rangeHeader.replace(/bytes=/, '').split('-');
-                                const s = parseInt(range[0], 10), e = parseInt(range[1], 10);
-                                const newRange = RangeValidator.validateRange({
-                                    start: isNaN(s) ? 0 : s,
-                                    end: isNaN(e) ? size - 1 : e
-                                }, size, { maxRangeSize: MAX_RANGE_SIZE, onExceedMax: 'clamp' });
-                                if (fetchPayload.headers && newRange) {
-                                    fetchPayload = {
-                                        ...fetchPayload,
-                                        headers: {
-                                            ...fetchPayload.headers,
-                                            'Range': `bytes=${newRange.start}-${newRange.end}`
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } */
         const resp = await fetch(query.origin as string, fetchPayload);
         const headers = new Headers();
         for (const [k, v] of resp.headers) {
             const lowerKey = k.toLowerCase();
-            if (lowerKey === 'content-length') {
-                //神秘edgeone重写我headers，导致range请求的content-length不正确，所以备份一下原始content-length
-                headers.set("X-Length-Backup", v);
-                headers.set(k, v);
-                continue;
-            }
             if (lowerKey === 'content-encoding') {
                 continue;
             }

@@ -230,15 +230,12 @@ async function loadCSV() {
         })
         return
       }
-      const parsedCSV1wPlus = Papa.parse<{ act_id: string; act_title: string }>(result.data['100000+'], {
+      const parsedCSV = Papa.parse<{ act_id: string; act_title: string }>(result.data['data'], {
         header: true,
         skipEmptyLines: true,
       }).data as CSVDefinition[];
-      const parsedCSV100to300 = Papa.parse<{ act_id: string; act_title: string }>(result.data['100-300'], {
-        header: true,
-        skipEmptyLines: true,
-      }).data as CSVDefinition[];
-      loadedCollectionIDs.value = [...parsedCSV100to300, ...parsedCSV1wPlus.filter(item => item.status.toLowerCase() === "true")].map(item => ({
+
+      loadedCollectionIDs.value = [...parsedCSV.filter(item => item.status.toLowerCase() === "true")].map(item => ({
         act_id: item.act_id,
         act_title: item.act_title
       }))

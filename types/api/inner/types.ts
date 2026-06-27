@@ -48,14 +48,14 @@ export class RedeemInfo {
     name: string;
     image: string;
     shared?: boolean;
-    ids: string[] | undefined;
+    ids: string[];
 
     constructor(data: { type: number; name: string; image: string; shared?: boolean; ids: string[] | undefined }) {
         this.type = data.type;
         this.name = data.name;
         this.image = data.image;
         this.shared = data.shared;
-        this.ids = data.ids;
+        this.ids = data.ids || [];
     }
 }
 
@@ -170,8 +170,7 @@ export class DownloadMetaData {
 export type PackageDataType = CardInfo | EmojiInfo | OtherInfo | ThumbupInfo | LoadingInfo | PlayiconInfo | SkinInfo | SkinBackgroundInfo | RedeemInfo;
 
 export type CollectionCSVData = {
-    '100-300': string;
-    '100000+': string;
+    'data': string;
 };
 
 export type CSVDefinition = {

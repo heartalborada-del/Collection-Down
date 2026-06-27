@@ -1,6 +1,6 @@
 import type { LotteryListItem } from "~~/types/api/bili/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
-import { CardInfo, EmojiInfo, EmojiPackageInfo, LoadingInfo, OtherInfo, PlayiconInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
+import { CardInfo, EmojiInfo, type EmojiPackageInfo, LoadingInfo, OtherInfo, PlayiconInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
@@ -268,6 +268,7 @@ async function GetSuitMigratedData(partIds: number[]) {
             });
         });
         arr.playIcons?.forEach(element => {
+            console.log(element);
             themePackage[element.name]?.package.push(new PlayiconInfo({
                 ...element,
                 name: "playicon",

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Parser } from '@heartalborada-del/svga';
-import JSZip from 'jszip';
 import { computed, ref, watch } from 'vue';
 import { useDownloadSettingStore } from '~/store/downloadSetting';
 import { Downloader } from '~/utils/downloader/manager';
@@ -63,11 +62,13 @@ function shouldIncludeInFileList(file: DownloadMetaData): boolean {
 const fileList = computed(() => props.fileMetadatas.filter(shouldIncludeInFileList));
 
 function save() {
-    const zip = new JSZip()
-    downloadData.value.forEach((data, filename) => {
-        zip.file(filename, data);
-    });
-    zip.generateAsync({ type: 'blob' }).then((content) => {
+    if (!downloader.value || !isAllDownloadsCompleted()) {
+        return;
+    }
+
+    // 从 DownloadManager 获取打包好 zip 文件的 blob 数据
+    downloader.value.save().then((content) => {
+        if (!content) return;
         const link = document.createElement('a');
         link.href = URL.createObjectURL(content);
         link.download = `${FormatDateWithDefaultOffset(new Date(), '', true)}.zip`;
@@ -102,9 +103,9 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                 <USeparator size="md"/>
                 <div class="grid grid-cols-2 gap-x-6 md:gap-y-1 gap-y-4 items-center mb-4 mt-2">
                     <div class="text-left pl-2 text-nowrap">最大并行下载任务数</div>
-                    <UInputNumber v-model="store.maxParallelDownloads" :min="1" :max="16" :step="1" />
+                    <UInputNumber v-model="store.maxParallelDownloads" :min="1" :max="8" :step="1" />
                     <div class="text-left pl-2 text-nowrap">单任务下载线程数</div>
-                    <UInputNumber v-model="store.maxSingleDownloadThreads" :min="1" :max="8" :step="1" />
+                    <UInputNumber v-model="store.maxSingleDownloadThreads" :min="1" :max="4" :step="1" />
                 </div>
                 <div class="mb-2">
                     收藏集下载类型设置
@@ -172,19 +173,15 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                         if (downloader) {
                             downloader.cancelAllDownloads();
                         }
-                        const { public: { isEdgeOneCompatible } } = useRuntimeConfig()
                         downloader = new Downloader({
                             maxConcurrentDownloads: store.maxParallelDownloads,
                             taskOptions: {
                                 maxThreads: store.maxSingleDownloadThreads,
-                                chunkSize: 1 * 1024 * 1024, // 1 MB
-                                EdgeOneCompatible: isEdgeOneCompatible ? true : false,
+                                chunkSize: 1024 * 1024, // 1 MB
                             }
                         });
-                        fileList.forEach(async file => {
-                            if (!downloader) {
-                                return
-                            }
+                        fileList.forEach(async (file) => {
+                            if (!downloader) return;
                             // 保存数据
                             if (file.type === ItemType.SVGA) {
                                 downloadProgress.set(file.filename, 0);
@@ -194,17 +191,18 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                                 let video = await parser.load(file.url);
                                 downloadProgress.set(file.filename, 20);
                                 const apng = await new SVGAConverter(video).convertToAPNG()
-                                downloadData.set(file.filename, apng);
+                                await downloader.addRawData(file.filename, apng);
                                 downloadProgress.set(file.filename, 100);
                             } else {
                                 if (file.type === ItemType.PlayIconLottie) {
                                     //获取目录
                                     const dir = file.filename.split('/').slice(0, -1).join('/');
-                                    downloadData.set(`${dir}/readme.txt`, LOTTIE_COMMENT);
+                                    await downloader.addRawData(`${dir}/readme.txt`, new Blob([LOTTIE_COMMENT], { type: 'text/plain' }));
                                 }
                                 downloadProgress.set(file.filename, 0);
                                 downloader.addDownload({
                                     Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
+                                    FileFullDirectory: file.filename,
                                     OnProgress: (loaded: number, total: number) => {
                                         downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
                                     },
@@ -212,9 +210,8 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                                         console.error(`Download failed for ${file.filename}:`, error);
                                         downloadProgress.set(file.filename, -1);
                                     },
-                                    OnSuccess: async (data: Blob) => {
+                                    OnSuccess: () => {
                                         downloadProgress.set(file.filename, 100);
-                                        downloadData.set(file.filename, data);
                                     },
                                 } as DownloadItem);
                             }

@@ -11,4 +11,5 @@ export const BiliImgDomains = ['*.hdslb.com']
 export const BiliVideoDomains = [
     "*.bilivideo.com",
     "*.akamaized.net",
+    "download.maa.plus"
 ]

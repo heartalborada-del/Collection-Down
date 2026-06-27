@@ -4,8 +4,8 @@ import { CollectionCardDownloadType } from "~~/types/collection";
 
 export const useDownloadSettingStore = defineStore('downloadSetting', {
     state: () => ({
-        maxParallelDownloads: 8,
-        maxSingleDownloadThreads: 6,
+        maxParallelDownloads: 4,
+        maxSingleDownloadThreads: 4,
         collectionDownloadTypes: [
             CollectionCardDownloadType.Image,
             CollectionCardDownloadType.Video

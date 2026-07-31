@@ -5,11 +5,16 @@ export interface ChunkStorage {
 }
 
 export class OPFSChunkStorage implements ChunkStorage {
+    private dirPromise: Promise<FileSystemDirectoryHandle> | null = null;
+
     constructor(private dirPattern: string) {}
 
-    private async getDir() {
-        const root = await navigator.storage.getDirectory();
-        return await root.getDirectoryHandle(this.dirPattern, { create: true });
+    private getDir() {
+        if (!this.dirPromise) {
+            this.dirPromise = navigator.storage.getDirectory()
+                .then(root => root.getDirectoryHandle(this.dirPattern, { create: true }));
+        }
+        return this.dirPromise;
     }
 
     async writeChunk(index: number, data: Uint8Array) {
@@ -30,23 +35,34 @@ export class OPFSChunkStorage implements ChunkStorage {
     async clear() {
         const root = await navigator.storage.getDirectory();
         await root.removeEntry(this.dirPattern, { recursive: true });
+        this.dirPromise = null;
     }
 }
 
 export class IDBChunkStorage implements ChunkStorage {
     private storeName = 'chunks';
+    private dbPromise: Promise<IDBDatabase> | null = null;
 
     constructor(private dbName: string) {}
 
     private async getDB(): Promise<IDBDatabase> {
-        return new Promise((resolve, reject) => {
+        if (this.dbPromise) return this.dbPromise;
+
+        this.dbPromise = new Promise((resolve, reject) => {
             const req = indexedDB.open(this.dbName, 1);
             req.onupgradeneeded = () => {
                 req.result.createObjectStore(this.storeName);
             };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
+            req.onsuccess = () => {
+                req.result.onversionchange = () => req.result.close();
+                resolve(req.result);
+            };
+            req.onerror = () => {
+                this.dbPromise = null;
+                reject(req.error);
+            };
         });
+        return this.dbPromise;
     }
 
     async writeChunk(index: number, data: Uint8Array) {
@@ -70,11 +86,16 @@ export class IDBChunkStorage implements ChunkStorage {
     }
 
     async clear() {
+        if (this.dbPromise) {
+            const db = await this.dbPromise.catch(() => null);
+            db?.close();
+            this.dbPromise = null;
+        }
         return new Promise<void>((resolve, reject) => {
             const req = indexedDB.deleteDatabase(this.dbName);
             req.onsuccess = () => resolve();
             req.onerror = () => reject(req.error);
-            req.onblocked = () => resolve(); // Ignore blocked errors
+            req.onblocked = () => reject(new Error(`Unable to clear chunk cache: ${this.dbName}`));
         });
     }
 }

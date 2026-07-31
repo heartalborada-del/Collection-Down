@@ -1,9 +1,10 @@
 import type { ApiResponse } from "~~/types/api/root";
+import { createApiResponseError } from "~/utils/apiError";
 
 export async function GetForwardedLink(link: string): Promise<string> {
     if (!link.startsWith("https://b23.tv"))
         return link;
-    const raw: ApiResponse<string> = await fetch("/api/redirect", {
+    const response = await fetch("/api/redirect", {
         method: "POST",
         body: JSON.stringify({
             origin: link
@@ -11,11 +12,15 @@ export async function GetForwardedLink(link: string): Promise<string> {
         headers: {
             "Content-Type": "application/json"
         }
-    }).then(res => res.json());
+    });
+    if (!response.ok) {
+        throw await createApiResponseError(response, '解析短链接');
+    }
+    const raw = await response.json() as ApiResponse<string>;
     if (raw && raw.code === 0 && raw.data) {
         return raw.data;
     }
-    throw new Error(raw.message);
+    throw new Error(raw.message || '短链接接口未返回目标地址');
 }
 
 export function ParseIdFromLink(link: string): {

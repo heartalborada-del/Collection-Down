@@ -1,11 +1,12 @@
 import { ApiResponse } from "~~/types/api/root";
 import type { BiliCardInfo, BiliRedeemInfo } from "~~/types/api/bili/types";
-import { CardInfo, RedeemInfo, VideoResolution } from "~~/types/api/inner/types";
+import { CardInfo, RedeemInfo } from "~~/types/api/inner/types";
+import type { VideoResolution } from "~~/types/api/inner/types";
 import { FetchHeaders } from "~~/types/global";
 import { RedeemType } from "~~/types/api/enum";
+import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
 
 export default defineEventHandler(async (event) => {
-    const { isDev } = useRuntimeConfig();
     try {
         const query = getQuery(event)
         const actId = query?.act_id as string | undefined;
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
             const resp = await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}&lottery_id=${lotteryId}`, { headers: FetchHeaders });
             if (resp.status !== 200) {
                 setResponseStatus(event, resp.status || 502);
-                return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
+                return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili collection details API'));
             }
             const data = await resp.json();
             const origin = data as ApiResponse<{
@@ -34,7 +35,7 @@ export default defineEventHandler(async (event) => {
             }
             if (!origin.data) {
                 setResponseStatus(event, 502);
-                return new ApiResponse<null>(-1, `Failed to fetch data`);
+                return new ApiResponse<null>(-1, 'Bilibili collection details API returned no data');
             }
             const items: CardInfo[] = [];
             const redeems: RedeemInfo[] = [];
@@ -100,17 +101,11 @@ export default defineEventHandler(async (event) => {
                 redeems: redeems
             });
         } catch (e) {
-            if (isDev && e instanceof Error) {
-                setHeaders(event, { 'X-Error-Detail': e.message });
-            }
             setResponseStatus(event, 500);
-            return new ApiResponse<null>(-1, 'An error occurred while fetching data');
+            return new ApiResponse<null>(-1, describeError(e, 'Failed to load collection details'));
         }
     } catch (e) {
-        if (isDev && e instanceof Error) {
-            setHeaders(event, { 'X-Error-Detail': e.message });
-        }
         setResponseStatus(event, 500);
-        return new ApiResponse<null>(-1, 'An error occurred while fetching data');
+        return new ApiResponse<null>(-1, describeError(e, 'Failed to process collection details request'));
     }
 })

@@ -35,13 +35,22 @@ const name = computed((): string => {
   return props.url.name
 })
 
-const id = Math.random().toString(36).substring(2, 15);
+const imageLoaded = ref(false)
+
+watch(showUrl, () => {
+  imageLoaded.value = false
+})
 </script>
 
 <template>
   <UCard class="flex justify-center-safe show-card" variant="outline_nopadding" :class="{ highlight: props.highlight }">
-    <img :key="id" loading="eager" :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl + '@100w')}`" :alt="name"
-      class="object-cover h-full" draggable="false" @click="emit('click', $event)"/>
+    <div v-if="!imageLoaded" class="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+      <UIcon name="i-mdi-loading" class="size-5 animate-spin text-muted" />
+    </div>
+    <img
+loading="lazy" decoding="async" :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl + '@100w')}`"
+      :alt="name" class="object-cover h-full" draggable="false" @load="imageLoaded = true"
+      @error="imageLoaded = true" @click="emit('click', $event)">
   </UCard>
 </template>
 
@@ -53,6 +62,8 @@ const id = Math.random().toString(36).substring(2, 15);
   cursor: pointer;
   box-sizing: border-box;
   width: 100px;
+  min-height: 100px;
+  position: relative;
 }
 
 .show-card.highlight {

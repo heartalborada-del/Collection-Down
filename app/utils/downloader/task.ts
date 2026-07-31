@@ -1,6 +1,7 @@
 import type {ZipWriter} from "@zip.js/zip.js";
 import {HTTPError} from "~/utils/downloader/error";
 import {type ChunkStorage, IDBChunkStorage, OPFSChunkStorage} from "~/utils/downloader/cacheStorage";
+import {createApiResponseError} from "~/utils/apiError";
 
 export type DownloadTaskOptions = {
     maxThreads: number;
@@ -73,25 +74,21 @@ export class DownloadTask {
         if (size <= 0) {
             let resp: Response | null = null;
             const maxRetries = this.options.maxRetries ?? 3;
-            let lastError: unknown = null;
-            
             for (let i = 0; i <= maxRetries; i++) {
-                let fetchResp: Response | null = null;
+                let fetchResp: Response;
                 try {
                     fetchResp = await fetch(this.URL, {signal: this.signal.signal});
                 } catch (e) {
                     if (this.signal.signal.aborted) throw e;
-                    lastError = e;
                     if (i === maxRetries) throw e;
                     continue;
                 }
                 
                 if (!fetchResp.ok) {
                     if (fetchResp.status >= 400 && fetchResp.status < 500 && fetchResp.status !== 408) {
-                        throw new HTTPError(fetchResp.status, fetchResp.statusText);
+                        throw await createApiResponseError(fetchResp, '下载资源');
                     }
-                    lastError = new Error(`HTTP ${fetchResp.status}`);
-                    if (i === maxRetries) throw lastError;
+                    if (i === maxRetries) throw await createApiResponseError(fetchResp, '下载资源');
                     continue;
                 }
                 
@@ -144,14 +141,12 @@ export class DownloadTask {
                             return reject(new Error("Task Cancelled"));
                         }
 
-                        let chunkIndex = 0;
-                        if (currentIndex <= chunksCount) {
-                            chunkIndex = currentIndex++;
-                            activeThreads++;
-                        } else {
+                        if (currentIndex > chunksCount) {
                             if (activeThreads === 0) resolve();
                             return;
                         }
+                        const chunkIndex = currentIndex++;
+                        activeThreads++;
 
                         try {
                             const downloadedSize = await this.downloadSubTask(chunkSize, size, chunkIndex, chunkIndex === chunksCount);
@@ -215,9 +210,9 @@ export class DownloadTask {
         if (resp) {
             if (!resp.ok) {
                 if (resp.status >= 400 && resp.status < 500 && resp.status !== 408) {
-                    throw new HTTPError(resp.status, resp.statusText);
+                    throw await createApiResponseError(resp, `下载分片 ${index}`);
                 }
-                lastError = new Error(`HTTP ${resp.status}`);
+                lastError = await createApiResponseError(resp, `下载分片 ${index}`);
             } else {
                 let buf: ArrayBuffer;
                 try {

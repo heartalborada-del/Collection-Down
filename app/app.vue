@@ -3,6 +3,13 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
 const { public: { BuildTimestamp } } = useRuntimeConfig()
+const { requestTour } = useOnboardingTour()
+
+const currentTourId = computed(() => ({
+  '/': 'home',
+  '/search': 'search',
+  '/detail': 'detail',
+})[route.path])
 
 onMounted(() => {
   console.info('[Collection Down] 编译时间戳:', BuildTimestamp)
@@ -32,6 +39,7 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
 
 <template>
   <UApp>
+    <NuxtLoadingIndicator color="var(--ui-primary)" :height="3" />
     <UHeader
       mode="slideover"
       :toggle="{
@@ -41,12 +49,25 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
       <template #title>
         Collection Down
       </template>
-      <UNavigationMenu :items="navigationItems" />
+      <UNavigationMenu data-tour="main-navigation" :items="navigationItems" />
       <template #right>
-        <UColorModeButton />
+        <UColorModeButton data-tour="color-mode" />
+
+        <UTooltip text="查看页面引导">
+          <UButton
+            v-if="currentTourId"
+            data-tour="restart-guide"
+            color="neutral"
+            variant="ghost"
+            icon="i-mdi-help-circle-outline"
+            aria-label="查看页面引导"
+            @click="requestTour(currentTourId)"
+          />
+        </UTooltip>
 
         <UTooltip text="Open on GitHub">
           <UButton
+            data-tour="github-link"
             color="neutral"
             variant="ghost"
             to="https://github.com/heartalborada-del/Collection-Down"
@@ -57,7 +78,7 @@ const navigationItems = computed<NavigationMenuItem[]>(() => [
         </UTooltip>
       </template>
       <template #body>
-        <UNavigationMenu :items="navigationItems" orientation="vertical" class="-mx-2.5" />
+        <UNavigationMenu data-tour="main-navigation" :items="navigationItems" orientation="vertical" class="-mx-2.5" />
       </template>
     </UHeader>
 

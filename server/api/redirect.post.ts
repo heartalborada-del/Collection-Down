@@ -1,5 +1,6 @@
 import { ApiResponse } from "~~/types/api/root";
 import { FetchHeaders } from "~~/types/global";
+import { describeError } from "~~/server/utils/apiError";
 
 const ALLOWED_REDIRECT_HOSTS = new Set(["b23.tv"]);
 
@@ -39,20 +40,17 @@ export default defineEventHandler(async (event) => {
 
             if (!headers.has('location')) {
                 setResponseStatus(event, 404);
-                return new ApiResponse<string>(-1, 'No redirection');
+                return new ApiResponse<string>(-1, `b23.tv did not return a redirect location (HTTP ${resp.status} ${resp.statusText})`);
             }
 
             setResponseStatus(event, 200);
             return new ApiResponse<string>(0, undefined, headers.get('location') || '');
         } catch (e) {
-            if (useRuntimeConfig().isDev && e instanceof Error) {
-                setHeaders(event, { 'X-Error-Detail': e.message });
-            }
             setResponseStatus(event, 500);
-            return new ApiResponse<string>(-1, 'An error occurred while fetching data');
+            return new ApiResponse<string>(-1, describeError(e, 'Failed to resolve b23.tv redirect'));
         }
-    } catch {
+    } catch (e) {
         setResponseStatus(event, 500);
-        return new ApiResponse<string>(-1, 'An error occurred while fetching data');
+        return new ApiResponse<string>(-1, describeError(e, 'Failed to process redirect request'));
     }
 })

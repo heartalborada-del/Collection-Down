@@ -2,12 +2,13 @@ import type { LotteryListItem } from "~~/types/api/bili/types";
 import { PackageType, RedeemType } from "~~/types/api/enum";
 import { CardInfo, EmojiInfo, type EmojiPackageInfo, LoadingInfo, OtherInfo, PlayiconInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
+import { createApiResponseError, getErrorMessage } from "~/utils/apiError";
 
 export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
     const resp = await fetch(`/api/bili/collection/allLotteryId?act_id=${actId}`)
     if (!resp.ok) {
-        return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${resp.status}`, resp.status))
+        throw await createApiResponseError(resp, '获取收藏集抽奖列表')
     }
     const data = (await resp.json()) as ApiResponse<LotteryListItem[]>
     if (data.code !== 0 || !data.data) {
@@ -37,13 +38,19 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
                 })
             })
     })
+    const failures = merged
+        .filter((item): item is PromiseRejectedResult => item.status === 'rejected')
+        .map(item => getErrorMessage(item.reason))
+    if (failures.length > 0) {
+        throw new Error(`有 ${failures.length} 个收藏集明细加载失败：${failures.join('；')}`)
+    }
     return ItemsArray
 }
 
 async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: string, allowShared: boolean = false): Promise<DetailedData[]> {
     const response = await fetch(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`)
     if (!response.ok) {
-        return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${response.status}`, response.status))
+        throw await createApiResponseError(response, `获取抽奖 ${lotteryId} 明细`)
     }
     const res = (await response.json()) as ApiResponse<{
         items: CardInfo[],
@@ -137,11 +144,11 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
             case RedeemType.STATIC_EMOJI_PACKAGE: {
                 const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`)
                 if (!data.ok) {
-                    break;
+                    throw await createApiResponseError(data, `获取表情包 ${redeem.ids[0]}`)
                 }
                 const res = (await data.json()) as ApiResponse<EmojiPackageInfo>
                 if (res.code !== 0 || !res.data) {
-                    break;
+                    throw new PromiseRejected(Errors.API, res.message || `表情包 ${redeem.ids[0]} 未返回数据`, res.code)
                 }
                 const id = redeem.ids && redeem.ids.length > 0 && redeem.ids[0] ? parseInt(redeem.ids[0], 10) : lotteryId
                 results.push({
@@ -183,7 +190,7 @@ async function GetSuitMigratedData(partIds: number[]) {
     const idsParam = partIds.map(id => `ids=${id}`).join('&');
     const resp = await fetch(`/api/bili/suit/suitComponents?${idsParam}`);
     if (!resp.ok) {
-        return Promise.reject(new PromiseRejected(Errors.NETWORK, `Status Code: ${resp.status}`, resp.status));
+        throw await createApiResponseError(resp, '获取主题组件');
     }
     const data = (await resp.json()) as ApiResponse<SuitComponentResult[]>;
     if (data.code !== 0 || !data.data) {
@@ -274,7 +281,12 @@ async function GetSuitMigratedData(partIds: number[]) {
             });
         });
         arr.playIcons?.forEach(element => {
-            console.log(element);
+            if (themePackage[element.name] === undefined) {
+                themePackage[element.name] = {
+                    id: id,
+                    package: [],
+                };
+            }
             themePackage[element.name]?.package.push(new PlayiconInfo({
                 ...element,
                 name: "playicon",

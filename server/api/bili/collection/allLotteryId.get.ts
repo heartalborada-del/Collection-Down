@@ -1,9 +1,9 @@
 import { ApiResponse } from "~~/types/api/root";
 import type { LotteryListItem } from "~~/types/api/bili/types";
 import { FetchHeaders } from "~~/types/global";
+import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
 
 export default defineEventHandler(async (event) => {
-    const { isDev } = useRuntimeConfig();
     try {
         const actId = getQuery(event)?.act_id as string | undefined;
         if (!actId) {
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
             const resp = await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}`, { headers: FetchHeaders });
             if (resp.status !== 200) {
                 setResponseStatus(event, resp.status || 502);
-                return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
+                return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili asset bag API'));
             }
             const data = await resp.json();
             const lists = data as ApiResponse<{
@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
             }
             if (!lists.data) {
                 setResponseStatus(event, 502);
-                return new ApiResponse<null>(-1, `Failed to fetch data`);
+                return new ApiResponse<null>(-1, 'Bilibili asset bag API returned no data');
             }
             const newList: LotteryListItem[] = [];
             for (const item of lists.data.lottery_simple_list) {
@@ -37,17 +37,11 @@ export default defineEventHandler(async (event) => {
             setResponseStatus(event, 200);
             return new ApiResponse<LotteryListItem[]>(0, undefined, newList);
         } catch (e) {
-            if (isDev) {
-                setHeaders(event, { 'X-Error-Detail': e instanceof Error ? e.message : String(e) });
-            }
             setResponseStatus(event, 500);
-            return new ApiResponse<null>(-1, "An unexpected error occurred")
+            return new ApiResponse<null>(-1, describeError(e, 'Failed to load collection lottery list'))
         }
     } catch (e) {
-        if (isDev && e instanceof Error) {
-            setHeaders(event, { 'X-Error-Detail': e.message });
-        }
         setResponseStatus(event, 500);
-        return new ApiResponse<null>(-1, `An error occurred while fetching data.`);
+        return new ApiResponse<null>(-1, describeError(e, 'Failed to process collection lottery request'));
     }
 })

@@ -1,5 +1,6 @@
 import type { CollectionCSVData } from "~~/types/api/inner/types"
 import { ApiResponse } from "~~/types/api/root"
+import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError"
 
 const normalizeEtag = (etag: string) => etag.trim().replace(/^W\//i, '')
 
@@ -36,6 +37,10 @@ export default defineEventHandler(async (event) => {
     if (resp.status === 200) {
       data = await resp.text()
     }
+    else if (!(resp.status === 304 && data)) {
+      setResponseStatus(event, resp.status || 502)
+      return new ApiResponse<CollectionCSVData>(-1, await describeUpstreamResponse(resp, 'GitHub collection list'))
+    }
     setResponseHeader(event, "X-Github-Raw-Endpoint", GithubRawEndpoint);
     const now = new Date()
     const maxAgeSeconds = 600
@@ -56,10 +61,7 @@ export default defineEventHandler(async (event) => {
       return new ApiResponse<CollectionCSVData>(0, undefined, { data: data });
     }
   } catch (e) {
-    if (useRuntimeConfig().isDev && e instanceof Error) {
-      setHeaders(event, { 'X-Error-Detail': e.message });
-    }
     setResponseStatus(event, 500);
-    return new ApiResponse<CollectionCSVData>(-1, 'An error occurred while fetching data');
+    return new ApiResponse<CollectionCSVData>(-1, describeError(e, 'Failed to load GitHub collection list'));
   }
 })

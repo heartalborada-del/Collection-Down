@@ -1,4 +1,10 @@
 import { BiliImgDomains, BiliVideoDomains, FetchHeaders } from "~~/types/global";
+import { ApiResponse } from "~~/types/api/root";
+import { describeError } from "~~/server/utils/apiError";
+
+function errorResponse(status: number, message: string) {
+    return Response.json(new ApiResponse<null>(-1, message), { status });
+}
 
 export default defineEventHandler(async (event) => {
     if (!globalThis.URLPattern) {
@@ -10,14 +16,12 @@ export default defineEventHandler(async (event) => {
     try {
         const query = getQuery(event);
         if (!query || !query.origin) {
-            setResponseHeader(event, "X-Error-Message", "Invalid request payload");
-            return setResponseStatus(event, 400);
+            return errorResponse(400, "Missing required origin URL");
         }
         const targetUrl = new URL(query.origin as string);
         const isAllowedDomain = patterns.some(pattern => pattern.test({ hostname: targetUrl.hostname }));
         if (!isAllowedDomain) {
-            setResponseHeader(event, "X-Error-Message", "Domain not allowed");
-            return setResponseStatus(event, 403);
+            return errorResponse(403, `Proxy domain is not allowed: ${targetUrl.hostname}`);
         }
         const { host, accpet, ...restFetchHeaders } = FetchHeaders;
         const fetchPayload: RequestInit = {
@@ -56,8 +60,6 @@ export default defineEventHandler(async (event) => {
             headers,
         });
     } catch (err) {
-        setResponseHeader(event, "X-Error-Message", `An error occurred while fetching data.`);
-        setResponseHeader(event, "X-Error-Message", (err as Error).message);
-        return setResponseStatus(event, 500);
+        return errorResponse(500, describeError(err, 'Failed to proxy Bilibili resource'));
     }
 })

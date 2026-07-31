@@ -1,0 +1,48 @@
+{
+  "name": "collection-down-desktop",
+  "version": "1.0.0",
+  "description": "Desktop distribution of Collection Down",
+  "author": "heartalborada-del",
+  "license": "MIT",
+  "type": "module",
+  "main": "main.mjs",
+  "build": {
+    "appId": "top.griseo.collection-down",
+    "productName": "Collection Down",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "../release"
+    },
+    "files": [
+      "main.mjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../.output",
+        "to": ".output"
+      }
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "win": {
+      "executableName": "collection-down",
+      "target": [
+        "portable"
+      ]
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        "AppImage"
+      ]
+    }
+  }
+}

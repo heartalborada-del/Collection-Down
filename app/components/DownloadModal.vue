@@ -3,12 +3,44 @@ import { Parser } from '@heartalborada-del/svga';
 import { computed, ref, watch } from 'vue';
 import { useDownloadSettingStore } from '~/store/downloadSetting';
 import { Downloader } from '~/utils/downloader/manager';
-import type { DownloadItem } from '~/utils/downloader/types';
 import { ItemType } from '~~/types/api/enum';
 import type { DownloadMetaData } from '~~/types/api/inner/types';
 import { CollectionCardDownloadType } from '~~/types/collection';
+import { getErrorMessage } from '~/utils/apiError';
 
 const store = useDownloadSettingStore();
+const onboardingSteps = [
+    {
+        title: '并行下载数量',
+        description: '控制同时下载的文件数；数值越高，带宽和内存占用越大。',
+        icon: 'i-mdi-download-multiple',
+        target: '[data-tour="download-parallel"]',
+    },
+    {
+        title: '单文件线程数',
+        description: '控制单个文件的分片并发数，网络不稳定时可以适当调低。',
+        icon: 'i-mdi-call-split',
+        target: '[data-tour="download-threads"]',
+    },
+    {
+        title: '选择下载类型',
+        description: '决定收藏集卡片需要包含视频、图片及其带水印版本。',
+        icon: 'i-mdi-file-multiple-outline',
+        target: '[data-tour="download-types"]',
+    },
+    {
+        title: '取消下载',
+        description: '取消会关闭面板；下载开始后还会终止当前任务和剩余队列。',
+        icon: 'i-mdi-close-circle-outline',
+        target: '[data-tour="download-cancel"]',
+    },
+    {
+        title: '进入下载进度',
+        description: '点击下一步开始处理文件，完成后同一按钮会变为保存。',
+        icon: 'i-mdi-progress-download',
+        target: '[data-tour="download-next"]',
+    },
+]
 
 const props = defineProps<{
     open: boolean;
@@ -27,8 +59,7 @@ watch(() => props.open, (v) => {
 const downloader = ref<Downloader | null>(null);
 
 const downloadProgress = ref<Map<string, number>>(new Map());
-const downloadData = ref<Map<string, Blob>>(new Map());
-const downloadUrls = ref<Map<string, string>>(new Map());
+const downloadErrors = ref<Map<string, string>>(new Map());
 
 /**
  * 判断当前文件是否应被纳入下载列表。
@@ -60,21 +91,22 @@ function shouldIncludeInFileList(file: DownloadMetaData): boolean {
  * - 实际下载入队使用它
  */
 const fileList = computed(() => props.fileMetadatas.filter(shouldIncludeInFileList));
+const completedCount = computed(() => [...downloadProgress.value.values()].filter(value => value === 100).length);
+const failedCount = computed(() => [...downloadProgress.value.values()].filter(value => value === -1).length);
 
-function save() {
+async function save() {
     if (!downloader.value || !isAllDownloadsCompleted()) {
         return;
     }
 
-    // 从 DownloadManager 获取打包好 zip 文件的 blob 数据
-    downloader.value.save().then((content) => {
-        if (!content) return;
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(content);
-        link.download = `${FormatDateWithDefaultOffset(new Date(), '', true)}.zip`;
-        link.click();
-        URL.revokeObjectURL(link.href);
-    });
+    const content = await downloader.value.save();
+    if (!content) return;
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(content);
+    link.href = objectUrl;
+    link.download = `${new Date().toISOString().replaceAll(':', '-').replace(/\.\d{3}Z$/, '')}.zip`;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
 }
 
 function isAllDownloadsCompleted(): boolean {
@@ -88,13 +120,77 @@ function isAllDownloadsCompleted(): boolean {
 
 const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，通常用于动态效果展示。请使用支持 Lottie 格式的工具或库来查看和使用此文件。`], { type: 'text/plain' });
 
+async function startDownload() {
+    downloadProgress.value.clear();
+    downloadErrors.value.clear();
+    downloader.value?.cancelAllDownloads();
+    downloader.value = new Downloader({
+        maxConcurrentDownloads: store.maxParallelDownloads,
+        taskOptions: {
+            maxThreads: store.maxSingleDownloadThreads,
+            chunkSize: 1024 * 1024,
+        }
+    });
+    step.value = 2;
+
+    const lottieReadmeDirectories = new Set<string>();
+    for (const file of fileList.value) {
+        const currentDownloader = downloader.value;
+        if (!currentDownloader) return;
+        downloadProgress.value.set(file.filename, 0);
+
+        if (file.type === ItemType.SVGA) {
+            try {
+                const parser = new Parser();
+                downloadProgress.value.set(file.filename, 5);
+                const video = await parser.load(file.url);
+                downloadProgress.value.set(file.filename, 20);
+                const apng = await new SVGAConverter(video).convertToAPNG();
+                await currentDownloader.addRawData(file.filename, apng);
+                downloadProgress.value.set(file.filename, 100);
+            } catch (error) {
+                console.error(`SVGA conversion failed for ${file.filename}:`, error);
+                downloadProgress.value.set(file.filename, -1);
+                downloadErrors.value.set(file.filename, getErrorMessage(error, 'SVGA 转换失败'));
+            }
+            continue;
+        }
+
+        if (file.type === ItemType.PlayIconLottie) {
+            const directory = file.filename.split('/').slice(0, -1).join('/');
+            if (!lottieReadmeDirectories.has(directory)) {
+                await currentDownloader.addRawData(`${directory}/readme.txt`, LOTTIE_COMMENT);
+                lottieReadmeDirectories.add(directory);
+            }
+        }
+        currentDownloader.addDownload({
+            Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
+            FileFullDirectory: file.filename,
+            OnProgress: (loaded: number, total: number) => {
+                downloadProgress.value.set(file.filename, Math.floor(loaded / total * 100));
+            },
+            OnFailed: (error: unknown) => {
+                console.error(`Download failed for ${file.filename}:`, error);
+                downloadProgress.value.set(file.filename, -1);
+                downloadErrors.value.set(file.filename, getErrorMessage(error, '下载失败'));
+            },
+            OnSuccess: () => {
+                downloadProgress.value.set(file.filename, 100);
+            },
+        });
+    }
+
+    await downloader.value.startDownloads();
+}
+
 </script>
 
 <template>
-    <UModal v-bind:open="open" :ui="{ footer: 'justify-end' }">
+  <div>
+    <UModal :open="open" :ui="{ footer: 'justify-end' }">
         <template #header>
-            <div class="text-lg md:text-xl font-bold" v-if="step === 1">下载选项</div>
-            <div class="text-lg md:text-xl font-bold" v-if="step === 2">下载进度</div>
+            <div v-if="step === 1" class="text-lg md:text-xl font-bold">下载选项</div>
+            <div v-if="step === 2" class="text-lg md:text-xl font-bold">下载进度</div>
         </template>
 
         <template #body>
@@ -103,15 +199,16 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                 <USeparator size="md"/>
                 <div class="grid grid-cols-2 gap-x-6 md:gap-y-1 gap-y-4 items-center mb-4 mt-2">
                     <div class="text-left pl-2 text-nowrap">最大并行下载任务数</div>
-                    <UInputNumber v-model="store.maxParallelDownloads" :min="1" :max="8" :step="1" />
+                    <UInputNumber v-model="store.maxParallelDownloads" data-tour="download-parallel" :min="1" :max="8" :step="1" />
                     <div class="text-left pl-2 text-nowrap">单任务下载线程数</div>
-                    <UInputNumber v-model="store.maxSingleDownloadThreads" :min="1" :max="4" :step="1" />
+                    <UInputNumber v-model="store.maxSingleDownloadThreads" data-tour="download-threads" :min="1" :max="4" :step="1" />
                 </div>
                 <div class="mb-2">
                     收藏集下载类型设置
                 </div>
                 <USeparator size="md"/>
-                <USelect multiple :items="[
+<USelect
+v-model="store.collectionDownloadTypes" data-tour="download-types" multiple :items="[
                     {
                         label: '视频',
                         value: CollectionCardDownloadType.Video
@@ -128,15 +225,14 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                         label: '图片（带水印）',
                         value: CollectionCardDownloadType.ImageWatermarked
                     }
-                ]" v-model="store.collectionDownloadTypes" value-key="value" placeholder="选择收藏集下载类型"
-                    class="items-center mb-4 mt-2 w-full">
-                </USelect>
+                ]" value-key="value" placeholder="选择收藏集下载类型"
+                    class="items-center mb-4 mt-2 w-full"/>
             </template>
             <template v-else>
                 <div class="mb-2">
                     下载进度 总数: {{ fileList.length }} /
-                    完成: {{[...downloadProgress.values()].filter(v => v === 100).length}} /
-                    失败: {{[...downloadProgress.values()].filter(v => v === -1).length}}
+                    完成: {{ completedCount }} /
+                    失败: {{ failedCount }}
                 </div>
 
                 <USeparator size="md" />
@@ -150,82 +246,37 @@ const LOTTIE_COMMENT = new Blob([`这是一个播放图标的 Lottie 文件，�
                             :model-value="(downloadProgress.get(file.filename) || 0) >= 0 ? (downloadProgress.get(file.filename) || 0) : 100"
                             :max="100" :label="`${(downloadProgress.get(file.filename) || 0)}%`" size="sm"
                             :color="(downloadProgress.get(file.filename) || 0) > 0 ? ((downloadProgress.get(file.filename) || 0) === 100 ? 'success' : 'info') : 'error'" />
+                        <p v-if="downloadErrors.get(file.filename)" class="mt-1 text-sm text-error break-words">
+                            {{ downloadErrors.get(file.filename) }}
+                        </p>
                     </div>
                 </div>
             </template>
         </template>
 
         <template #footer>
-            <UButton label="取消" color="neutral" variant="outline" @click="() => {
+            <UButton
+data-tour="download-cancel" label="取消" color="neutral" variant="outline" @click="() => {
                 emit('close', false)
                 if (step === 2 && downloader) {
                     downloader.cancelAllDownloads();
                 }
-                downloadData.clear();
-                downloadUrls.clear();
             }" />
-            <UButton :label="step === 1 ? '下一步' : '保存'" color="neutral"
-                :disabled="step === 2 && !isAllDownloadsCompleted()" @click="() => {
+            <UButton
+data-tour="download-next" :label="step === 1 ? '下一步' : '保存'" color="neutral"
+                :disabled="(step === 1 && fileList.length === 0) || (step === 2 && !isAllDownloadsCompleted())" @click="() => {
                     if (step === 1) {
-                        downloadProgress.clear();
-                        downloadData.clear();
-                        downloadUrls.clear();
-                        if (downloader) {
-                            downloader.cancelAllDownloads();
-                        }
-                        downloader = new Downloader({
-                            maxConcurrentDownloads: store.maxParallelDownloads,
-                            taskOptions: {
-                                maxThreads: store.maxSingleDownloadThreads,
-                                chunkSize: 1024 * 1024, // 1 MB
-                            }
-                        });
-                        fileList.forEach(async (file) => {
-                            if (!downloader) return;
-                            // 保存数据
-                            if (file.type === ItemType.SVGA) {
-                                downloadProgress.set(file.filename, 0);
-                                // SVGA 文件特殊处理
-                                const parser = new Parser();
-                                downloadProgress.set(file.filename, 5);
-                                let video = await parser.load(file.url);
-                                downloadProgress.set(file.filename, 20);
-                                const apng = await new SVGAConverter(video).convertToAPNG()
-                                await downloader.addRawData(file.filename, apng);
-                                downloadProgress.set(file.filename, 100);
-                            } else {
-                                if (file.type === ItemType.PlayIconLottie) {
-                                    //获取目录
-                                    const dir = file.filename.split('/').slice(0, -1).join('/');
-                                    await downloader.addRawData(`${dir}/readme.txt`, new Blob([LOTTIE_COMMENT], { type: 'text/plain' }));
-                                }
-                                downloadProgress.set(file.filename, 0);
-                                downloader.addDownload({
-                                    Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
-                                    FileFullDirectory: file.filename,
-                                    OnProgress: (loaded: number, total: number) => {
-                                        downloadProgress.set(file.filename, Math.floor(loaded / total * 100));
-                                    },
-                                    OnFailed: (error: any) => {
-                                        console.error(`Download failed for ${file.filename}:`, error);
-                                        downloadProgress.set(file.filename, -1);
-                                    },
-                                    OnSuccess: () => {
-                                        downloadProgress.set(file.filename, 100);
-                                    },
-                                } as DownloadItem);
-                            }
-                        });
-                        step = 2;
-                        downloader.startDownloads();
+                        void startDownload();
                     } else {
                         if (!isAllDownloadsCompleted()) {
                             return;
                         }
-                        save();
+                        void save();
                         emit('close', true);
                     }
                 }" />
         </template>
     </UModal>
+    <OnboardingTour v-if="open && step === 1" tour-id="download" :steps="onboardingSteps" />
+  </div>
 </template>

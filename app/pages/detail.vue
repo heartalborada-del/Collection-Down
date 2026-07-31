@@ -5,10 +5,61 @@ import { ItemType, PackageType } from "~~/types/api/enum";
 import type { TreeItem } from "@nuxt/ui";
 import type { TreeItemSelectEvent } from 'reka-ui'
 import { MD5 } from "object-hash"
+import { getErrorMessage } from '~/utils/apiError'
 
 const route = useRoute()
 const router = useRouter();
 const toast = useToast()
+const onboardingSteps = [
+  {
+    title: '选择资源类型',
+    description: '选择要获取的是收藏集还是主题。',
+    icon: 'i-material-symbols-category',
+    target: '[data-tour="detail-type"]',
+  },
+  {
+    title: '输入资源 ID',
+    description: '填写从搜索页得到的 ID，也可以直接手动输入。',
+    icon: 'i-mdi-identifier',
+    target: '[data-tour="detail-id"]',
+  },
+  {
+    title: '获取资源数据',
+    description: '点击后加载收藏集或主题包含的资源包。',
+    icon: 'i-mdi-database-search-outline',
+    target: '[data-tour="detail-fetch"]',
+  },
+  {
+    title: '选择资源包',
+    description: '数据加载完成后，从列表中选择要查看和下载的资源包。',
+    icon: 'i-mdi-package-variant-closed',
+    target: '[data-tour="detail-package"]',
+  },
+  {
+    title: '全选当前资源包',
+    description: '使用全选一次选中或取消当前资源包中的所有项目。',
+    icon: 'i-mdi-checkbox-multiple-marked-outline',
+    target: '[data-tour="detail-select-all"]',
+  },
+  {
+    title: '逐项选择资源',
+    description: '点击卡片切换选中状态，高亮边框表示该项目会被下载。',
+    icon: 'i-mdi-cards-outline',
+    target: '[data-tour="detail-cards"]',
+  },
+  {
+    title: '检查已选内容',
+    description: '桌面端右侧会汇总已选项目，也可以在这里单独取消项目。',
+    icon: 'i-mdi-file-tree-outline',
+    target: '[data-tour="detail-selection-tree"]',
+  },
+  {
+    title: '设置并开始下载',
+    description: '选择至少一个项目后，点击下载打开下载设置。',
+    icon: 'i-mdi-download-outline',
+    target: '[data-tour="detail-download"]',
+  },
+]
 
 const ParsedResult: Ref<{ type: ParsedType; id: string }> = ref({ type: ParsedType.NONE, id: '' })
 
@@ -74,106 +125,66 @@ watch(ParsedResult, (newVal: { type: ParsedType; id: string }) => {
   }
 }, { deep: true, immediate: true })
 
+const packageTypeLabels: Partial<Record<PackageType, string>> = {
+  [PackageType.Card]: '收藏集',
+  [PackageType.Theme]: '主题',
+  [PackageType.Sticker]: '表情包',
+  [PackageType.Other]: '杂项'
+}
+
+function normalizePackages(packages: DetailedData[]): DetailedData[] {
+  return packages
+    .filter(pkg => pkg.type !== PackageType.Undefined)
+    .map(pkg => ({
+      ...pkg,
+      name: `${packageTypeLabels[pkg.type] ?? '杂项'}-${pkg.name}`
+    }))
+}
+
 async function fetchData() {
   if (fetching.value) return
-  fetching.value = true
-  const { public: { EnableTrace } } = useRuntimeConfig()
-  if (ParsedResult.value.type === ParsedType.DLC) {
-    ItemsArray.value = []
-    currentPackage.value = {
-      id: 0,
-      type: PackageType.Undefined,
-      data: []
-    }
-    selectedSets.value = new Map()
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      try { EnableTrace && umTrackEvent('detail', { type: 'DLC', id: ParsedResult.value.id }) } catch { /* empty */ }
-      const collections = await GetCollectionMigratedData(Number(ParsedResult.value.id))
-      for (const collection of collections) {
-        if (collection.type === PackageType.Undefined) {
-          continue
-        }
-        const cp = collection
-        switch (collection.type) {
-          case PackageType.Card:
-            cp.name = `收藏集-${collection.name}`
-            break
-          case PackageType.Theme:
-            cp.name = `主题-${collection.name}`
-            break
-          case PackageType.Sticker:
-            cp.name = `表情包-${collection.name}`
-            break
-          case PackageType.Other:
-            cp.name = `杂项-${collection.name}`
-        }
-        ItemsArray.value.push(cp)
-      }
-    } catch {
-      toast.add({
-        title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
-        description: `请检查ID是否正确或稍后重试`,
-        icon: 'i-mdi-alert-circle',
-        color: 'error'
-      })
-      return
-    }
+
+  const id = Number(ParsedResult.value.id)
+  if (!Number.isSafeInteger(id) || id <= 0 || ParsedResult.value.type === ParsedType.NONE) {
     toast.add({
-      title: `获取 卡池ID ${ParsedResult.value.id} 成功`,
-      description: `获得 ${ItemsArray.value.length} 个收藏集及其附属数据`,
-      icon: 'i-mdi-check-circle',
-      color: 'success'
+      title: '请输入有效的正整数 ID 并选择类型',
+      icon: 'i-mdi-alert-circle',
+      color: 'warning'
     })
-  } else if (ParsedResult.value.type === ParsedType.THEME) {
-    ItemsArray.value = []
-    currentPackage.value = {
-      id: 0,
-      type: PackageType.Undefined,
-      data: []
-    }
-    selectedSets.value = new Map()
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      try { EnableTrace && umTrackEvent('detail', { type: 'THEME', id: ParsedResult.value.id }) } catch { /* empty */ }
-      const themeData = await GetSuitDetails(Number(ParsedResult.value.id))
-      for (const data of themeData) {
-        if (data.type === PackageType.Undefined) {
-          continue
-        }
-        const cp = data
-        switch (data.type) {
-          case PackageType.Card:
-            cp.name = `收藏集-${data.name}`
-            break
-          case PackageType.Theme:
-            cp.name = `主题-${data.name}`
-            break
-          case PackageType.Sticker:
-            cp.name = `表情包-${data.name}`
-            break
-          case PackageType.Other:
-            cp.name = `杂项-${data.name}`
-        }
-        ItemsArray.value.push(cp)
-      }
-    } catch {
-      toast.add({
-        title: `获取 收藏集ID ${ParsedResult.value.id} 失败`,
-        description: `请检查ID是否正确或稍后重试`,
-        icon: 'i-mdi-alert-circle',
-        color: 'error'
-      })
-      return
-    }
-    toast.add({
-      title: `获取 主题ID ${ParsedResult.value.id} 成功`,
-      description: `获得 ${ItemsArray.value.length} 个主题数据`,
-      icon: 'i-mdi-check-circle',
-      color: 'success'
-    })
+    return
   }
-  fetching.value = false
+
+  fetching.value = true
+  const isCollection = ParsedResult.value.type === ParsedType.DLC
+  const typeLabel = isCollection ? '收藏集' : '主题'
+  const { public: { EnableTrace } } = useRuntimeConfig()
+  try {
+    try { if (EnableTrace) umTrackEvent('detail', { type: isCollection ? 'DLC' : 'THEME', id: String(id) }) } catch { /* empty */ }
+    const packages = isCollection
+      ? await GetCollectionMigratedData(id)
+      : await GetSuitDetails(id)
+
+    ItemsArray.value = normalizePackages(packages)
+    currentPackage.value = { id: 0, type: PackageType.Undefined, data: [] }
+    selectedSets.value = new Map()
+    checked.value = false
+    toast.add({
+      title: `获取 ${typeLabel}ID ${id} 成功`,
+      description: `获得 ${ItemsArray.value.length} 个${typeLabel}及其附属数据`,
+      icon: 'i-mdi-check-circle',
+      color: 'success'
+    })
+  } catch (error) {
+    console.error(`Failed to fetch ${typeLabel} ${id}:`, error)
+    toast.add({
+      title: `获取 ${typeLabel}ID ${id} 失败`,
+      description: getErrorMessage(error, '请检查 ID 是否正确或稍后重试'),
+      icon: 'i-mdi-alert-circle',
+      color: 'error'
+    })
+  } finally {
+    fetching.value = false
+  }
 }
 
 function getCardSelectKey(item: PackageDataType): string {
@@ -519,49 +530,58 @@ const downloadFiles = ref<DownloadMetaData[]>([])
 
 <template>
   <div>
-    <div class="flex justify-center-safe items-center-safe gap-1 min-h-9 flex-wrap">
-      <USelect v-model="ParsedResult.type" icon="i-material-symbols-category" class="w-32 max-sm:grow" value-key="id"
+    <div data-tour="detail-query" class="flex justify-center-safe items-center-safe gap-1 min-h-9 flex-wrap">
+      <USelect
+v-model="ParsedResult.type" data-tour="detail-type" icon="i-material-symbols-category" class="w-32 max-sm:grow" value-key="id"
         :items="selectItem" />
-      <UInput v-model="ParsedResult.id" icon="i-mdi-identifier" class="w-64 max-sm:grow" placeholder="id" />
-      <UButton trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary" @click="fetchData"
-        class="w-full sm:w-auto text-nowrap">
+      <UInput v-model="ParsedResult.id" data-tour="detail-id" icon="i-mdi-identifier" class="w-64 max-sm:grow" placeholder="id" />
+      <UButton
+data-tour="detail-fetch" trailing-icon="i-ic-arrow-forward" size="md" variant="outline" color="secondary" class="w-full sm:w-auto text-nowrap"
+        :loading="fetching" @click="fetchData">
         获取数据
       </UButton>
     </div>
+    <UProgress v-if="fetching" class="mt-3" animation="carousel" aria-label="正在获取数据" />
     <USeparator class="m-2" size="md" />
-    <div class="flex justify-center-safe items-center flex-wrap gap-4 max-sm:gap-1 ">
+    <div data-tour="detail-select" class="flex justify-center-safe items-center flex-wrap gap-4 max-sm:gap-1 ">
       <div class="flex justify-center-safe items-center gap-1 grow">
-        <USelectMenu v-model="currentPackage" class="min-w-40 grow" label-key="name" :items="ItemsArray as any"
+        <USelectMenu
+v-model="currentPackage" data-tour="detail-package" class="min-w-40 grow" label-key="name" :items="ItemsArray as any"
           @change="refreshSelectedCards" />
-        <UCheckbox v-model="checked" :disabled="currentPackage.id === 0" label="全选" class="justify-center text-nowrap"
+        <UCheckbox
+v-model="checked" data-tour="detail-select-all" :disabled="currentPackage.id === 0" label="全选" class="justify-center text-nowrap"
           size="lg" @change="toggleSelectAllCards" />
       </div>
-      <UButton class="max-sm:grow text-nowrap" color="primary" variant="outline" icon="i-mdi-download"
+      <UButton
+data-tour="detail-download" class="max-sm:grow text-nowrap" color="primary" variant="outline" icon="i-mdi-download"
         @click="download">下载
       </UButton>
     </div>
     <USeparator class="m-2" size="md" />
-    <div v-if="currentPackage.id !== 0" style="display: flex; flex-flow: row;">
+    <div v-if="currentPackage.id !== 0" data-tour="detail-cards" style="display: flex; flex-flow: row;">
       <div class="flex justify-center-safe items-center flex-wrap gap-2 h-full">
         <TransitionGroup name="opacity-card" appear>
-          <ShowCard v-for="object in currentPackage.data" :key="MD5(object)" :url="object"
-            @click="setActiveCard(object, currentPackage)"
-            :highlight="queryCardIsSelected(object, currentPackage)">
-          </ShowCard>
+          <ShowCard
+v-for="object in currentPackage.data" :key="MD5(object)" :url="object"
+            :highlight="queryCardIsSelected(object, currentPackage)"
+            @click="setActiveCard(object, currentPackage)"/>
         </TransitionGroup>
       </div>
-      <UCard class="hidden lg:block overflow-y-auto ml-auto" style="min-width: 300px; max-height: 500px;"
+      <UCard
+data-tour="detail-selection-tree" class="hidden lg:block overflow-y-auto ml-auto" style="min-width: 300px; max-height: 500px;"
         variant="outline_nopadding">
-        <UTree :items="generatedTreeData" @select="(e: TreeItemSelectEvent<TreeItem>) => {
+        <UTree
+v-if="generatedTreeData.length !== 0" :items="generatedTreeData" @select="(e: TreeItemSelectEvent<TreeItem>) => {
           if (e.detail.originalEvent.type === 'click') {
             e.preventDefault()
           }
-        }" v-if="generatedTreeData.length !== 0">
+        }">
           <template #checkable="{ item }">
-            <UCheckbox class="w-full text-left" :key="treeDataKey" :model-value="true" @change="() => {
+            <UCheckbox
+:key="treeDataKey" class="w-full text-left" :model-value="true" :label="(item as { label: string }).label" @change="() => {
               let data = (item as { package: number, packageRef: DetailedData, label: string, cardKey: string })
               removeCardByKey(data.cardKey, data.packageRef);
-            }" :label="(item as { label: string }).label"></UCheckbox>
+            }"/>
           </template>
         </UTree>
         <div v-else>
@@ -569,8 +589,10 @@ const downloadFiles = ref<DownloadMetaData[]>([])
         </div>
       </UCard>
     </div>
-    <USeparator v-else class="pt-4" label="还没有数据哦" size="lg" />
-    <DownloadModal :open="downloadPanelOpen" @close="() => { downloadPanelOpen = false }"
-      :file-metadatas="downloadFiles" />
+    <USeparator v-else data-tour="detail-cards" class="pt-4" label="还没有数据哦" size="lg" />
+    <DownloadModal
+:open="downloadPanelOpen" :file-metadatas="downloadFiles"
+      @close="() => { downloadPanelOpen = false }" />
+    <OnboardingTour tour-id="detail" :steps="onboardingSteps" />
   </div>
 </template>

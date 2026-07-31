@@ -3,10 +3,10 @@ import type { BiliSuitMallSearchItem } from "~~/types/api/bili/types";
 import { FetchHeaders } from "~~/types/global";
 import { PartIdType } from "~~/types/api/enum";
 import type { SearchInfo } from "~~/types/api/inner/types";
+import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
 
 export default defineEventHandler(async (event) => {
     try {
-        const { isDev } = useRuntimeConfig();
         const keyWord = getQuery(event)?.key_word as string;
         const page = getQuery(event)?.page ? getQuery(event)?.page as string : "1";
         if (!keyWord) {
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
         const resp = await fetch(`https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`, { headers: FetchHeaders });
         if (resp.status !== 200) {
             setResponseStatus(event, resp.status || 502);
-            return new ApiResponse<null>(-1, `Failed to fetch data, status code: ${resp.status}`);
+            return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili search API'));
         }
         const raw = await resp.json() as ApiResponse<{ list: BiliSuitMallSearchItem[] }>;
         if (raw.code !== 0) {
@@ -25,9 +25,12 @@ export default defineEventHandler(async (event) => {
         }
         if (!raw.data) {
             setResponseStatus(event, 502);
-            return new ApiResponse<null>(-1, `Failed to fetch data`);
+            return new ApiResponse<null>(-1, 'Bilibili search API returned no data');
         }
         const list: SearchInfo[] = [];
+        if (!raw.data.list) {
+            return new ApiResponse<SearchInfo[]>(0, undefined, []);
+        }
         for (const item of raw.data.list) {
             if (!(item.properties.type === "ip" || item.properties.type === "dlc_act"))
                 continue;
@@ -42,11 +45,7 @@ export default defineEventHandler(async (event) => {
         setResponseStatus(event, 200);
         return new ApiResponse<SearchInfo[]>(0, undefined, list);
     } catch (e) {
-        const { isDev } = useRuntimeConfig();
-        if (isDev && e instanceof Error) {
-            setHeaders(event, { 'X-Error-Detail': e.message });
-        }
         setResponseStatus(event, 500);
-        return new ApiResponse<null>(-1, 'An error occurred while fetching data');
+        return new ApiResponse<null>(-1, describeError(e, 'Failed to search Bilibili resources'));
     }
 })

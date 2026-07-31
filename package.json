@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
+    "desktop:dist": "yarn build && electron-builder --projectDir desktop",
+    "desktop:start": "yarn build && electron desktop",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -11,34 +13,38 @@
   },
   "dependencies": {
     "@heartalborada-del/svga": "2.1.2",
-    "@nuxt/content": "^3.8.0",
-    "@nuxt/eslint": "1.10.0",
-    "@nuxt/ui": "4.1.0",
+    "@nuxt/eslint": "1.16.0",
+    "@nuxt/ui": "4.10.0",
     "@pinia/nuxt": "^0.11.3",
-    "@zip.js/zip.js": "^2.7.39",
-    "eslint": "^9.0.0",
-    "nuxt": "^4.2.0",
+    "@zip.js/zip.js": "^2.8.34",
+    "eslint": "^9.39.5",
+    "nuxt": "^4.5.1",
     "nuxt-umami": "3.2.1",
     "object-hash": "^3.0.0",
-    "papaparse": "^5.5.3",
+    "papaparse": "^5.5.4",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "qrcode-decoder": "^0.3.4",
     "typescript": "^5.6.3",
     "upng-js": "^2.1.0",
     "urlpattern-polyfill": "^10.1.0",
-    "vue": "^3.5.22",
-    "vue-router": "^4.6.3"
+    "vue": "^3.5.40",
+    "vue-router": "^5.2.0"
   },
   "devDependencies": {
-    "@iconify-json/material-symbols": "^1.2.44",
+    "@iconify-json/material-symbols": "^1.2.87",
     "@iconify-json/mdi": "^1.2.3",
-    "@iconify-json/simple-icons": "^1.2.56",
-    "@types/node": "^25.0.1",
+    "@iconify-json/simple-icons": "^1.2.92",
+    "@types/node": "^25.9.5",
     "@types/object-hash": "^3.0.6",
     "@types/papaparse": "^5.5.2",
     "@types/upng-js": "^2.1.5",
-    "baseline-browser-mapping": "^2.9.11"
+    "electron": "43.2.0",
+    "electron-builder": "^26.15.3",
+    "vue-tsc": "^3.3.9"
+  },
+  "resolutions": {
+    "tar": "^7.5.22"
   },
   "packageManager": "yarn@1.22.22"
 }

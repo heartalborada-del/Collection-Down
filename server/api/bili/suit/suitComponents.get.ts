@@ -4,6 +4,7 @@ import { SkinBackgroundInfo, type SuitComponentResult } from "~~/types/api/inner
 import { EmojiPackageInfo, PlayiconInfo, SkinInfo, SuitLoadingInfo } from "~~/types/api/inner/types";
 import { ApiResponse } from "~~/types/api/root";
 import { FetchHeaders } from "~~/types/global";
+import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
 
 export default defineEventHandler(async (event) => {
     try {
@@ -29,7 +30,8 @@ export default defineEventHandler(async (event) => {
             const APIEndpoint = `https://api.bilibili.com/x/garb/v2/user/suit/benefit?item_id=${id}&part=emoji_package`
             const response = await fetch(APIEndpoint, { method: "GET", headers: FetchHeaders });
             if (response.status !== 200) {
-                continue;
+                setResponseStatus(event, response.status || 502);
+                return new ApiResponse<null>(-1, await describeUpstreamResponse(response, `Bilibili suit component API for ID ${id}`));
             }
             const data = await response.json() as ApiResponse<{
                 name: string;
@@ -50,10 +52,12 @@ export default defineEventHandler(async (event) => {
                 }
             }>;
             if (data.code !== 0) {
-                continue;
+                setResponseStatus(event, 502);
+                return new ApiResponse<null>(data.code, `Bilibili suit component API error for ID ${id}: ${data.message || 'unknown upstream error'}`);
             }
             if (!data.data) {
-                continue;
+                setResponseStatus(event, 502);
+                return new ApiResponse<null>(-1, `Bilibili suit component API returned no data for ID ${id}`);
             }
             switch (data.data.part_id) {
                 case PartIdType.COLLECTION_THEME_PART: {
@@ -149,12 +153,8 @@ export default defineEventHandler(async (event) => {
         setResponseStatus(event, 200);
         return new ApiResponse<SuitComponentResult[]>(0, undefined, results);
     } catch (e) {
-        const { isDev } = useRuntimeConfig();
-        if (isDev && e instanceof Error) {
-            setHeaders(event, { 'X-Error-Detail': e.message });
-        }
         setResponseStatus(event, 500);
-        return new ApiResponse<null>(-1, "An unexpected error occurred")
+        return new ApiResponse<null>(-1, describeError(e, 'Failed to load suit components'))
     }
 })
 

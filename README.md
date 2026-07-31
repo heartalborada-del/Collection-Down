@@ -36,3 +36,13 @@ yarn build
 # Locally preview production build
 yarn preview
 ```
+
+## Desktop builds
+
+Every push builds downloadable desktop packages for Windows, Linux, and macOS in GitHub Actions. Open the latest successful `Desktop builds` workflow run and download the package from its `Artifacts` section.
+
+Tags matching `v*` also publish the packages to GitHub Releases. To build the current platform locally, run:
+
+```bash
+yarn desktop:dist
+```

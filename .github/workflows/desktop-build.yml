@@ -1,0 +1,99 @@
+name: Desktop builds
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            args: --win portable --x64
+            artifact: collection-down-windows-x64
+            artifact-path: release/*.exe
+          - name: Linux x64
+            os: ubuntu-latest
+            args: --linux AppImage --x64
+            artifact: collection-down-linux-x64
+            artifact-path: release/*.AppImage
+          - name: macOS Intel and Apple Silicon
+            os: macos-latest
+            args: --mac dmg zip --x64 --arm64
+            artifact: collection-down-macos
+            artifact-path: |
+              release/*.dmg
+              release/*.zip
+
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Use tag as desktop version
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node -e "const fs=require('node:fs'); const file='desktop/package.json'; const pkg=JSON.parse(fs.readFileSync(file,'utf8')); pkg.version=process.env.RELEASE_TAG.replace(/^v/,''); fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')"
+
+      - name: Build Nuxt application
+        run: yarn build
+
+      - name: Package desktop application
+        run: yarn electron-builder --projectDir desktop ${{ matrix.args }}
+
+      - name: Upload desktop package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact-path }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download desktop packages
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release/*.exe
+            release/*.AppImage
+            release/*.dmg
+            release/*.zip

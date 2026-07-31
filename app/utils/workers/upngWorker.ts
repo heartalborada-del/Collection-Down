@@ -23,8 +23,8 @@ ctx.onmessage = (event: MessageEvent<EncodeMessage>) => {
         const { frames, width, height, delayList } = event.data
         const pngFile = encode(frames, width, height, 0, delayList) as ArrayBuffer
         ctx.postMessage({ type: 'success', pngFile }, [pngFile])
-    } catch (err: any) {
-        ctx.postMessage({ type: 'error', error: err?.message || 'UPNG encode failed' })
+    } catch (err: unknown) {
+        ctx.postMessage({ type: 'error', error: err instanceof Error ? err.message : 'UPNG encode failed' })
     }
 }
 

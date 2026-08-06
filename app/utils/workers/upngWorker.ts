@@ -1,6 +1,4 @@
-import upng from 'upng-js'
-
-const { encode } = upng
+import pako from 'pako'
 
 export type EncodeMessage = {
     type: 'encode'
@@ -14,13 +12,27 @@ export type WorkerResponse =
     | { type: 'success'; pngFile: ArrayBuffer }
     | { type: 'error'; error?: string }
 
-const ctx = self as unknown as DedicatedWorkerGlobalScope
+type UPNGWorkerGlobal = DedicatedWorkerGlobalScope & {
+    window: DedicatedWorkerGlobalScope
+    pako: typeof pako
+}
 
-ctx.onmessage = (event: MessageEvent<EncodeMessage>) => {
+const ctx = self as unknown as UPNGWorkerGlobal
+
+// upng-js 2.x uses a legacy UMD wrapper that falls back to window.pako.
+// A production web worker has neither window nor require, so expose the
+// worker global under the names expected by UPNG before loading the module.
+ctx.window = ctx
+ctx.pako = pako
+
+const encodePromise = import('upng-js').then(({ encode }) => encode)
+
+ctx.onmessage = async (event: MessageEvent<EncodeMessage>) => {
     if (event.data?.type !== 'encode') return
 
     try {
         const { frames, width, height, delayList } = event.data
+        const encode = await encodePromise
         const pngFile = encode(frames, width, height, 0, delayList) as ArrayBuffer
         ctx.postMessage({ type: 'success', pngFile }, [pngFile])
     } catch (err: unknown) {

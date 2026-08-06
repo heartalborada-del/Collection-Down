@@ -4,7 +4,7 @@ import { CardInfo, EmojiInfo, type EmojiPackageInfo, LoadingInfo, OtherInfo, Pla
 import type { ApiResponse } from "~~/types/api/root";
 import { createApiResponseError, getErrorMessage } from "~/utils/apiError";
 
-export async function GetCollectionMigratedData(actId: number): Promise<DetailedData[]> {
+export async function GetCollectionMigratedData(actId: number, onWarning?: (message: string) => void): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
     const resp = await fetch(`/api/bili/collection/allLotteryId?act_id=${actId}`)
     if (!resp.ok) {
@@ -16,7 +16,7 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     }
     let flag = true;
     const promises = data.data.map(async item => {
-        const res = GetLotteryDetails(item.lottery_id, actId, item.lottery_name, flag)
+        const res = GetLotteryDetails(item.lottery_id, actId, item.lottery_name, flag, onWarning)
         flag = false;
         return res;
     })
@@ -47,7 +47,7 @@ export async function GetCollectionMigratedData(actId: number): Promise<Detailed
     return ItemsArray
 }
 
-async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: string, allowShared: boolean = false): Promise<DetailedData[]> {
+async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: string, allowShared: boolean = false, onWarning?: (message: string) => void): Promise<DetailedData[]> {
     const response = await fetch(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`)
     if (!response.ok) {
         throw await createApiResponseError(response, `获取抽奖 ${lotteryId} 明细`)
@@ -65,7 +65,7 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
     })
     // Prefer backend-returned IDs; if redeem IDs are invalid (e.g. 0), fallback to a valid card ID when available.
     const fallbackId = cardObjects.find(card => card.id > 0)?.id ?? lotteryId
-    const parsedRedeems = await ParseRedeemInfo(res.data.redeems, fallbackId)
+    const parsedRedeems = await ParseRedeemInfo(res.data.redeems, fallbackId, false, onWarning)
     const migratedRedeems: DetailedData[] = []
     const otherRedeems: DetailedData = {
         id: fallbackId,
@@ -101,13 +101,13 @@ async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: 
         returnValue.push(otherRedeems)
     }
     if (allowShared) {
-        const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems, fallbackId)
+        const sharedRedeems = await ParseRedeemOnlyShared(res.data.redeems, fallbackId, onWarning)
         returnValue.push(...sharedRedeems)
     }
     return returnValue
 }
 
-async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlyShared: boolean = false): Promise<DetailedData[]> {
+async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlyShared: boolean = false, onWarning?: (message: string) => void): Promise<DetailedData[]> {
     const results: DetailedData[] = []
     for (const redeem of redeems) {
         if (redeem.shared && !onlyShared)
@@ -160,7 +160,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 break
             }
             case RedeemType.SUIT_PART: {
-                const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)))
+                const suitDetails = await GetSuitMigratedData(redeem.ids.map(id => parseInt(id, 10)), onWarning)
                 results.push(...suitDetails)
                 break;
                 /*suitDetails.forEach((value)=>{
@@ -178,11 +178,11 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
     return results
 }
 
-async function ParseRedeemOnlyShared(redeems: RedeemInfo[], fallbackId: number): Promise<DetailedData[]> {
-    return ParseRedeemInfo(redeems, fallbackId, true)
+async function ParseRedeemOnlyShared(redeems: RedeemInfo[], fallbackId: number, onWarning?: (message: string) => void): Promise<DetailedData[]> {
+    return ParseRedeemInfo(redeems, fallbackId, true, onWarning)
 }
 
-async function GetSuitMigratedData(partIds: number[]) {
+async function GetSuitMigratedData(partIds: number[], onWarning?: (message: string) => void) {
     const returnValue: DetailedData[] = [];
     if (partIds.length === 0) {
         return returnValue;
@@ -195,6 +195,9 @@ async function GetSuitMigratedData(partIds: number[]) {
     const data = (await resp.json()) as ApiResponse<SuitComponentResult[]>;
     if (data.code !== 0 || !data.data) {
         return Promise.reject(new PromiseRejected(Errors.API, data.message, data.code));
+    }
+    if (data.message && onWarning) {
+        onWarning(data.message)
     }
     const themePackage: {
         [key: string]: {
@@ -305,8 +308,8 @@ async function GetSuitMigratedData(partIds: number[]) {
     return returnValue;
 }
 
-export async function GetSuitDetails(partId: number) {
-    return GetSuitMigratedData([partId]);
+export async function GetSuitDetails(partId: number, onWarning?: (message: string) => void) {
+    return GetSuitMigratedData([partId], onWarning);
 }
 
 export enum Errors {

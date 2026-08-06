@@ -4,7 +4,7 @@ import { SkinBackgroundInfo, type SuitComponentResult } from "~~/types/api/inner
 import { EmojiPackageInfo, PlayiconInfo, SkinInfo, SuitLoadingInfo } from "~~/types/api/inner/types";
 import { ApiResponse } from "~~/types/api/root";
 import { FetchHeaders } from "~~/types/global";
-import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
+import { describeError } from "~~/server/utils/apiError";
 
 export default defineEventHandler(async (event) => {
     try {
@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
             }
         }
         const results: SuitComponentResult[] = [];
+        const skippedIds: string[] = [];
         for (const id of ids) {
             const result: SuitComponentResult = {
                 target: Number(id),
@@ -30,8 +31,9 @@ export default defineEventHandler(async (event) => {
             const APIEndpoint = `https://api.bilibili.com/x/garb/v2/user/suit/benefit?item_id=${id}&part=emoji_package`
             const response = await fetch(APIEndpoint, { method: "GET", headers: FetchHeaders });
             if (response.status !== 200) {
-                setResponseStatus(event, response.status || 502);
-                return new ApiResponse<null>(-1, await describeUpstreamResponse(response, `Bilibili suit component API for ID ${id}`));
+                skippedIds.push(id);
+                console.warn(`Skipping unavailable Bilibili suit component ${id}: HTTP ${response.status}`);
+                continue;
             }
             const data = await response.json() as ApiResponse<{
                 name: string;
@@ -52,12 +54,14 @@ export default defineEventHandler(async (event) => {
                 }
             }>;
             if (data.code !== 0) {
-                setResponseStatus(event, 502);
-                return new ApiResponse<null>(data.code, `Bilibili suit component API error for ID ${id}: ${data.message || 'unknown upstream error'}`);
+                skippedIds.push(id);
+                console.warn(`Skipping Bilibili suit component ${id}: ${data.message || `upstream code ${data.code}`}`);
+                continue;
             }
             if (!data.data) {
-                setResponseStatus(event, 502);
-                return new ApiResponse<null>(-1, `Bilibili suit component API returned no data for ID ${id}`);
+                skippedIds.push(id);
+                console.warn(`Skipping Bilibili suit component ${id}: upstream returned no data`);
+                continue;
             }
             switch (data.data.part_id) {
                 case PartIdType.COLLECTION_THEME_PART: {
@@ -151,7 +155,10 @@ export default defineEventHandler(async (event) => {
             results.push(result);
         }
         setResponseStatus(event, 200);
-        return new ApiResponse<SuitComponentResult[]>(0, undefined, results);
+        const message = skippedIds.length > 0
+            ? `部分主题组件不可用，已跳过：${[...new Set(skippedIds)].join('、')}`
+            : undefined;
+        return new ApiResponse<SuitComponentResult[]>(0, message, results);
     } catch (e) {
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, describeError(e, 'Failed to load suit components'))

@@ -157,23 +157,33 @@ async function fetchData() {
   fetching.value = true
   const isCollection = ParsedResult.value.type === ParsedType.DLC
   const typeLabel = isCollection ? '收藏集' : '主题'
+  const warnings: string[] = []
   const { public: { EnableTrace } } = useRuntimeConfig()
   try {
     try { if (EnableTrace) umTrackEvent('detail', { type: isCollection ? 'DLC' : 'THEME', id: String(id) }) } catch { /* empty */ }
     const packages = isCollection
-      ? await GetCollectionMigratedData(id)
-      : await GetSuitDetails(id)
+      ? await GetCollectionMigratedData(id, message => warnings.push(message))
+      : await GetSuitDetails(id, message => warnings.push(message))
 
     ItemsArray.value = normalizePackages(packages)
     currentPackage.value = { id: 0, type: PackageType.Undefined, data: [] }
     selectedSets.value = new Map()
     checked.value = false
-    toast.add({
-      title: `获取 ${typeLabel}ID ${id} 成功`,
-      description: `获得 ${ItemsArray.value.length} 个${typeLabel}及其附属数据`,
-      icon: 'i-mdi-check-circle',
-      color: 'success'
-    })
+    if (warnings.length > 0) {
+      toast.add({
+        title: `获取 ${typeLabel}ID ${id} 基本成功`,
+        description: warnings.join('；'),
+        icon: 'i-mdi-alert-circle',
+        color: 'warning'
+      })
+    } else {
+      toast.add({
+        title: `获取 ${typeLabel}ID ${id} 成功`,
+        description: `获得 ${ItemsArray.value.length} 个${typeLabel}及其附属数据`,
+        icon: 'i-mdi-check-circle',
+        color: 'success'
+      })
+    }
   } catch (error) {
     console.error(`Failed to fetch ${typeLabel} ${id}:`, error)
     toast.add({

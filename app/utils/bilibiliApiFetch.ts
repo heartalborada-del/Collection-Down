@@ -97,7 +97,11 @@ function solvePow(challenge: BilibiliPowChallenge, signal?: AbortSignal): Promis
 
 async function solveAndVerify(challenge: BilibiliPowChallenge): Promise<void> {
     const result = await solvePow(challenge);
-    const requestBody: BilibiliPowVerificationRequest = { token: challenge.token, result };
+    const requestBody: BilibiliPowVerificationRequest = {
+        id: challenge.id,
+        token: challenge.token,
+        result,
+    };
     const response = await fetch('/api/bili/pow/verify', {
         method: 'POST',
         credentials: 'same-origin',
@@ -119,13 +123,13 @@ async function solveAndVerify(challenge: BilibiliPowChallenge): Promise<void> {
 }
 
 function ensureChallengeVerified(challenge: BilibiliPowChallenge): Promise<void> {
-    const pending = activeVerifications.get(challenge.token);
+    const pending = activeVerifications.get(challenge.id);
     if (pending) return pending;
 
     const verification = solveAndVerify(challenge).finally(() => {
-        activeVerifications.delete(challenge.token);
+        activeVerifications.delete(challenge.id);
     });
-    activeVerifications.set(challenge.token, verification);
+    activeVerifications.set(challenge.id, verification);
     return verification;
 }
 
@@ -245,6 +249,7 @@ function fetchBilibiliApiViaWebSocket(input: RequestInfo | URL, init: RequestIni
                 }
                 socket.send(JSON.stringify({
                     type: 'solution',
+                    id: message.challenge.id,
                     token: message.challenge.token,
                     result,
                 }));

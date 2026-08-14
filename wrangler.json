@@ -1,6 +1,7 @@
 {
   "compatibility_date": "2025-10-28",
   "name": "collection-down",
+  "main": "./.output/server/index.mjs",
   "compatibility_flags": [
     "nodejs_compat",
     "no_nodejs_compat_v2"
@@ -10,6 +11,34 @@
     "directory": "./.output/public/"
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    }
+  },
+  "env": {
+    "dev": {
+      "name": "collection-down-dev",
+      "vars": {
+        "BILIBILI_DEBUG_RESPONSES": "false",
+        "BILIBILI_CONNECTION_TEST_ENABLED": "false"
+      },
+      "assets": {
+        "binding": "ASSETS",
+        "directory": "./.output/public/"
+      },
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1,
+        "logs": {
+          "enabled": true,
+          "head_sampling_rate": 1,
+          "invocation_logs": true,
+          "persist": true
+        }
+      }
+    }
   }
 }

@@ -1,9 +1,10 @@
 import { ApiResponse } from "~~/types/api/root";
 import type { LotteryListItem } from "~~/types/api/bili/types";
-import { FetchHeaders } from "~~/types/global";
 import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
+import { createBilibiliDebugResponse, fetchBilibiliApi, getBilibiliFetchRuntime, isBilibiliPowChallengeResponse } from "~~/server/utils/bilibiliFetch";
 
 export default defineEventHandler(async (event) => {
+    const bilibiliRuntime = getBilibiliFetchRuntime(event);
     try {
         const actId = getQuery(event)?.act_id as string | undefined;
         if (!actId) {
@@ -11,7 +12,17 @@ export default defineEventHandler(async (event) => {
             return new ApiResponse<null>(-1, 'Invalid act_id parameter');
         }
         try {
-            const resp = await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}`, { headers: FetchHeaders });
+            const resp = await fetchBilibiliApi(
+                `https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}`,
+                {},
+                bilibiliRuntime,
+            );
+            if (isBilibiliPowChallengeResponse(resp)) return resp;
+            const debugResponse = await createBilibiliDebugResponse(resp, bilibiliRuntime);
+            if (debugResponse) {
+                setResponseStatus(event, resp.status);
+                return debugResponse;
+            }
             if (resp.status !== 200) {
                 setResponseStatus(event, resp.status || 502);
                 return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili asset bag API'));
@@ -43,5 +54,7 @@ export default defineEventHandler(async (event) => {
     } catch (e) {
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, describeError(e, 'Failed to process collection lottery request'));
+    } finally {
+        bilibiliRuntime.tcpClient.close();
     }
 })

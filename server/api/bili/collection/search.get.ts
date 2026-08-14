@@ -1,11 +1,12 @@
 import { ApiResponse } from "~~/types/api/root";
 import type { BiliSuitMallSearchItem } from "~~/types/api/bili/types";
-import { FetchHeaders } from "~~/types/global";
 import { PartIdType } from "~~/types/api/enum";
 import type { SearchInfo } from "~~/types/api/inner/types";
 import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
+import { createBilibiliDebugResponse, fetchBilibiliApi, getBilibiliFetchRuntime, isBilibiliPowChallengeResponse } from "~~/server/utils/bilibiliFetch";
 
 export default defineEventHandler(async (event) => {
+    const bilibiliRuntime = getBilibiliFetchRuntime(event);
     try {
         const keyWord = getQuery(event)?.key_word as string;
         const page = getQuery(event)?.page ? getQuery(event)?.page as string : "1";
@@ -13,7 +14,17 @@ export default defineEventHandler(async (event) => {
             setResponseStatus(event, 400);
             return new ApiResponse<null>(-1, 'Invalid key_word parameter');
         }
-        const resp = await fetch(`https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`, { headers: FetchHeaders });
+        const resp = await fetchBilibiliApi(
+            `https://api.bilibili.com/x/garb/v2/mall/home/search?key_word=${keyWord}&pn=${page}`,
+            {},
+            bilibiliRuntime,
+        );
+        if (isBilibiliPowChallengeResponse(resp)) return resp;
+        const debugResponse = await createBilibiliDebugResponse(resp, bilibiliRuntime);
+        if (debugResponse) {
+            setResponseStatus(event, resp.status);
+            return debugResponse;
+        }
         if (resp.status !== 200) {
             setResponseStatus(event, resp.status || 502);
             return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili search API'));
@@ -47,5 +58,7 @@ export default defineEventHandler(async (event) => {
     } catch (e) {
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, describeError(e, 'Failed to search Bilibili resources'));
+    } finally {
+        bilibiliRuntime.tcpClient.close();
     }
 })

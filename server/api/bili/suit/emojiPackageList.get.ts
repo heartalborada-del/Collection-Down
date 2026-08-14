@@ -1,11 +1,12 @@
 import { ApiResponse } from "~~/types/api/root";
-import { FetchHeaders } from "~~/types/global";
 import type { BiliEmojiPackageInfo } from "~~/types/api/bili/types";
 import type { EmojiInfo, EmojiPackageInfo } from "~~/types/api/inner/types";
 import { PartIdType } from "~~/types/api/enum";
 import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
+import { createBilibiliDebugResponse, fetchBilibiliApi, getBilibiliFetchRuntime, isBilibiliPowChallengeResponse } from "~~/server/utils/bilibiliFetch";
 
 export default defineEventHandler(async (event) => {
+    const bilibiliRuntime = getBilibiliFetchRuntime(event);
     try {
         const query = getQuery(event)
         const packageId = query?.package_id as string | undefined;
@@ -13,7 +14,17 @@ export default defineEventHandler(async (event) => {
             setResponseStatus(event, 400);
             return new ApiResponse<null>(-1, "Invalid package_id parameter")
         }
-        const resp = await fetch(`https://api.bilibili.com/x/garb/v2/user/suit/benefit?item_id=${packageId}&part=emoji_package`, { headers: FetchHeaders });
+        const resp = await fetchBilibiliApi(
+            `https://api.bilibili.com/x/garb/v2/user/suit/benefit?item_id=${packageId}&part=emoji_package`,
+            {},
+            bilibiliRuntime,
+        );
+        if (isBilibiliPowChallengeResponse(resp)) return resp;
+        const debugResponse = await createBilibiliDebugResponse(resp, bilibiliRuntime);
+        if (debugResponse) {
+            setResponseStatus(event, resp.status);
+            return debugResponse;
+        }
         if (resp.status !== 200) {
             setResponseStatus(event, resp.status || 502);
             return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili emoji package API'));
@@ -80,5 +91,7 @@ export default defineEventHandler(async (event) => {
     } catch (e) {
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, describeError(e, 'Failed to load suit emoji package'))
+    } finally {
+        bilibiliRuntime.tcpClient.close();
     }
 })

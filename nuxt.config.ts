@@ -32,6 +32,9 @@ export default defineNuxtConfig({
     },
     nitro: {
         compressPublicAssets: true,
+        experimental: {
+            websocket: true,
+        },
         vercel: {
             functions: {
                 maxDuration: 60,
@@ -39,7 +42,7 @@ export default defineNuxtConfig({
             }
         },
         cloudflare: {
-            deployConfig: true,
+            deployConfig: false,
             nodeCompat: true,
         },
         replace: {

@@ -539,6 +539,11 @@ const generatedTreeData = ref<TreeItem[]>([])
 const treeDataKey = ref<number>(0)
 const selectedItemCount = computed(() => [...selectedPackages.value.values()]
   .reduce((total, selection) => total + selection.cardKeys.size, 0))
+const animatedPreviewEnabled = ref(false)
+const hasAnimatedCards = computed(() => currentPackage.value.data.some(item => {
+  return item instanceof CardInfo
+    && Boolean(item.video?.some(url => Boolean(url)) || item.watermarked?.video?.some(url => Boolean(url)))
+}))
 const selectedSourceCount = computed(() => new Set(
   [...selectedPackages.value.values()].map(selection => getSourceKey(selection.source))
 ).size)
@@ -915,6 +920,14 @@ v-model="checked" data-tour="detail-select-all" :disabled="currentPackage.id ===
         title="清空全部已选项目"
         @click="clearAllSelections"
       />
+      <USwitch
+        v-if="hasAnimatedCards"
+        v-model="animatedPreviewEnabled"
+        label="动态预览"
+        checked-icon="i-mdi-play"
+        unchecked-icon="i-mdi-image-outline"
+        size="md"
+      />
       <UButton
 data-tour="detail-download" class="max-sm:grow text-nowrap" color="primary" variant="outline" icon="i-mdi-download"
         @click="download">{{ selectedItemCount > 0 ? `下载（${selectedItemCount}）` : '下载' }}
@@ -945,6 +958,7 @@ data-tour="detail-download" class="max-sm:grow text-nowrap" color="primary" vari
               :url="object"
               :highlight="queryCardIsSelected(object, currentPackage)"
               :preview-disabled="dragSelecting"
+              :animated-preview="animatedPreviewEnabled"
               @click="handleCardClick(object, currentPackage, $event)"
             />
           </div>

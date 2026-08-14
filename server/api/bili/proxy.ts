@@ -23,12 +23,10 @@ export default defineEventHandler(async (event) => {
         if (!isAllowedDomain) {
             return errorResponse(403, `Proxy domain is not allowed: ${targetUrl.hostname}`);
         }
-        const { host, accpet, ...restFetchHeaders } = FetchHeaders;
         const fetchPayload: RequestInit = {
             headers: {
-                ...restFetchHeaders,
+                ...FetchHeaders,
                 // 保底补一个正确的 Accept，避免上游返回非预期空内容
-                Accept: accpet || '*/*',
             },
             method: event.method,
         }

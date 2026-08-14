@@ -3,10 +3,17 @@ import { PartIdType } from "~~/types/api/enum";
 import { SkinBackgroundInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import { EmojiPackageInfo, PlayiconInfo, SkinInfo, SuitLoadingInfo } from "~~/types/api/inner/types";
 import { ApiResponse } from "~~/types/api/root";
-import { FetchHeaders } from "~~/types/global";
 import { describeError } from "~~/server/utils/apiError";
+import {
+    createBilibiliDebugResponse,
+    fetchBilibiliApi,
+    getBilibiliFetchRuntime,
+    isBilibiliPowChallengeResponse,
+    type BilibiliDebugResponse,
+} from "~~/server/utils/bilibiliFetch";
 
 export default defineEventHandler(async (event) => {
+    const bilibiliRuntime = getBilibiliFetchRuntime(event);
     try {
         const query = getQuery(event)
         const idsQuery = query?.ids;
@@ -24,12 +31,23 @@ export default defineEventHandler(async (event) => {
         }
         const results: SuitComponentResult[] = [];
         const skippedIds: string[] = [];
+        const debugResponses: BilibiliDebugResponse[] = [];
         for (const id of ids) {
             const result: SuitComponentResult = {
                 target: Number(id),
             };
             const APIEndpoint = `https://api.bilibili.com/x/garb/v2/user/suit/benefit?item_id=${id}&part=emoji_package`
-            const response = await fetch(APIEndpoint, { method: "GET", headers: FetchHeaders });
+            const response = await fetchBilibiliApi(
+                APIEndpoint,
+                { method: "GET" },
+                bilibiliRuntime,
+            );
+            if (isBilibiliPowChallengeResponse(response)) return response;
+            const debugResponse = await createBilibiliDebugResponse(response, bilibiliRuntime);
+            if (debugResponse) {
+                debugResponses.push(debugResponse);
+                continue;
+            }
             if (response.status !== 200) {
                 skippedIds.push(id);
                 console.warn(`Skipping unavailable Bilibili suit component ${id}: HTTP ${response.status}`);
@@ -154,6 +172,17 @@ export default defineEventHandler(async (event) => {
             }
             results.push(result);
         }
+        if (debugResponses.length === 1) {
+            setResponseStatus(event, debugResponses[0]!.upstream.status);
+            return debugResponses[0];
+        }
+        if (debugResponses.length > 1) {
+            setResponseStatus(event, 200);
+            return {
+                debug: true,
+                upstream: debugResponses.map(response => response.upstream),
+            };
+        }
         setResponseStatus(event, 200);
         const message = skippedIds.length > 0
             ? `部分主题组件不可用，已跳过：${[...new Set(skippedIds)].join('、')}`
@@ -162,6 +191,8 @@ export default defineEventHandler(async (event) => {
     } catch (e) {
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, describeError(e, 'Failed to load suit components'))
+    } finally {
+        bilibiliRuntime.tcpClient.close();
     }
 })
 

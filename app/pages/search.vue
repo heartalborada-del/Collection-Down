@@ -6,6 +6,7 @@ import type { ApiResponse } from "~~/types/api/root";
 import type { SelectItem, TabsItem } from "@nuxt/ui";
 import Papa from 'papaparse';
 import { createApiResponseError, getErrorMessage } from '~/utils/apiError';
+import { fetchBilibiliApi } from '~/utils/bilibiliApiFetch';
 
 const router = useRouter();
 const toast = useToast()
@@ -219,7 +220,7 @@ async function searchForKeyword(keyword: string, page: number): Promise<boolean>
   const { public: { EnableTrace } } = useRuntimeConfig()
   try {
     try { if (EnableTrace) umTrackEvent('search', { keyword: normalizedKeyword }) } catch { /* empty */ }
-    const resp = await fetch(`/api/bili/collection/search?key_word=${encodeURIComponent(normalizedKeyword)}&page=${targetPage}`)
+    const resp = await fetchBilibiliApi(`/api/bili/collection/search?key_word=${encodeURIComponent(normalizedKeyword)}&page=${targetPage}`)
     if (!resp.ok) {
       throw await createApiResponseError(resp, '搜索')
     }

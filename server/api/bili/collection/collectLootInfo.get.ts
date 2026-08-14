@@ -2,11 +2,12 @@ import { ApiResponse } from "~~/types/api/root";
 import type { BiliCardInfo, BiliRedeemInfo } from "~~/types/api/bili/types";
 import { CardInfo, RedeemInfo } from "~~/types/api/inner/types";
 import type { VideoResolution } from "~~/types/api/inner/types";
-import { FetchHeaders } from "~~/types/global";
 import { RedeemType } from "~~/types/api/enum";
 import { describeError, describeUpstreamResponse } from "~~/server/utils/apiError";
+import { createBilibiliDebugResponse, fetchBilibiliApi, getBilibiliFetchRuntime, isBilibiliPowChallengeResponse } from "~~/server/utils/bilibiliFetch";
 
 export default defineEventHandler(async (event) => {
+    const bilibiliRuntime = getBilibiliFetchRuntime(event);
     try {
         const query = getQuery(event)
         const actId = query?.act_id as string | undefined;
@@ -16,7 +17,17 @@ export default defineEventHandler(async (event) => {
             return new ApiResponse<null>(-1, "Invalid act_id or lottery_id parameter")
         }
         try {
-            const resp = await fetch(`https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}&lottery_id=${lotteryId}`, { headers: FetchHeaders });
+            const resp = await fetchBilibiliApi(
+                `https://api.bilibili.com/x/vas/dlc_act/asset_bag?act_id=${actId}&lottery_id=${lotteryId}`,
+                {},
+                bilibiliRuntime,
+            );
+            if (isBilibiliPowChallengeResponse(resp)) return resp;
+            const debugResponse = await createBilibiliDebugResponse(resp, bilibiliRuntime);
+            if (debugResponse) {
+                setResponseStatus(event, resp.status);
+                return debugResponse;
+            }
             if (resp.status !== 200) {
                 setResponseStatus(event, resp.status || 502);
                 return new ApiResponse<null>(-1, await describeUpstreamResponse(resp, 'Bilibili collection details API'));
@@ -107,5 +118,7 @@ export default defineEventHandler(async (event) => {
     } catch (e) {
         setResponseStatus(event, 500);
         return new ApiResponse<null>(-1, describeError(e, 'Failed to process collection details request'));
+    } finally {
+        bilibiliRuntime.tcpClient.close();
     }
 })

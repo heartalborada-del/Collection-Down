@@ -3,10 +3,11 @@ import { PackageType, RedeemType } from "~~/types/api/enum";
 import { CardInfo, EmojiInfo, type EmojiPackageInfo, LoadingInfo, OtherInfo, PlayiconInfo, ThumbupInfo, type DetailedData, type PackageDataType, type RedeemInfo, type SuitComponentResult } from "~~/types/api/inner/types";
 import type { ApiResponse } from "~~/types/api/root";
 import { createApiResponseError, getErrorMessage } from "~/utils/apiError";
+import { fetchBilibiliApi } from "~/utils/bilibiliApiFetch";
 
 export async function GetCollectionMigratedData(actId: number, onWarning?: (message: string) => void): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
-    const resp = await fetch(`/api/bili/collection/allLotteryId?act_id=${actId}`, { cache: 'no-store' })
+    const resp = await fetchBilibiliApi(`/api/bili/collection/allLotteryId?act_id=${actId}`, { cache: 'no-store' })
     if (!resp.ok) {
         throw await createApiResponseError(resp, '获取收藏集抽奖列表')
     }
@@ -48,7 +49,7 @@ export async function GetCollectionMigratedData(actId: number, onWarning?: (mess
 }
 
 async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: string, allowShared: boolean = false, onWarning?: (message: string) => void): Promise<DetailedData[]> {
-    const response = await fetch(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`, { cache: 'no-store' })
+    const response = await fetchBilibiliApi(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`, { cache: 'no-store' })
     if (!response.ok) {
         throw await createApiResponseError(response, `获取抽奖 ${lotteryId} 明细`)
     }
@@ -142,7 +143,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 }
             case RedeemType.ANIMATED_EMOJI_PACKAGE:
             case RedeemType.STATIC_EMOJI_PACKAGE: {
-                const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`, { cache: 'no-store' })
+                const data = await fetchBilibiliApi(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`, { cache: 'no-store' })
                 if (!data.ok) {
                     throw await createApiResponseError(data, `获取表情包 ${redeem.ids[0]}`)
                 }
@@ -188,7 +189,7 @@ async function GetSuitMigratedData(partIds: number[], onWarning?: (message: stri
         return returnValue;
     }
     const idsParam = partIds.map(id => `ids=${id}`).join('&');
-    const resp = await fetch(`/api/bili/suit/suitComponents?${idsParam}`, { cache: 'no-store' });
+    const resp = await fetchBilibiliApi(`/api/bili/suit/suitComponents?${idsParam}`, { cache: 'no-store' });
     if (!resp.ok) {
         throw await createApiResponseError(resp, '获取主题组件');
     }

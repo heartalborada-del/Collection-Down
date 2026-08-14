@@ -5,6 +5,7 @@ const props = defineProps<{
   url: PackageDataType;
   highlight?: boolean;
   previewDisabled?: boolean;
+  animatedPreview?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -65,10 +66,24 @@ const name = computed((): string => {
   return props.url.name
 })
 
+const previewVideoUrl = computed((): string | undefined => {
+  if (!(props.url instanceof CardInfo)) return undefined
+  return props.url.video?.find(url => Boolean(url))
+    ?? props.url.watermarked?.video?.find(url => Boolean(url))
+})
+
+const animatedPreviewAvailable = computed(() => props.animatedPreview && Boolean(previewVideoUrl.value))
+const showVideoPreview = computed(() => previewOpen.value && animatedPreviewAvailable.value)
+
 const imageLoaded = ref(false)
+const videoLoaded = ref(false)
 
 watch(showUrl, () => {
   imageLoaded.value = false
+})
+
+watch([previewOpen, previewVideoUrl], () => {
+  videoLoaded.value = false
 })
 </script>
 
@@ -109,26 +124,61 @@ watch(showUrl, () => {
             @load="imageLoaded = true"
             @error="imageLoaded = true"
           >
+          <span
+            v-if="previewVideoUrl"
+            class="animated-card-indicator"
+            :class="{ active: props.animatedPreview }"
+            title="动态卡片"
+          >
+            <UIcon name="i-mdi-play" />
+          </span>
         </UCard>
         <button
           type="button"
           class="touch-preview-button"
-          :aria-label="`预览${name}`"
-          title="预览"
+          :aria-label="`${animatedPreviewAvailable ? '播放' : '预览'}${name}`"
+          :title="animatedPreviewAvailable ? '动态预览' : '预览'"
           @click.stop="toggleTouchPreview"
         >
-          <UIcon name="i-mdi-magnify-plus" class="touch-preview-icon" />
+          <UIcon
+            :name="animatedPreviewAvailable ? 'i-mdi-play-circle-outline' : 'i-mdi-magnify-plus'"
+            class="touch-preview-icon"
+          />
         </button>
       </div>
     </template>
 
     <template #content>
-      <img
-        :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl)}`"
-        :alt="`${name}预览`"
-        class="preview-image"
-        draggable="false"
-      >
+      <div class="preview-media-frame" :class="{ video: showVideoPreview }">
+        <div
+          v-if="showVideoPreview && !videoLoaded"
+          class="preview-loading"
+          aria-hidden="true"
+        >
+          <UIcon name="i-mdi-loading" class="size-6 animate-spin text-muted" />
+        </div>
+        <video
+          v-if="showVideoPreview"
+          :src="`/api/bili/proxy?origin=${encodeURIComponent(previewVideoUrl!)}`"
+          :poster="`/api/bili/proxy?origin=${encodeURIComponent(showUrl)}`"
+          :aria-label="`${name}动态预览`"
+          class="preview-media"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          @canplay="videoLoaded = true"
+          @error="videoLoaded = true"
+        />
+        <img
+          v-else
+          :src="`/api/bili/proxy?origin=${encodeURIComponent(showUrl)}`"
+          :alt="`${name}预览`"
+          class="preview-media"
+          draggable="false"
+        >
+      </div>
     </template>
   </UPopover>
 </template>
@@ -169,6 +219,25 @@ watch(showUrl, () => {
   opacity: 1;
 }
 
+.animated-card-indicator {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 58%);
+  color: white;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.animated-card-indicator.active {
+  background: var(--ui-color-primary-500);
+}
+
 .touch-preview-button {
   position: absolute;
   top: 6px;
@@ -207,7 +276,26 @@ watch(showUrl, () => {
   flex: none;
 }
 
-.preview-image {
+.preview-media-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.preview-media-frame.video {
+  min-width: min(70vw, 14rem);
+  min-height: min(50vh, 18rem);
+}
+
+.preview-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.preview-media {
   display: block;
   width: auto;
   height: auto;

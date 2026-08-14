@@ -6,7 +6,7 @@ import { createApiResponseError, getErrorMessage } from "~/utils/apiError";
 
 export async function GetCollectionMigratedData(actId: number, onWarning?: (message: string) => void): Promise<DetailedData[]> {
     const ItemsArray: DetailedData[] = [];
-    const resp = await fetch(`/api/bili/collection/allLotteryId?act_id=${actId}`)
+    const resp = await fetch(`/api/bili/collection/allLotteryId?act_id=${actId}`, { cache: 'no-store' })
     if (!resp.ok) {
         throw await createApiResponseError(resp, '获取收藏集抽奖列表')
     }
@@ -48,7 +48,7 @@ export async function GetCollectionMigratedData(actId: number, onWarning?: (mess
 }
 
 async function GetLotteryDetails(lotteryId: number, actId: number, lotteryName: string, allowShared: boolean = false, onWarning?: (message: string) => void): Promise<DetailedData[]> {
-    const response = await fetch(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`)
+    const response = await fetch(`/api/bili/collection/collectLootInfo?act_id=${actId}&lottery_id=${lotteryId}`, { cache: 'no-store' })
     if (!response.ok) {
         throw await createApiResponseError(response, `获取抽奖 ${lotteryId} 明细`)
     }
@@ -142,7 +142,7 @@ async function ParseRedeemInfo(redeems: RedeemInfo[], lotteryId: number, onlySha
                 }
             case RedeemType.ANIMATED_EMOJI_PACKAGE:
             case RedeemType.STATIC_EMOJI_PACKAGE: {
-                const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`)
+                const data = await fetch(`/api/bili/suit/emojiPackageList?package_id=${redeem.ids[0]}`, { cache: 'no-store' })
                 if (!data.ok) {
                     throw await createApiResponseError(data, `获取表情包 ${redeem.ids[0]}`)
                 }
@@ -188,7 +188,7 @@ async function GetSuitMigratedData(partIds: number[], onWarning?: (message: stri
         return returnValue;
     }
     const idsParam = partIds.map(id => `ids=${id}`).join('&');
-    const resp = await fetch(`/api/bili/suit/suitComponents?${idsParam}`);
+    const resp = await fetch(`/api/bili/suit/suitComponents?${idsParam}`, { cache: 'no-store' });
     if (!resp.ok) {
         throw await createApiResponseError(resp, '获取主题组件');
     }

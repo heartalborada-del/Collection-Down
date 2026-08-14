@@ -47,8 +47,12 @@ export interface BilibiliTcpClientStats {
     connectionsOpened: number;
     requestsCompleted: number;
     activeConnection: BilibiliTcpConnectionInfo | null;
+    lastApiConnectionId: number | null;
     lastResponseConnectionId: number | null;
+    state: BilibiliTcpClientState;
 }
+
+export type BilibiliTcpClientState = 'idle' | 'reusable' | 'final-request' | 'closed';
 
 function waitForSecureConnection(socket: TLSSocket): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -242,7 +246,10 @@ export class BilibiliTcpClient {
     private queue: Promise<void> = Promise.resolve();
     private connectionId = 0;
     private requestsCompleted = 0;
+    private lastApiConnectionId: number | null = null;
     private lastResponseConnectionId: number | null = null;
+    private state: BilibiliTcpClientState = 'idle';
+    private finalRequestScheduled = false;
 
     private destroyConnection(): void {
         this.socket?.destroy();
@@ -250,10 +257,40 @@ export class BilibiliTcpClient {
         this.reader = undefined;
     }
 
-    private async ensureConnection(): Promise<void> {
-        if (this.socket && !this.socket.destroyed && this.socket.writable && this.reader) return;
-
+    private invalidateConnection(): void {
         this.destroyConnection();
+        if (this.state !== 'closed' && this.state !== 'final-request') {
+            this.state = 'idle';
+        }
+    }
+
+    private hasReusableConnection(): boolean {
+        const socket = this.socket;
+        return Boolean(
+            socket
+            && this.reader
+            && !socket.destroyed
+            && socket.readable
+            && !socket.readableEnded
+            && socket.writable
+            && !socket.writableEnded,
+        );
+    }
+
+    private assertNormalRequestAllowed(): void {
+        if (this.state === 'closed') {
+            throw new Error('Bilibili TCP client is permanently closed');
+        }
+        if (this.state === 'final-request') {
+            throw new Error('Bilibili TCP client is executing its final request');
+        }
+    }
+
+    private async ensureConnection(): Promise<void> {
+        this.assertNormalRequestAllowed();
+        if (this.state === 'reusable' && this.hasReusableConnection()) return;
+
+        this.invalidateConnection();
         const socket = connect({
             host: CONNECTION_ADDRESS,
             port: 443,
@@ -264,10 +301,20 @@ export class BilibiliTcpClient {
         socket.setTimeout(CONNECTION_TIMEOUT_MS, () => {
             socket.destroy(new Error('Bilibili TLS request timed out'));
         });
-        await waitForSecureConnection(socket);
         this.socket = socket;
-        this.reader = new Http1ResponseReader(socket);
-        this.connectionId++;
+        try {
+            await waitForSecureConnection(socket);
+            this.assertNormalRequestAllowed();
+            if (this.socket !== socket || !socket.readable || !socket.writable) {
+                throw new Error('Bilibili TLS connection became unavailable during setup');
+            }
+            this.reader = new Http1ResponseReader(socket);
+            this.connectionId++;
+        } catch (error) {
+            socket.destroy();
+            if (this.socket === socket) this.invalidateConnection();
+            throw error;
+        }
     }
 
     private getConnectionInfo(): BilibiliTcpConnectionInfo | null {
@@ -322,15 +369,32 @@ export class BilibiliTcpClient {
         return method;
     }
 
-    private async requestOnce(url: URL, init: RequestInit): Promise<ParsedHttpResponse> {
-        await this.ensureConnection();
+    private async requestOnce(
+        url: URL,
+        init: RequestInit,
+        existingConnectionOnly = false,
+    ): Promise<ParsedHttpResponse> {
+        if (existingConnectionOnly) {
+            if (this.state !== 'final-request' || !this.hasReusableConnection()) {
+                throw new Error('Bilibili final request requires an existing reusable TLS connection');
+            }
+        } else {
+            await this.ensureConnection();
+        }
         const method = await this.writeRequest(url, init);
         const reader = this.reader;
         if (!reader) throw new Error('Bilibili HTTP response reader is unavailable');
         const response = await reader.read(method);
         this.requestsCompleted++;
         this.lastResponseConnectionId = this.connectionId;
-        if (!response.reusable) this.destroyConnection();
+        if (url.hostname === 'api.bilibili.com') {
+            this.lastApiConnectionId = this.connectionId;
+        }
+        if (!response.reusable || !this.hasReusableConnection()) {
+            this.invalidateConnection();
+        } else if (!existingConnectionOnly) {
+            this.state = 'reusable';
+        }
         return response;
     }
 
@@ -343,19 +407,31 @@ export class BilibiliTcpClient {
                 return await this.requestOnce(url, init);
             } catch (error) {
                 lastError = error;
-                this.destroyConnection();
+                this.invalidateConnection();
             }
         }
         throw lastError;
     }
 
-    private async runFetch(input: string | URL, init: RequestInit): Promise<Response> {
+    private async runFetch(
+        input: string | URL,
+        init: RequestInit,
+        existingConnectionOnly = false,
+    ): Promise<Response> {
         let url = validateUrl(input);
+        if (existingConnectionOnly && url.hostname !== 'security.bilibili.com') {
+            throw new TypeError('Bilibili final request must target security.bilibili.com');
+        }
+        if (!existingConnectionOnly && url.hostname === 'security.bilibili.com') {
+            throw new TypeError('Requests to security.bilibili.com must use fetchFinal()');
+        }
         let requestInit = { ...init };
         let redirected = false;
 
         for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
-            const parsed = await this.requestWithRetry(url, requestInit);
+            const parsed = existingConnectionOnly
+                ? await this.requestOnce(url, requestInit, true)
+                : await this.requestWithRetry(url, requestInit);
             const location = parsed.headers.get('location');
             const redirectMode = requestInit.redirect ?? 'follow';
             if (!location || !shouldRedirect(parsed.status) || redirectMode === 'manual') {
@@ -381,6 +457,12 @@ export class BilibiliTcpClient {
             }
 
             url = validateUrl(new URL(location, url));
+            if (existingConnectionOnly && url.hostname !== 'security.bilibili.com') {
+                throw new TypeError('Bilibili final request redirect left security.bilibili.com');
+            }
+            if (!existingConnectionOnly && url.hostname === 'security.bilibili.com') {
+                throw new TypeError('Redirects to security.bilibili.com require fetchFinal()');
+            }
             redirected = true;
             const method = (requestInit.method ?? 'GET').toUpperCase();
             if (parsed.status === 303 || ((parsed.status === 301 || parsed.status === 302) && method === 'POST')) {
@@ -393,8 +475,46 @@ export class BilibiliTcpClient {
         throw new TypeError('Bilibili TCP request exceeded the redirect limit');
     }
 
+    private async runFinalFetch(input: string | URL, init: RequestInit): Promise<Response> {
+        try {
+            if (this.state === 'closed') {
+                throw new Error('Bilibili TCP client is permanently closed');
+            }
+            if (
+                this.state !== 'reusable'
+                || !this.hasReusableConnection()
+                || this.lastApiConnectionId !== this.connectionId
+            ) {
+                throw new Error('Bilibili final request requires a reusable TLS connection established by an API request');
+            }
+            this.state = 'final-request';
+            return await this.runFetch(input, init, true);
+        } finally {
+            this.close();
+        }
+    }
+
     fetch(input: string | URL, init: RequestInit = {}): Promise<Response> {
+        if (this.state === 'closed') {
+            return Promise.reject(new Error('Bilibili TCP client is permanently closed'));
+        }
+        if (this.finalRequestScheduled) {
+            return Promise.reject(new Error('Bilibili TCP client cannot accept requests after its final request'));
+        }
         const result = this.queue.then(() => this.runFetch(input, init));
+        this.queue = result.then(() => undefined, () => undefined);
+        return result;
+    }
+
+    fetchFinal(input: string | URL, init: RequestInit = {}): Promise<Response> {
+        if (this.state === 'closed') {
+            return Promise.reject(new Error('Bilibili TCP client is permanently closed'));
+        }
+        if (this.finalRequestScheduled) {
+            return Promise.reject(new Error('Bilibili TCP client final request was already scheduled'));
+        }
+        this.finalRequestScheduled = true;
+        const result = this.queue.then(() => this.runFinalFetch(input, init));
         this.queue = result.then(() => undefined, () => undefined);
         return result;
     }
@@ -404,11 +524,16 @@ export class BilibiliTcpClient {
             connectionsOpened: this.connectionId,
             requestsCompleted: this.requestsCompleted,
             activeConnection: this.getConnectionInfo(),
+            lastApiConnectionId: this.lastApiConnectionId,
             lastResponseConnectionId: this.lastResponseConnectionId,
+            state: this.state,
         };
     }
 
     close(): void {
+        if (this.state === 'closed') return;
+        this.finalRequestScheduled = true;
+        this.state = 'closed';
         this.destroyConnection();
     }
 }

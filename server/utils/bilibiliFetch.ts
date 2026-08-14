@@ -144,22 +144,23 @@ function applyManagedCookies(headers: Headers, fingerprint?: string, securityTok
 
 async function loadFingerprintCookie(
     traceId: string,
-    forceRefresh = false,
+    forceRequest = false,
     securityToken?: string,
     tcpClient?: BilibiliTcpClient,
 ): Promise<string | undefined> {
     if (!tcpClient) throw new Error('Bilibili TCP client is required');
     const cached = getCachedValue(cachedFingerprint);
-    if (!forceRefresh && cached) {
+    if (!forceRequest && cached) {
         return cached;
     }
     logBilibili('info', 'fingerprint_request_started', {
         traceId,
-        forceRefresh,
+        forceRequest,
+        hadCachedFingerprint: Boolean(cached),
     });
     try {
         const headers = mergeHeaders();
-        applyManagedCookies(headers, undefined, securityToken);
+        applyManagedCookies(headers, cached, securityToken);
         const response = await tcpClient.fetch(BILIBILI_FINGERPRINT_URL, {
             headers,
         });
@@ -184,16 +185,18 @@ async function loadFingerprintCookie(
             }
 
             const cookie = `buvid3=${buvid3}; buvid4=${buvid4}`;
-            cachedFingerprint = {
-                value: cookie,
-                expiresAt: Date.now() + FINGERPRINT_TTL_MS,
-            };
-            logBilibili('info', 'fingerprint_refreshed', {
+            if (!cached) {
+                cachedFingerprint = {
+                    value: cookie,
+                    expiresAt: Date.now() + FINGERPRINT_TTL_MS,
+                };
+            }
+            logBilibili('info', cached ? 'fingerprint_connection_primed' : 'fingerprint_refreshed', {
                 traceId,
                 status: response.status,
                 ttlSeconds: FINGERPRINT_TTL_MS / 1000,
             });
-        return cookie;
+        return cached ?? cookie;
     } catch (error) {
         logBilibili('warn', 'fingerprint_error', {
             traceId,
@@ -207,9 +210,7 @@ async function loadWbiKeys(
     traceId: string,
     fingerprintCookie?: string,
     securityToken?: string,
-    tcpClient?: BilibiliTcpClient,
 ): Promise<WbiKeys | undefined> {
-    if (!tcpClient) throw new Error('Bilibili TCP client is required');
     const cached = getCachedValue(cachedWbiKeys);
     if (cached) {
         return cached;
@@ -218,7 +219,8 @@ async function loadWbiKeys(
     try {
         const headers = mergeHeaders();
         applyManagedCookies(headers, fingerprintCookie, securityToken);
-        const response = await tcpClient.fetch(BILIBILI_WBI_NAV_URL, { headers });
+        // WBI traffic is independent of the short-lived API -> Security socket.
+        const response = await fetch(BILIBILI_WBI_NAV_URL, { headers });
             if (!response.ok) {
                 logBilibili('warn', 'wbi_keys_response', {
                     traceId,
@@ -298,9 +300,7 @@ function getChallengeResponseDetails(response: Response, token?: string): Record
 async function requestSecurityChallengeToken(
     traceId: string,
     fingerprintCookie?: string,
-    tcpClient?: BilibiliTcpClient,
 ): Promise<string | undefined> {
-    if (!tcpClient) throw new Error('Bilibili TCP client is required');
     const headers = mergeHeaders({
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -318,7 +318,7 @@ async function requestSecurityChallengeToken(
     });
 
     try {
-        const response = await tcpClient.fetch(BILIBILI_CHALLENGE_PAGE_URL, {
+        const response = await fetch(BILIBILI_CHALLENGE_PAGE_URL, {
             headers,
             redirect: 'manual',
         });
@@ -435,12 +435,19 @@ export async function verifyBilibiliPowChallenge(
 
     const activeRuntime = runtime ?? createBilibiliFetchRuntime();
     try {
-        const fingerprintCookie = getCachedValue(cachedFingerprint)
-            ?? await loadFingerprintCookie(traceId, false, undefined, activeRuntime.tcpClient);
+        const cachedFingerprintCookie = getCachedValue(cachedFingerprint);
+        // Prime this verification's dedicated socket even when the fingerprint is cached.
+        const refreshedFingerprintCookie = await loadFingerprintCookie(
+            traceId,
+            true,
+            undefined,
+            activeRuntime.tcpClient,
+        );
+        const fingerprintCookie = refreshedFingerprintCookie ?? cachedFingerprintCookie;
         const headers = mergeHeaders();
         applyManagedCookies(headers, fingerprintCookie, `3,${token}`);
         headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
-        const response = await activeRuntime.tcpClient.fetch(BILIBILI_CAPTCHA_URL, {
+        const response = await activeRuntime.tcpClient.fetchFinal(BILIBILI_CAPTCHA_URL, {
             method: 'POST',
             headers,
             body: new URLSearchParams({ token, result: String(result) }),
@@ -556,7 +563,7 @@ export async function fetchBilibiliApi(
     const isGetRequest = !init.method || init.method.toUpperCase() === 'GET';
     const availableWbiKeys = isGetRequest
         ? getCachedValue(cachedWbiKeys)
-            ?? await loadWbiKeys(traceId, cachedFingerprintCookie, cachedToken, runtime.tcpClient)
+            ?? await loadWbiKeys(traceId, cachedFingerprintCookie, cachedToken)
         : undefined;
     const requestInput = availableWbiKeys
         ? signWbiUrl(input, availableWbiKeys)
@@ -577,7 +584,8 @@ export async function fetchBilibiliApi(
 
     let response: Response;
     try {
-        response = await runtime.tcpClient.fetch(requestInput, { ...init, headers });
+        // Ordinary API traffic uses the platform fetch path and never shares the Security socket.
+        response = await fetch(requestInput, { ...init, headers });
     } catch (error) {
         logBilibili('warn', 'request_error', {
             traceId,
@@ -607,7 +615,7 @@ export async function fetchBilibiliApi(
     });
 
     const challengeToken = responseChallengeToken
-        ?? await requestSecurityChallengeToken(traceId, cachedFingerprintCookie, runtime.tcpClient);
+        ?? await requestSecurityChallengeToken(traceId, cachedFingerprintCookie);
     if (!challengeToken) {
         logBilibili('warn', 'challenge_missing', { traceId, endpoint });
         return response;

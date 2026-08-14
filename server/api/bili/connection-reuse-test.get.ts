@@ -32,10 +32,11 @@ export default defineEventHandler(async (event) => {
             'https://api.bilibili.com/x/frontend/finger/spi',
             { headers },
         );
-        const apiConnectionId = client.getStats().lastResponseConnectionId;
+        const apiStats = client.getStats();
+        const apiConnectionId = apiStats.lastResponseConnectionId;
         const apiSummary = await summarizeResponse(apiResponse);
 
-        const securityResponse = await client.fetch(
+        const securityResponse = await client.fetchFinal(
             'https://security.bilibili.com/robots.txt',
             { headers },
         );
@@ -45,8 +46,11 @@ export default defineEventHandler(async (event) => {
 
         return {
             ok: true,
-            sameSocket: apiConnectionId !== null && apiConnectionId === securityConnectionId,
-            connection: stats.activeConnection,
+            sameSocket: apiConnectionId !== null
+                && apiConnectionId === securityConnectionId
+                && apiConnectionId === stats.lastApiConnectionId,
+            finalClosed: stats.state === 'closed' && stats.activeConnection === null,
+            connection: apiStats.activeConnection,
             connectionsOpened: stats.connectionsOpened,
             requestsCompleted: stats.requestsCompleted,
             requests: [

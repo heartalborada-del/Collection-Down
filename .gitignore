@@ -1,5 +1,6 @@
 # Nuxt dev/build outputs
 .output
+.netlify
 .data
 .nuxt
 .nitro

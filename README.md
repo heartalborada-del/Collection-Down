@@ -48,3 +48,10 @@ yarn desktop:dist
 ```
 
 Desktop dependencies are isolated in `desktop/package.json` and are installed only by desktop commands. Web deployment platforms therefore do not download Electron or `electron-builder` during their root dependency installation.
+
+Web deployment is handled by [`.github/workflows/web-deploy.yml`](.github/workflows/web-deploy.yml). Add the following GitHub Actions secrets to enable each target:
+
+- EdgeOne Makers: `EDGEONE_PROJECT_NAME`, `EDGEONE_API_TOKEN`
+- Netlify: `NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`
+
+The workflow builds and uploads through the platform CLIs, so the EdgeOne and Netlify dashboard build hooks should be disabled to avoid duplicate builds.

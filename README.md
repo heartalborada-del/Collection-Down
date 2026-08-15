@@ -54,6 +54,6 @@ Web deployment is handled by [`.github/workflows/web-deploy.yml`](.github/workfl
 - EdgeOne Makers: `EDGEONE_PROJECT_NAME`, `EDGEONE_API_TOKEN`
 - Netlify: `NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`
 
-Application variables are platform-specific as well. Use the corresponding prefix for each target: `EDGEONE_GITHUB_RAW_ENDPOINT`, `EDGEONE_UMAMI_ENABLED`, `EDGEONE_UMAMI_HOST`, `EDGEONE_UMAMI_ID`, `EDGEONE_UMAMI_TAG`, `EDGEONE_DEV_MODE`, or the equivalent `NETLIFY_*` names. These are exposed to that platform's build and runtime bundle only.
+Application variables are shared by both targets: `GITHUB_RAW_ENDPOINT`, `UMAMI_ENABLED`, `UMAMI_HOST`, `UMAMI_ID`, `UMAMI_TAG`, and `DEV_MODE`. EdgeOne additionally receives `EDGEONE_COMPATIBILITY=true` by default; set the `EDGEONE_COMPATIBILITY` Secret only when the EdgeOne project requires another value.
 
 The workflow builds and uploads through the platform CLIs, so the EdgeOne and Netlify dashboard build hooks should be disabled to avoid duplicate builds.

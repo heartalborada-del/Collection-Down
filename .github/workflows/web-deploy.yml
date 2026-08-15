@@ -19,12 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      GITHUB_RAW_ENDPOINT: ${{ secrets.EDGEONE_GITHUB_RAW_ENDPOINT }}
-      UMAMI_ENABLED: ${{ secrets.EDGEONE_UMAMI_ENABLED }}
-      UMAMI_HOST: ${{ secrets.EDGEONE_UMAMI_HOST }}
-      UMAMI_ID: ${{ secrets.EDGEONE_UMAMI_ID }}
-      UMAMI_TAG: ${{ secrets.EDGEONE_UMAMI_TAG }}
-      DEV_MODE: ${{ secrets.EDGEONE_DEV_MODE }}
+      GITHUB_RAW_ENDPOINT: ${{ secrets.GITHUB_RAW_ENDPOINT }}
+      UMAMI_ENABLED: ${{ secrets.UMAMI_ENABLED }}
+      UMAMI_HOST: ${{ secrets.UMAMI_HOST }}
+      UMAMI_ID: ${{ secrets.UMAMI_ID }}
+      UMAMI_TAG: ${{ secrets.UMAMI_TAG }}
+      DEV_MODE: ${{ secrets.DEV_MODE }}
+      EDGEONE_COMPATIBILITY: ${{ secrets.EDGEONE_COMPATIBILITY || 'true' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -50,12 +51,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      GITHUB_RAW_ENDPOINT: ${{ secrets.NETLIFY_GITHUB_RAW_ENDPOINT }}
-      UMAMI_ENABLED: ${{ secrets.NETLIFY_UMAMI_ENABLED }}
-      UMAMI_HOST: ${{ secrets.NETLIFY_UMAMI_HOST }}
-      UMAMI_ID: ${{ secrets.NETLIFY_UMAMI_ID }}
-      UMAMI_TAG: ${{ secrets.NETLIFY_UMAMI_TAG }}
-      DEV_MODE: ${{ secrets.NETLIFY_DEV_MODE }}
+      GITHUB_RAW_ENDPOINT: ${{ secrets.GITHUB_RAW_ENDPOINT }}
+      UMAMI_ENABLED: ${{ secrets.UMAMI_ENABLED }}
+      UMAMI_HOST: ${{ secrets.UMAMI_HOST }}
+      UMAMI_ID: ${{ secrets.UMAMI_ID }}
+      UMAMI_TAG: ${{ secrets.UMAMI_TAG }}
+      DEV_MODE: ${{ secrets.DEV_MODE }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

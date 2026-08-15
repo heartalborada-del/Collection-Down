@@ -35,7 +35,11 @@ export default defineEventHandler(async (event) => {
         );
     if (!verification.ok) {
         setResponseStatus(event, verification.status);
-        return new ApiResponse<null>(-1, verification.message);
+        return new ApiResponse<{ retryable: boolean }>(
+            -1,
+            verification.message,
+            { retryable: verification.retryable === true },
+        );
     }
 
     setCookie(event, BILIBILI_SECURITY_COOKIE, verification.securityToken, {

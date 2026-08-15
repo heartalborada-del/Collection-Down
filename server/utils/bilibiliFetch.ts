@@ -12,6 +12,7 @@ import { BilibiliTcpClient } from "~~/server/utils/bilibiliTcpFetch";
 
 const BILIBILI_FINGERPRINT_URL = 'https://api.bilibili.com/x/frontend/finger/spi';
 const BILIBILI_WBI_NAV_URL = 'https://api.bilibili.com/x/web-interface/nav';
+const BILIBILI_CHALLENGE_PAGE_URL = 'https://www.bilibili.com/video/BV1GJ411x7h7';
 const BILIBILI_CAPTCHA_URL = 'https://security.bilibili.com/th/captcha/cc/check';
 const FINGERPRINT_TTL_MS = 6 * 60 * 60 * 1000;
 const SECURITY_TOKEN_TTL_MS = 30 * 60 * 1000;
@@ -343,6 +344,34 @@ function getChallengeResponseDetails(response: Response, token?: string): Record
     };
 }
 
+async function requestSecurityChallengeToken(
+    traceId: string,
+    fingerprintCookie: string | undefined,
+    client: BilibiliTcpClient,
+): Promise<string | undefined> {
+    const headers = mergeHeaders({
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+    });
+    headers.delete('origin');
+    applyManagedCookies(headers, fingerprintCookie);
+    const response = await client.fetch(BILIBILI_CHALLENGE_PAGE_URL, {
+        headers,
+    });
+    const token = extractSecurityToken(response);
+    logBilibili(token ? 'info' : 'warn', 'challenge_page_response', {
+        traceId,
+        sameConnectionId: client.getStats().lastApiConnectionId === client.getStats().lastResponseConnectionId,
+        ...getChallengeResponseDetails(response, token),
+    });
+    return token;
+}
+
 function decodeCaptchaPayload(token: string): CaptchaPayload | undefined {
     if (token.length === 0 || token.length > 8192) {
         return undefined;
@@ -433,17 +462,27 @@ async function createCachedPowResponse(
     try {
         const apiResponse = await client.fetch(apiUrl, { ...init, headers });
         // BilibiliTcpClient resolves only after its parser has buffered the complete response.
-        const token = extractSecurityToken(apiResponse);
-        logBilibili(token ? 'info' : 'warn', 'challenge_connection_created', {
+        const apiToken = extractSecurityToken(apiResponse);
+        logBilibili(apiToken ? 'info' : 'warn', 'challenge_api_response', {
             traceId,
             endpoint: getEndpoint(apiUrl),
-            ...getChallengeResponseDetails(apiResponse, token),
+            ...getChallengeResponseDetails(apiResponse, apiToken),
             connectionId: client.getStats().lastApiConnectionId,
         });
+        const token = apiToken
+            ?? (apiResponse.status === 412
+                ? await requestSecurityChallengeToken(traceId, fingerprintCookie, client)
+                : undefined);
         if (!token) {
             client.close();
-            return undefined;
+            return apiResponse;
         }
+        logBilibili('info', 'challenge_connection_created', {
+            traceId,
+            endpoint: getEndpoint(apiUrl),
+            connectionId: client.getStats().lastApiConnectionId,
+            requestsCompleted: client.getStats().requestsCompleted,
+        });
         const response = createClientPowResponse(token, apiUrl, client, fingerprintCookie);
         if (!response) client.close();
         return response;
@@ -688,10 +727,18 @@ export async function fetchBilibiliApi(
     } catch {
         // The client receives a synthetic challenge response instead of the rejected body.
     }
-    logBilibili('info', 'challenge_delegated', {
-        traceId,
-        endpoint,
-        maxConnectionTtlSeconds: POW_REQUEST_CONTEXT_TTL_MS / 1000,
-    });
+    if (isBilibiliPowChallengeResponse(clientResponse)) {
+        logBilibili('info', 'challenge_delegated', {
+            traceId,
+            endpoint,
+            maxConnectionTtlSeconds: POW_REQUEST_CONTEXT_TTL_MS / 1000,
+        });
+    } else {
+        logBilibili('info', 'challenge_replay_completed', {
+            traceId,
+            endpoint,
+            status: clientResponse.status,
+        });
+    }
     return clientResponse;
 }

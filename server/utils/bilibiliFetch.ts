@@ -12,13 +12,12 @@ import { BilibiliTcpClient } from "~~/server/utils/bilibiliTcpFetch";
 
 const BILIBILI_FINGERPRINT_URL = 'https://api.bilibili.com/x/frontend/finger/spi';
 const BILIBILI_WBI_NAV_URL = 'https://api.bilibili.com/x/web-interface/nav';
-const BILIBILI_CHALLENGE_PAGE_URL = 'https://www.bilibili.com/video/BV1GJ411x7h7';
 const BILIBILI_CAPTCHA_URL = 'https://security.bilibili.com/th/captcha/cc/check';
 const FINGERPRINT_TTL_MS = 6 * 60 * 60 * 1000;
 const SECURITY_TOKEN_TTL_MS = 30 * 60 * 1000;
 const WBI_KEY_TTL_MS = 60 * 60 * 1000;
 const POW_REQUEST_CONTEXT_TTL_MS = 10 * 60 * 1000;
-const MAX_POW_REQUEST_CONTEXTS = 1024;
+const MAX_POW_REQUEST_CONTEXTS = 64;
 const BILIBILI_POW_RESPONSE_HEADER = 'x-collection-down-bilibili-pow';
 
 export const BILIBILI_SECURITY_COOKIE = 'collection_down_bili_sec';
@@ -61,9 +60,11 @@ interface CachedValue<T = string> {
 
 interface PowRequestContext {
     apiUrl: string;
+    client: BilibiliTcpClient;
     fingerprintCookie?: string;
     token: string;
     expiresAt: number;
+    timeout: ReturnType<typeof setTimeout>;
 }
 
 export interface BilibiliFetchRuntime {
@@ -130,30 +131,40 @@ function getCachedValue<T>(cached: CachedValue<T> | undefined): T | undefined {
 
 function prunePowRequestContexts(now = Date.now()): void {
     for (const [id, context] of pendingPowRequests) {
-        if (context.expiresAt <= now) pendingPowRequests.delete(id);
+        if (context.expiresAt <= now) discardPowRequestContext(id);
     }
     while (pendingPowRequests.size >= MAX_POW_REQUEST_CONTEXTS) {
         const oldestId = pendingPowRequests.keys().next().value;
         if (typeof oldestId !== 'string') break;
-        pendingPowRequests.delete(oldestId);
+        discardPowRequestContext(oldestId);
     }
+}
+
+function discardPowRequestContext(id: string): void {
+    const context = pendingPowRequests.get(id);
+    if (!context) return;
+    pendingPowRequests.delete(id);
+    clearTimeout(context.timeout);
+    context.client.close();
 }
 
 function cachePowRequestContext(
     token: string,
-    input: string | URL,
+    apiUrl: string | URL,
+    client: BilibiliTcpClient,
     fingerprintCookie?: string,
-): string | undefined {
-    const url = new URL(input);
-    if (url.protocol !== 'https:' || url.hostname !== 'api.bilibili.com') return undefined;
-
+): string {
     prunePowRequestContexts();
     const id = crypto.randomUUID();
+    const timeout = setTimeout(() => discardPowRequestContext(id), POW_REQUEST_CONTEXT_TTL_MS);
+    if (typeof timeout === 'object' && 'unref' in timeout) timeout.unref();
     pendingPowRequests.set(id, {
-        apiUrl: url.toString(),
+        apiUrl: new URL(apiUrl).toString(),
+        client,
         fingerprintCookie,
         token,
         expiresAt: Date.now() + POW_REQUEST_CONTEXT_TTL_MS,
+        timeout,
     });
     return id;
 }
@@ -163,6 +174,7 @@ function consumePowRequestContext(id: string, token: string): PowRequestContext 
     const context = pendingPowRequests.get(id);
     if (!context || context.token !== token) return undefined;
     pendingPowRequests.delete(id);
+    clearTimeout(context.timeout);
     return context;
 }
 
@@ -330,51 +342,6 @@ function getChallengeResponseDetails(response: Response, token?: string): Record
     };
 }
 
-async function requestSecurityChallengeToken(
-    traceId: string,
-    fingerprintCookie?: string,
-): Promise<string | undefined> {
-    const headers = mergeHeaders({
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'sec-fetch-dest': 'document',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'none',
-        'sec-fetch-user': '?1',
-        'upgrade-insecure-requests': '1',
-    });
-    headers.delete('origin');
-    applyManagedCookies(headers, fingerprintCookie);
-    logBilibili('info', 'challenge_page_request_started', {
-        traceId,
-        usedFingerprint: Boolean(fingerprintCookie),
-    });
-
-    try {
-        const response = await fetch(BILIBILI_CHALLENGE_PAGE_URL, {
-            headers,
-            redirect: 'manual',
-        });
-        const token = extractSecurityToken(response);
-        logBilibili(token ? 'info' : 'warn', 'challenge_page_response', {
-            traceId,
-            ...getChallengeResponseDetails(response, token),
-        });
-        try {
-            await response.body?.cancel();
-        } catch {
-            // Only the response headers are needed for the security challenge.
-        }
-        return token;
-    } catch (error) {
-        logBilibili('warn', 'challenge_page_error', {
-            traceId,
-            errorType: error instanceof Error ? error.name : 'UnknownError',
-        });
-        return undefined;
-    }
-}
-
 function decodeCaptchaPayload(token: string): CaptchaPayload | undefined {
     if (token.length === 0 || token.length > 8192) {
         return undefined;
@@ -427,12 +394,13 @@ function parsePowChallenge(token: string): ParsedPowChallenge | undefined {
 function createClientPowResponse(
     token: string,
     apiUrl: string | URL,
+    client: BilibiliTcpClient,
     fingerprintCookie?: string,
 ): Response | undefined {
     const challenge = parsePowChallenge(token);
     if (!challenge) return undefined;
-    const id = cachePowRequestContext(token, apiUrl, fingerprintCookie);
-    if (!id) return undefined;
+    client.holdForFinalRequest(POW_REQUEST_CONTEXT_TTL_MS);
+    const id = cachePowRequestContext(token, apiUrl, client, fingerprintCookie);
     return Response.json(
         new ApiResponse<BilibiliPowChallenge>(
             BILIBILI_POW_REQUIRED_CODE,
@@ -447,6 +415,42 @@ function createClientPowResponse(
             },
         },
     );
+}
+
+async function createCachedPowResponse(
+    traceId: string,
+    apiUrl: string | URL,
+    init: RequestInit,
+    headers: Headers,
+    fingerprintCookie?: string,
+): Promise<Response | undefined> {
+    const client = new BilibiliTcpClient();
+    try {
+        const apiResponse = await client.fetch(apiUrl, { ...init, headers });
+        await apiResponse.arrayBuffer();
+        const token = extractSecurityToken(apiResponse);
+        logBilibili(token ? 'info' : 'warn', 'challenge_connection_created', {
+            traceId,
+            endpoint: getEndpoint(apiUrl),
+            ...getChallengeResponseDetails(apiResponse, token),
+            connectionId: client.getStats().lastApiConnectionId,
+        });
+        if (!token) {
+            client.close();
+            return undefined;
+        }
+        const response = createClientPowResponse(token, apiUrl, client, fingerprintCookie);
+        if (!response) client.close();
+        return response;
+    } catch (error) {
+        client.close();
+        logBilibili('warn', 'challenge_connection_error', {
+            traceId,
+            endpoint: getEndpoint(apiUrl),
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+        });
+        return undefined;
+    }
 }
 
 function isPowResultInRange(challenge: ParsedPowChallenge, result: number): boolean {
@@ -481,21 +485,15 @@ export async function verifyBilibiliPowChallenge(
     }
 
     const activeRuntime = runtime ?? createBilibiliFetchRuntime();
+    activeRuntime.tcpClient.close();
+    activeRuntime.tcpClient = requestContext.client;
     try {
-        const apiHeaders = mergeHeaders();
-        applyManagedCookies(apiHeaders, requestContext.fingerprintCookie);
-        const apiResponse = await activeRuntime.tcpClient.fetch(requestContext.apiUrl, {
-            headers: apiHeaders,
-            redirect: 'manual',
-        });
-        await apiResponse.arrayBuffer();
-        logBilibili('info', 'challenge_connection_primed', {
+        logBilibili('info', 'challenge_connection_resumed', {
             traceId,
             challengeId,
             endpoint: getEndpoint(requestContext.apiUrl),
-            status: apiResponse.status,
+            connectionId: activeRuntime.tcpClient.getStats().lastApiConnectionId,
         });
-
         const headers = mergeHeaders();
         applyManagedCookies(headers, requestContext.fingerprintCookie, `3,${token}`);
         headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
@@ -668,19 +666,15 @@ export async function fetchBilibiliApi(
         ...getChallengeResponseDetails(response, responseChallengeToken),
     });
 
-    const challengeToken = responseChallengeToken
-        ?? await requestSecurityChallengeToken(traceId, cachedFingerprintCookie);
-    if (!challengeToken) {
-        logBilibili('warn', 'challenge_missing', { traceId, endpoint });
-        return response;
-    }
-    const clientResponse = createClientPowResponse(
-        challengeToken,
+    const clientResponse = await createCachedPowResponse(
+        traceId,
         requestInput,
+        init,
+        headers,
         cachedFingerprintCookie,
     );
     if (!clientResponse) {
-        logBilibili('warn', 'challenge_invalid', { traceId, endpoint });
+        logBilibili('warn', 'challenge_connection_unavailable', { traceId, endpoint });
         return response;
     }
 
@@ -692,7 +686,7 @@ export async function fetchBilibiliApi(
     logBilibili('info', 'challenge_delegated', {
         traceId,
         endpoint,
-        expiresAt: parsePowChallenge(challengeToken)?.expiresAt ?? null,
+        connectionTtlSeconds: POW_REQUEST_CONTEXT_TTL_MS / 1000,
     });
     return clientResponse;
 }

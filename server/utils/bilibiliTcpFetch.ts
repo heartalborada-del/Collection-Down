@@ -487,6 +487,7 @@ export class BilibiliTcpClient {
             ) {
                 throw new Error('Bilibili final request requires a reusable TLS connection established by an API request');
             }
+            this.socket?.setTimeout(CONNECTION_TIMEOUT_MS);
             this.state = 'final-request';
             return await this.runFetch(input, init, true);
         } finally {
@@ -517,6 +518,20 @@ export class BilibiliTcpClient {
         const result = this.queue.then(() => this.runFinalFetch(input, init));
         this.queue = result.then(() => undefined, () => undefined);
         return result;
+    }
+
+    holdForFinalRequest(timeoutMs: number): void {
+        if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+            throw new TypeError('Bilibili final request timeout must be a positive integer');
+        }
+        if (
+            this.state !== 'reusable'
+            || !this.hasReusableConnection()
+            || this.lastApiConnectionId !== this.connectionId
+        ) {
+            throw new Error('Bilibili final request wait requires a reusable TLS connection established by an API request');
+        }
+        this.socket?.setTimeout(timeoutMs);
     }
 
     getStats(): BilibiliTcpClientStats {

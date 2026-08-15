@@ -12,9 +12,10 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   stepChange: [index: number]
+  openChange: [open: boolean]
 }>()
 
-const { requestedTour } = useOnboardingTour()
+const { requestedTour, activeTour } = useOnboardingTour()
 const open = ref(false)
 const currentIndex = ref(0)
 const panel = ref<HTMLElement | null>(null)
@@ -76,8 +77,12 @@ async function updateTarget() {
 }
 
 async function startTour() {
+  if (props.steps.length === 0) return
+
+  activeTour.value = props.tourId
   currentIndex.value = 0
   open.value = true
+  emit('openChange', true)
   emit('stepChange', currentIndex.value)
   await nextTick()
   await updateTarget()
@@ -87,6 +92,8 @@ function closeTour(completed: boolean) {
   if (completed) localStorage.setItem(storageKey.value, 'completed')
   open.value = false
   targetRect.value = null
+  if (activeTour.value === props.tourId) activeTour.value = null
+  emit('openChange', false)
 }
 
 async function previousStep() {
@@ -119,6 +126,11 @@ watch(requestedTour, async (tourId) => {
   await startTour()
 })
 
+watch(activeTour, (tourId) => {
+  if (!open.value || tourId === props.tourId) return
+  closeTour(false)
+})
+
 onMounted(() => {
   window.addEventListener('resize', refreshTarget, { passive: true })
   window.addEventListener('scroll', refreshTarget, { passive: true, capture: true })
@@ -126,6 +138,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (open.value) closeTour(false)
   window.removeEventListener('resize', refreshTarget)
   window.removeEventListener('scroll', refreshTarget, { capture: true })
 })

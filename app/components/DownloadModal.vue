@@ -94,6 +94,7 @@ function getDownloadTypeLabel(item: unknown): string {
 }
 
 const step = ref(1);
+const downloadTourOpen = ref(false);
 const downloader = ref<Downloader | null>(null);
 const downloadProgress = ref<Map<string, number>>(new Map());
 const downloadErrors = ref<Map<string, string>>(new Map());
@@ -407,7 +408,7 @@ onBeforeUnmount(() => {
   <div>
     <UModal
       :open="open"
-      :dismissible="!isBusy"
+      :dismissible="!isBusy && !downloadTourOpen"
       :close="!isBusy"
       :ui="{
         content: 'max-w-3xl',
@@ -638,7 +639,12 @@ onBeforeUnmount(() => {
         </div>
       </template>
     </UModal>
-    <OnboardingTour v-if="open && step === 1" tour-id="download" :steps="onboardingSteps" />
+    <OnboardingTour
+      v-if="open && step === 1"
+      tour-id="download"
+      :steps="onboardingSteps"
+      @open-change="downloadTourOpen = $event"
+    />
   </div>
 </template>
 

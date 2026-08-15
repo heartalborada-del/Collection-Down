@@ -6,6 +6,17 @@
   "license": "MIT",
   "type": "module",
   "main": "main.mjs",
+  "scripts": {
+    "dist": "electron-builder --projectDir .",
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "43.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "resolutions": {
+    "tar": "^7.5.22"
+  },
   "build": {
     "appId": "top.griseo.collection-down",
     "productName": "Collection Down",

@@ -5,8 +5,9 @@
   "scripts": {
     "build": "nuxt build",
     "build:cloudflare": "nuxt build --preset cloudflare-module",
-    "desktop:dist": "yarn build && electron-builder --projectDir desktop",
-    "desktop:start": "yarn build && electron desktop",
+    "desktop:install": "yarn --cwd desktop install --frozen-lockfile",
+    "desktop:dist": "yarn build && yarn desktop:install && yarn --cwd desktop dist",
+    "desktop:start": "yarn build && yarn desktop:install && yarn --cwd desktop start",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -44,8 +45,6 @@
     "@types/object-hash": "^3.0.6",
     "@types/papaparse": "^5.5.2",
     "@types/upng-js": "^2.1.5",
-    "electron": "43.2.0",
-    "electron-builder": "^26.15.3",
     "vue-tsc": "^3.3.9"
   },
   "resolutions": {

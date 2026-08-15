@@ -50,9 +50,15 @@ jobs:
         with:
           node-version: 22
           cache: yarn
+          cache-dependency-path: |
+            yarn.lock
+            desktop/yarn.lock
 
-      - name: Install dependencies
+      - name: Install web dependencies
         run: yarn install --frozen-lockfile
+
+      - name: Install desktop dependencies
+        run: yarn --cwd desktop install --frozen-lockfile
 
       - name: Use tag as desktop version
         if: github.ref_type == 'tag'
@@ -64,7 +70,7 @@ jobs:
         run: yarn build
 
       - name: Package desktop application
-        run: yarn electron-builder --projectDir desktop ${{ matrix.args }}
+        run: yarn --cwd desktop electron-builder --projectDir . ${{ matrix.args }}
 
       - name: Upload desktop package
         uses: actions/upload-artifact@v4

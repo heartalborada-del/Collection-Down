@@ -46,3 +46,5 @@ Tags matching `v*` also publish the packages to GitHub Releases. To build the cu
 ```bash
 yarn desktop:dist
 ```
+
+Desktop dependencies are isolated in `desktop/package.json` and are installed only by desktop commands. Web deployment platforms therefore do not download Electron or `electron-builder` during their root dependency installation.

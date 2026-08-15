@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "build:cloudflare": "nuxt build --preset cloudflare-module",
+    "build:netlify": "nuxt build --preset netlify",
     "desktop:install": "yarn --cwd desktop install --frozen-lockfile",
     "desktop:dist": "yarn build && yarn desktop:install && yarn --cwd desktop dist",
     "desktop:start": "yarn build && yarn desktop:install && yarn --cwd desktop start",

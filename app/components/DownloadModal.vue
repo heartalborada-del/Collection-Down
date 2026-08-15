@@ -95,6 +95,7 @@ function getDownloadTypeLabel(item: unknown): string {
 
 const step = ref(1);
 const downloadTourOpen = ref(false);
+const mobileFileListOpen = ref(false);
 const downloader = ref<Downloader | null>(null);
 const downloadProgress = ref<Map<string, number>>(new Map());
 const downloadErrors = ref<Map<string, string>>(new Map());
@@ -107,6 +108,7 @@ let downloadRunId = 0;
 watch([() => props.open, () => props.fileMetadatas], ([open, files]) => {
     if (open) {
         step.value = 1;
+        mobileFileListOpen.value = false;
         saving.value = false;
         refreshingLinks.value = false;
         availableFiles.value = [...files];
@@ -504,6 +506,41 @@ onBeforeUnmount(() => {
                 </span>
               </template>
             </UCheckboxGroup>
+          </section>
+
+          <section class="lg:hidden">
+            <UButton
+              class="w-full justify-between"
+              color="neutral"
+              variant="outline"
+              icon="i-mdi-format-list-bulleted"
+              :trailing-icon="mobileFileListOpen ? 'i-mdi-chevron-up' : 'i-mdi-chevron-down'"
+              :label="`查看将要下载的内容（${fileList.length}）`"
+              :aria-expanded="mobileFileListOpen"
+              @click="mobileFileListOpen = !mobileFileListOpen"
+            />
+            <div
+              v-if="mobileFileListOpen"
+              class="mt-2 max-h-64 divide-y divide-default overflow-y-auto border-y border-default"
+            >
+              <div
+                v-for="file in fileList"
+                :key="file.filename"
+                class="flex min-w-0 items-center gap-2 px-2 py-2.5"
+              >
+                <UIcon name="i-mdi-file-outline" class="size-4 shrink-0 text-muted" />
+                <div class="min-w-0 flex-1" :title="file.filename">
+                  <p class="truncate text-sm font-medium">{{ getFileDisplayName(file) }}</p>
+                  <p class="truncate text-xs text-muted">{{ file.filename }}</p>
+                </div>
+                <UBadge color="neutral" variant="outline" size="sm" class="max-w-28 shrink-0">
+                  {{ ItemType.toString(file.type) }}
+                </UBadge>
+              </div>
+              <p v-if="fileList.length === 0" class="px-2 py-4 text-center text-sm text-muted">
+                当前格式设置下没有可下载文件
+              </p>
+            </div>
           </section>
 
           <div class="flex items-center gap-3 border-y border-default bg-elevated/50 px-3 py-3">

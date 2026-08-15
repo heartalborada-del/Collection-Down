@@ -304,7 +304,7 @@ watch([previewOpen, previewVideoUrl], () => {
   object-fit: contain;
 }
 
-@media (hover: none), (any-pointer: coarse) {
+@media (max-width: 1023px), (hover: none), (any-pointer: coarse) {
   .touch-preview-button {
     display: grid;
   }

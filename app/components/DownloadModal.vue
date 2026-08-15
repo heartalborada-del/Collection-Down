@@ -7,6 +7,7 @@ import { ItemType } from '~~/types/api/enum';
 import type { DownloadMetaData } from '~~/types/api/inner/types';
 import { CollectionCardDownloadType } from '~~/types/collection';
 import { getErrorMessage } from '~/utils/apiError';
+import type { TreeItem } from '@nuxt/ui';
 
 const store = useDownloadSettingStore();
 const toast = useToast();
@@ -46,6 +47,7 @@ const onboardingSteps = [
 const props = defineProps<{
     open: boolean;
     fileMetadatas: DownloadMetaData[];
+    selectionTree?: TreeItem[];
     refreshFileMetadatas?: () => Promise<DownloadMetaData[]>;
 }>();
 
@@ -94,6 +96,8 @@ function getDownloadTypeLabel(item: unknown): string {
 }
 
 const step = ref(1);
+const downloadTourOpen = ref(false);
+const mobileFileListOpen = ref(false);
 const downloader = ref<Downloader | null>(null);
 const downloadProgress = ref<Map<string, number>>(new Map());
 const downloadErrors = ref<Map<string, string>>(new Map());
@@ -106,6 +110,7 @@ let downloadRunId = 0;
 watch([() => props.open, () => props.fileMetadatas], ([open, files]) => {
     if (open) {
         step.value = 1;
+        mobileFileListOpen.value = false;
         saving.value = false;
         refreshingLinks.value = false;
         availableFiles.value = [...files];
@@ -134,6 +139,12 @@ function shouldIncludeInFileList(file: DownloadMetaData): boolean {
 }
 
 const fileList = computed(() => availableFiles.value.filter(shouldIncludeInFileList));
+const selectedContentCount = computed(() => {
+    const countLeaves = (items: TreeItem[]): number => items.reduce((total, item) => {
+        return total + (item.children?.length ? countLeaves(item.children) : 1);
+    }, 0);
+    return countLeaves(props.selectionTree ?? []);
+});
 const completedCount = computed(() => fileList.value.filter(file => downloadProgress.value.get(file.filename) === 100).length);
 const failedCount = computed(() => fileList.value.filter(file => downloadProgress.value.get(file.filename) === -1).length);
 const activeCount = computed(() => fileList.value.filter((file) => {
@@ -407,7 +418,7 @@ onBeforeUnmount(() => {
   <div>
     <UModal
       :open="open"
-      :dismissible="!isBusy"
+      :dismissible="!isBusy && !downloadTourOpen"
       :close="!isBusy"
       :ui="{
         content: 'max-w-3xl',
@@ -503,6 +514,33 @@ onBeforeUnmount(() => {
                 </span>
               </template>
             </UCheckboxGroup>
+          </section>
+
+          <section class="lg:hidden">
+            <UButton
+              class="w-full justify-between"
+              color="neutral"
+              variant="outline"
+              icon="i-mdi-format-list-bulleted"
+              :trailing-icon="mobileFileListOpen ? 'i-mdi-chevron-up' : 'i-mdi-chevron-down'"
+              :label="`查看将要下载的内容（${selectedContentCount} 项）`"
+              :aria-expanded="mobileFileListOpen"
+              @click="mobileFileListOpen = !mobileFileListOpen"
+            />
+            <div
+              v-if="mobileFileListOpen"
+              class="mt-2 max-h-72 overflow-y-auto border-y border-default py-2"
+            >
+              <UTree
+                v-if="selectionTree?.length"
+                :items="selectionTree"
+                class="px-1"
+                @select="event => event.preventDefault()"
+              />
+              <p v-else class="px-2 py-4 text-center text-sm text-muted">
+                还没有选择要下载的内容
+              </p>
+            </div>
           </section>
 
           <div class="flex items-center gap-3 border-y border-default bg-elevated/50 px-3 py-3">
@@ -638,7 +676,12 @@ onBeforeUnmount(() => {
         </div>
       </template>
     </UModal>
-    <OnboardingTour v-if="open && step === 1" tour-id="download" :steps="onboardingSteps" />
+    <OnboardingTour
+      v-if="open && step === 1"
+      tour-id="download"
+      :steps="onboardingSteps"
+      @open-change="downloadTourOpen = $event"
+    />
   </div>
 </template>
 

@@ -6,6 +6,7 @@ export const BILIBILI_POW_WS_MAX_CHALLENGES = 3;
 export const BILIBILI_POW_WS_TIMEOUT_MS = 120_000;
 
 export interface BilibiliPowChallenge {
+    id: string;
     token: string;
     q: string;
     r: string;
@@ -14,6 +15,7 @@ export interface BilibiliPowChallenge {
 }
 
 export interface BilibiliPowVerificationRequest {
+    id: string;
     token: string;
     result: number;
 }
@@ -37,6 +39,7 @@ export interface BilibiliPowWsRequestMessage {
 
 export interface BilibiliPowWsSolutionMessage {
     type: 'solution';
+    id: string;
     token: string;
     result: number;
 }
@@ -71,7 +74,9 @@ export type BilibiliPowWsServerMessage =
 export function isBilibiliPowChallenge(value: unknown): value is BilibiliPowChallenge {
     if (!value || typeof value !== 'object') return false;
     const challenge = value as Partial<BilibiliPowChallenge>;
-    return typeof challenge.token === 'string'
+    return typeof challenge.id === 'string'
+        && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(challenge.id)
+        && typeof challenge.token === 'string'
         && challenge.token.length > 0
         && challenge.token.length <= 8192
         && typeof challenge.q === 'string'

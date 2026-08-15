@@ -808,7 +808,7 @@ async function refreshSelectedDownloadFiles(): Promise<DownloadMetaData[]> {
   const refreshWarnings: string[] = []
   let refreshedActivePackages: DetailedData[] | undefined
 
-  for (const { source, selections: sourceSelections } of sourceGroups.values()) {
+  const refreshedSources = await Promise.all([...sourceGroups.values()].map(async ({ source, selections: sourceSelections }) => {
     const sourceWarnings: string[] = []
     let packages: DetailedData[]
     try {
@@ -817,9 +817,14 @@ async function refreshSelectedDownloadFiles(): Promise<DownloadMetaData[]> {
       throw new Error(`${getSourceLabel(source)}链接刷新失败：${getErrorMessage(error, '请稍后重试')}`, { cause: error })
     }
 
-    if (sourceWarnings.length > 0) {
-      refreshWarnings.push(`${getSourceLabel(source)}：${sourceWarnings.join('；')}`)
-    }
+    const warnings = sourceWarnings.length > 0
+      ? [`${getSourceLabel(source)}：${sourceWarnings.join('；')}`]
+      : []
+    return { source, sourceSelections, packages, warnings }
+  }))
+
+  for (const { source, sourceSelections, packages, warnings } of refreshedSources) {
+    refreshWarnings.push(...warnings)
     if (sourceMatches(activeSource.value, source)) {
       refreshedActivePackages = packages
     }
@@ -988,7 +993,7 @@ v-if="generatedTreeData.length !== 0" :items="generatedTreeData" @select="(e: Tr
     </div>
     <USeparator v-else data-tour="detail-cards" class="pt-4" label="还没有数据哦" size="lg" />
     <DownloadModal
-:open="downloadPanelOpen" :file-metadatas="downloadFiles" :refresh-file-metadatas="refreshSelectedDownloadFiles"
+:open="downloadPanelOpen" :file-metadatas="downloadFiles" :selection-tree="generatedTreeData" :refresh-file-metadatas="refreshSelectedDownloadFiles"
       @close="() => { downloadPanelOpen = false }" />
     <OnboardingTour tour-id="detail" :steps="onboardingSteps" />
   </div>

@@ -80,8 +80,11 @@ function parseClientMessage(value: unknown): BilibiliPowWsClientMessage | undefi
             : undefined;
     }
     if (message.type === 'solution') {
-        return typeof message.token === 'string' && Number.isInteger(message.result)
-            ? { type: 'solution', token: message.token, result: message.result as number }
+        return typeof message.id === 'string'
+            && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(message.id)
+            && typeof message.token === 'string'
+            && Number.isInteger(message.result)
+            ? { type: 'solution', id: message.id, token: message.token, result: message.result as number }
             : undefined;
     }
     return undefined;
@@ -212,13 +215,18 @@ async function handleSolutionMessage(
     message: Extract<BilibiliPowWsClientMessage, { type: 'solution' }>,
 ): Promise<void> {
     const challenge = session.challenge;
-    if (session.phase !== 'awaiting_solution' || !challenge || message.token !== challenge.token) {
+    if (
+        session.phase !== 'awaiting_solution'
+        || !challenge
+        || message.id !== challenge.id
+        || message.token !== challenge.token
+    ) {
         fail(peer, 'Bilibili WebSocket solution does not match the active challenge');
         return;
     }
 
     session.challenge = undefined;
-    const verification = await verifyBilibiliPowChallenge(message.token, message.result);
+    const verification = await verifyBilibiliPowChallenge(message.token, message.result, message.id);
     if (!verification.ok) {
         if (verification.retryable && session.challengeCount < BILIBILI_POW_WS_MAX_CHALLENGES) {
             await runRequest(peer, session);

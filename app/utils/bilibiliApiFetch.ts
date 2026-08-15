@@ -14,13 +14,39 @@ import {
 
 const MAX_CHALLENGE_RETRIES = 2;
 const MAX_POW_WORKERS = 4;
+const BILIBILI_POW_ERROR_HEADER = 'x-collection-down-bilibili-pow-error';
 const activeVerifications = new Map<string, Promise<void>>();
 
 class BilibiliPowVerificationError extends Error {
-    constructor(message: string, readonly allowWebSocketFallback: boolean) {
+    constructor(
+        message: string,
+        readonly status: number,
+        readonly allowWebSocketFallback: boolean,
+    ) {
         super(message);
         this.name = 'BilibiliPowVerificationError';
     }
+}
+
+function createPowErrorResponse(error: unknown): Response {
+    const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : 'Bilibili security verification failed';
+    const status = error instanceof BilibiliPowVerificationError
+        && error.status >= 400
+        && error.status <= 599
+        ? error.status
+        : 502;
+    return Response.json(
+        { code: -1, message },
+        {
+            status,
+            headers: {
+                'cache-control': 'no-store',
+                [BILIBILI_POW_ERROR_HEADER]: '1',
+            },
+        },
+    );
 }
 
 async function readPowChallenge(response: Response): Promise<BilibiliPowChallenge | undefined> {
@@ -97,35 +123,40 @@ function solvePow(challenge: BilibiliPowChallenge, signal?: AbortSignal): Promis
 
 async function solveAndVerify(challenge: BilibiliPowChallenge): Promise<void> {
     const result = await solvePow(challenge);
-    const requestBody: BilibiliPowVerificationRequest = { token: challenge.token, result };
+    const requestBody: BilibiliPowVerificationRequest = {
+        id: challenge.id,
+        token: challenge.token,
+        result,
+    };
     const response = await fetch('/api/bili/pow/verify', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(requestBody),
     });
-    let body: ApiResponse<unknown> | undefined;
+    let body: ApiResponse<{ retryable?: boolean }> | undefined;
     try {
-        body = await response.json() as ApiResponse<unknown>;
+        body = await response.json() as ApiResponse<{ retryable?: boolean }>;
     } catch {
         // The HTTP status is used below when the server did not return JSON.
     }
     if (!response.ok || body?.code !== 0) {
         throw new BilibiliPowVerificationError(
             body?.message || `Bilibili security verification failed (HTTP ${response.status})`,
-            response.status === 502,
+            response.status,
+            body?.data?.retryable === true,
         );
     }
 }
 
 function ensureChallengeVerified(challenge: BilibiliPowChallenge): Promise<void> {
-    const pending = activeVerifications.get(challenge.token);
+    const pending = activeVerifications.get(challenge.id);
     if (pending) return pending;
 
     const verification = solveAndVerify(challenge).finally(() => {
-        activeVerifications.delete(challenge.token);
+        activeVerifications.delete(challenge.id);
     });
-    activeVerifications.set(challenge.token, verification);
+    activeVerifications.set(challenge.id, verification);
     return verification;
 }
 
@@ -245,6 +276,7 @@ function fetchBilibiliApiViaWebSocket(input: RequestInfo | URL, init: RequestIni
                 }
                 socket.send(JSON.stringify({
                     type: 'solution',
+                    id: message.challenge.id,
                     token: message.challenge.token,
                     result,
                 }));
@@ -282,16 +314,22 @@ export async function fetchBilibiliApi(input: RequestInfo | URL, init: RequestIn
         const challenge = await readPowChallenge(response);
         if (!challenge) return response;
         if (attempt === MAX_CHALLENGE_RETRIES) {
-            throw new Error('Bilibili security verification did not unlock the requested resource');
+            return createPowErrorResponse(
+                new Error('Bilibili security verification did not unlock the requested resource'),
+            );
         }
         try {
             await ensureChallengeVerified(challenge);
         } catch (error) {
             if (error instanceof BilibiliPowVerificationError && error.allowWebSocketFallback) {
-                return fetchBilibiliApiViaWebSocket(requestInput, init);
+                try {
+                    return await fetchBilibiliApiViaWebSocket(requestInput, init);
+                } catch (fallbackError) {
+                    return createPowErrorResponse(fallbackError);
+                }
             }
-            throw error;
+            return createPowErrorResponse(error);
         }
     }
-    throw new Error('Bilibili security verification retry limit reached');
+    return createPowErrorResponse(new Error('Bilibili security verification retry limit reached'));
 }

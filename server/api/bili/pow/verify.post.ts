@@ -10,7 +10,9 @@ import {
 function isVerificationRequest(value: unknown): value is BilibiliPowVerificationRequest {
     if (!value || typeof value !== 'object') return false;
     const request = value as Partial<BilibiliPowVerificationRequest>;
-    return typeof request.token === 'string'
+    return typeof request.id === 'string'
+        && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(request.id)
+        && typeof request.token === 'string'
         && request.token.length > 0
         && request.token.length <= 8192
         && Number.isInteger(request.result);
@@ -28,11 +30,16 @@ export default defineEventHandler(async (event) => {
         const verification = await verifyBilibiliPowChallenge(
             body.token,
             body.result,
+            body.id,
             bilibiliRuntime,
         );
     if (!verification.ok) {
         setResponseStatus(event, verification.status);
-        return new ApiResponse<null>(-1, verification.message);
+        return new ApiResponse<{ retryable: boolean }>(
+            -1,
+            verification.message,
+            { retryable: verification.retryable === true },
+        );
     }
 
     setCookie(event, BILIBILI_SECURITY_COOKIE, verification.securityToken, {

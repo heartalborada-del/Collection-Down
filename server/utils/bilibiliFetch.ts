@@ -17,6 +17,8 @@ const BILIBILI_CAPTCHA_URL = 'https://security.bilibili.com/th/captcha/cc/check'
 const FINGERPRINT_TTL_MS = 6 * 60 * 60 * 1000;
 const SECURITY_TOKEN_TTL_MS = 30 * 60 * 1000;
 const WBI_KEY_TTL_MS = 60 * 60 * 1000;
+const POW_REQUEST_CONTEXT_TTL_MS = 10 * 60 * 1000;
+const MAX_POW_REQUEST_CONTEXTS = 64;
 const BILIBILI_POW_RESPONSE_HEADER = 'x-collection-down-bilibili-pow';
 
 export const BILIBILI_SECURITY_COOKIE = 'collection_down_bili_sec';
@@ -57,6 +59,15 @@ interface CachedValue<T = string> {
     expiresAt: number;
 }
 
+interface PowRequestContext {
+    apiUrl: string;
+    client: BilibiliTcpClient;
+    fingerprintCookie?: string;
+    token: string;
+    expiresAt: number;
+    timeout: ReturnType<typeof setTimeout>;
+}
+
 export interface BilibiliFetchRuntime {
     securityToken?: string;
     debugResponses: boolean;
@@ -89,6 +100,7 @@ export interface BilibiliDebugResponse {
 
 let cachedFingerprint: CachedValue | undefined;
 let cachedWbiKeys: CachedValue<WbiKeys> | undefined;
+const pendingPowRequests = new Map<string, PowRequestContext>();
 
 type BilibiliLogLevel = 'info' | 'warn';
 
@@ -118,6 +130,56 @@ function getCachedValue<T>(cached: CachedValue<T> | undefined): T | undefined {
     return cached && cached.expiresAt > Date.now() ? cached.value : undefined;
 }
 
+function prunePowRequestContexts(now = Date.now()): void {
+    for (const [id, context] of pendingPowRequests) {
+        if (context.expiresAt <= now) discardPowRequestContext(id);
+    }
+    while (pendingPowRequests.size >= MAX_POW_REQUEST_CONTEXTS) {
+        const oldestId = pendingPowRequests.keys().next().value;
+        if (typeof oldestId !== 'string') break;
+        discardPowRequestContext(oldestId);
+    }
+}
+
+function discardPowRequestContext(id: string): void {
+    const context = pendingPowRequests.get(id);
+    if (!context) return;
+    pendingPowRequests.delete(id);
+    clearTimeout(context.timeout);
+    context.client.close();
+}
+
+function cachePowRequestContext(
+    token: string,
+    apiUrl: string | URL,
+    client: BilibiliTcpClient,
+    ttlMs: number,
+    fingerprintCookie?: string,
+): string {
+    prunePowRequestContexts();
+    const id = crypto.randomUUID();
+    const timeout = setTimeout(() => discardPowRequestContext(id), ttlMs);
+    if (typeof timeout === 'object' && 'unref' in timeout) timeout.unref();
+    pendingPowRequests.set(id, {
+        apiUrl: new URL(apiUrl).toString(),
+        client,
+        fingerprintCookie,
+        token,
+        expiresAt: Date.now() + ttlMs,
+        timeout,
+    });
+    return id;
+}
+
+function consumePowRequestContext(id: string, token: string): PowRequestContext | undefined {
+    prunePowRequestContexts();
+    const context = pendingPowRequests.get(id);
+    if (!context || context.token !== token) return undefined;
+    pendingPowRequests.delete(id);
+    clearTimeout(context.timeout);
+    return context;
+}
+
 function mergeHeaders(headers?: HeadersInit): Headers {
     const merged = new Headers(FetchHeaders);
     if (headers) {
@@ -142,27 +204,15 @@ function applyManagedCookies(headers: Headers, fingerprint?: string, securityTok
     }
 }
 
-async function loadFingerprintCookie(
-    traceId: string,
-    forceRefresh = false,
-    securityToken?: string,
-    tcpClient?: BilibiliTcpClient,
-): Promise<string | undefined> {
-    if (!tcpClient) throw new Error('Bilibili TCP client is required');
+async function loadFingerprintCookie(traceId: string): Promise<string | undefined> {
     const cached = getCachedValue(cachedFingerprint);
-    if (!forceRefresh && cached) {
-        return cached;
-    }
+    if (cached) return cached;
     logBilibili('info', 'fingerprint_request_started', {
         traceId,
-        forceRefresh,
     });
     try {
         const headers = mergeHeaders();
-        applyManagedCookies(headers, undefined, securityToken);
-        const response = await tcpClient.fetch(BILIBILI_FINGERPRINT_URL, {
-            headers,
-        });
+        const response = await fetch(BILIBILI_FINGERPRINT_URL, { headers });
             if (!response.ok) {
                 logBilibili('warn', 'fingerprint_response', {
                     traceId,
@@ -207,9 +257,7 @@ async function loadWbiKeys(
     traceId: string,
     fingerprintCookie?: string,
     securityToken?: string,
-    tcpClient?: BilibiliTcpClient,
 ): Promise<WbiKeys | undefined> {
-    if (!tcpClient) throw new Error('Bilibili TCP client is required');
     const cached = getCachedValue(cachedWbiKeys);
     if (cached) {
         return cached;
@@ -218,7 +266,8 @@ async function loadWbiKeys(
     try {
         const headers = mergeHeaders();
         applyManagedCookies(headers, fingerprintCookie, securityToken);
-        const response = await tcpClient.fetch(BILIBILI_WBI_NAV_URL, { headers });
+        // WBI traffic is independent of the short-lived API -> Security socket.
+        const response = await fetch(BILIBILI_WBI_NAV_URL, { headers });
             if (!response.ok) {
                 logBilibili('warn', 'wbi_keys_response', {
                     traceId,
@@ -297,10 +346,9 @@ function getChallengeResponseDetails(response: Response, token?: string): Record
 
 async function requestSecurityChallengeToken(
     traceId: string,
-    fingerprintCookie?: string,
-    tcpClient?: BilibiliTcpClient,
+    fingerprintCookie: string | undefined,
+    client: BilibiliTcpClient,
 ): Promise<string | undefined> {
-    if (!tcpClient) throw new Error('Bilibili TCP client is required');
     const headers = mergeHeaders({
         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -312,34 +360,16 @@ async function requestSecurityChallengeToken(
     });
     headers.delete('origin');
     applyManagedCookies(headers, fingerprintCookie);
-    logBilibili('info', 'challenge_page_request_started', {
-        traceId,
-        usedFingerprint: Boolean(fingerprintCookie),
+    const response = await client.fetch(BILIBILI_CHALLENGE_PAGE_URL, {
+        headers,
     });
-
-    try {
-        const response = await tcpClient.fetch(BILIBILI_CHALLENGE_PAGE_URL, {
-            headers,
-            redirect: 'manual',
-        });
-        const token = extractSecurityToken(response);
-        logBilibili(token ? 'info' : 'warn', 'challenge_page_response', {
-            traceId,
-            ...getChallengeResponseDetails(response, token),
-        });
-        try {
-            await response.body?.cancel();
-        } catch {
-            // Only the response headers are needed for the security challenge.
-        }
-        return token;
-    } catch (error) {
-        logBilibili('warn', 'challenge_page_error', {
-            traceId,
-            errorType: error instanceof Error ? error.name : 'UnknownError',
-        });
-        return undefined;
-    }
+    const token = extractSecurityToken(response);
+    logBilibili(token ? 'info' : 'warn', 'challenge_page_response', {
+        traceId,
+        sameConnectionId: client.getStats().lastApiConnectionId === client.getStats().lastResponseConnectionId,
+        ...getChallengeResponseDetails(response, token),
+    });
+    return token;
 }
 
 function decodeCaptchaPayload(token: string): CaptchaPayload | undefined {
@@ -361,7 +391,9 @@ function decodeCaptchaPayload(token: string): CaptchaPayload | undefined {
     }
 }
 
-function parsePowChallenge(token: string): BilibiliPowChallenge | undefined {
+type ParsedPowChallenge = Omit<BilibiliPowChallenge, 'id'>;
+
+function parsePowChallenge(token: string): ParsedPowChallenge | undefined {
     const payload = decodeCaptchaPayload(token);
     if (
         typeof payload?.q !== 'string'
@@ -389,14 +421,25 @@ function parsePowChallenge(token: string): BilibiliPowChallenge | undefined {
     };
 }
 
-function createClientPowResponse(token: string): Response | undefined {
+function createClientPowResponse(
+    token: string,
+    apiUrl: string | URL,
+    client: BilibiliTcpClient,
+    fingerprintCookie?: string,
+): Response | undefined {
     const challenge = parsePowChallenge(token);
     if (!challenge) return undefined;
+    const connectionTtlMs = Math.max(
+        1,
+        Math.min(POW_REQUEST_CONTEXT_TTL_MS, challenge.expiresAt - Date.now()),
+    );
+    client.holdForFinalRequest(connectionTtlMs);
+    const id = cachePowRequestContext(token, apiUrl, client, connectionTtlMs, fingerprintCookie);
     return Response.json(
         new ApiResponse<BilibiliPowChallenge>(
             BILIBILI_POW_REQUIRED_CODE,
             'Bilibili proof of work is required',
-            challenge,
+            { id, ...challenge },
         ),
         {
             status: BILIBILI_POW_HTTP_STATUS,
@@ -408,7 +451,53 @@ function createClientPowResponse(token: string): Response | undefined {
     );
 }
 
-function isPowResultInRange(challenge: BilibiliPowChallenge, result: number): boolean {
+async function createCachedPowResponse(
+    traceId: string,
+    apiUrl: string | URL,
+    init: RequestInit,
+    headers: Headers,
+    fingerprintCookie?: string,
+): Promise<Response | undefined> {
+    const client = new BilibiliTcpClient();
+    try {
+        const apiResponse = await client.fetch(apiUrl, { ...init, headers });
+        // BilibiliTcpClient resolves only after its parser has buffered the complete response.
+        const apiToken = extractSecurityToken(apiResponse);
+        logBilibili(apiToken ? 'info' : 'warn', 'challenge_api_response', {
+            traceId,
+            endpoint: getEndpoint(apiUrl),
+            ...getChallengeResponseDetails(apiResponse, apiToken),
+            connectionId: client.getStats().lastApiConnectionId,
+        });
+        const token = apiToken
+            ?? (apiResponse.status === 412
+                ? await requestSecurityChallengeToken(traceId, fingerprintCookie, client)
+                : undefined);
+        if (!token) {
+            client.close();
+            return apiResponse;
+        }
+        logBilibili('info', 'challenge_connection_created', {
+            traceId,
+            endpoint: getEndpoint(apiUrl),
+            connectionId: client.getStats().lastApiConnectionId,
+            requestsCompleted: client.getStats().requestsCompleted,
+        });
+        const response = createClientPowResponse(token, apiUrl, client, fingerprintCookie);
+        if (!response) client.close();
+        return response;
+    } catch (error) {
+        client.close();
+        logBilibili('warn', 'challenge_connection_error', {
+            traceId,
+            endpoint: getEndpoint(apiUrl),
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+        });
+        return undefined;
+    }
+}
+
+function isPowResultInRange(challenge: ParsedPowChallenge, result: number): boolean {
     return Number.isInteger(result) && result >= 0 && result < challenge.maxIterations;
 }
 
@@ -420,6 +509,7 @@ export function isBilibiliPowChallengeResponse(response: Response): boolean {
 export async function verifyBilibiliPowChallenge(
     token: string,
     result: number,
+    challengeId: string,
     runtime?: BilibiliFetchRuntime,
 ): Promise<BilibiliPowVerificationResult> {
     const traceId = crypto.randomUUID();
@@ -432,15 +522,26 @@ export async function verifyBilibiliPowChallenge(
         logBilibili('warn', 'challenge_solution_out_of_range', { traceId });
         return { ok: false, status: 400, message: 'Bilibili proof-of-work result is out of range' };
     }
+    const requestContext = consumePowRequestContext(challengeId, token);
+    if (!requestContext) {
+        logBilibili('warn', 'challenge_context_invalid', { traceId, challengeId });
+        return { ok: false, status: 400, message: 'Bilibili verification request ID is invalid or expired' };
+    }
 
     const activeRuntime = runtime ?? createBilibiliFetchRuntime();
+    activeRuntime.tcpClient.close();
+    activeRuntime.tcpClient = requestContext.client;
     try {
-        const fingerprintCookie = getCachedValue(cachedFingerprint)
-            ?? await loadFingerprintCookie(traceId, false, undefined, activeRuntime.tcpClient);
+        logBilibili('info', 'challenge_connection_resumed', {
+            traceId,
+            challengeId,
+            endpoint: getEndpoint(requestContext.apiUrl),
+            connectionId: activeRuntime.tcpClient.getStats().lastApiConnectionId,
+        });
         const headers = mergeHeaders();
-        applyManagedCookies(headers, fingerprintCookie, `3,${token}`);
+        applyManagedCookies(headers, requestContext.fingerprintCookie, `3,${token}`);
         headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
-        const response = await activeRuntime.tcpClient.fetch(BILIBILI_CAPTCHA_URL, {
+        const response = await activeRuntime.tcpClient.fetchFinal(BILIBILI_CAPTCHA_URL, {
             method: 'POST',
             headers,
             body: new URLSearchParams({ token, result: String(result) }),
@@ -480,6 +581,7 @@ export async function verifyBilibiliPowChallenge(
 
         logBilibili('info', 'challenge_accepted', {
             traceId,
+            challengeId,
             status: response.status,
             ttlSeconds: SECURITY_TOKEN_TTL_MS / 1000,
         });
@@ -551,12 +653,13 @@ export async function fetchBilibiliApi(
     const traceId = crypto.randomUUID();
     const endpoint = getEndpoint(input);
     const headers = mergeHeaders(init.headers);
-    const cachedFingerprintCookie = getCachedValue(cachedFingerprint);
+    const cachedFingerprintCookie = getCachedValue(cachedFingerprint)
+        ?? await loadFingerprintCookie(traceId);
     const cachedToken = runtime.securityToken;
     const isGetRequest = !init.method || init.method.toUpperCase() === 'GET';
     const availableWbiKeys = isGetRequest
         ? getCachedValue(cachedWbiKeys)
-            ?? await loadWbiKeys(traceId, cachedFingerprintCookie, cachedToken, runtime.tcpClient)
+            ?? await loadWbiKeys(traceId, cachedFingerprintCookie, cachedToken)
         : undefined;
     const requestInput = availableWbiKeys
         ? signWbiUrl(input, availableWbiKeys)
@@ -577,7 +680,8 @@ export async function fetchBilibiliApi(
 
     let response: Response;
     try {
-        response = await runtime.tcpClient.fetch(requestInput, { ...init, headers });
+        // Ordinary API traffic uses the platform fetch path and never shares the Security socket.
+        response = await fetch(requestInput, { ...init, headers });
     } catch (error) {
         logBilibili('warn', 'request_error', {
             traceId,
@@ -606,15 +710,15 @@ export async function fetchBilibiliApi(
         ...getChallengeResponseDetails(response, responseChallengeToken),
     });
 
-    const challengeToken = responseChallengeToken
-        ?? await requestSecurityChallengeToken(traceId, cachedFingerprintCookie, runtime.tcpClient);
-    if (!challengeToken) {
-        logBilibili('warn', 'challenge_missing', { traceId, endpoint });
-        return response;
-    }
-    const clientResponse = createClientPowResponse(challengeToken);
+    const clientResponse = await createCachedPowResponse(
+        traceId,
+        requestInput,
+        init,
+        headers,
+        cachedFingerprintCookie,
+    );
     if (!clientResponse) {
-        logBilibili('warn', 'challenge_invalid', { traceId, endpoint });
+        logBilibili('warn', 'challenge_connection_unavailable', { traceId, endpoint });
         return response;
     }
 
@@ -623,10 +727,18 @@ export async function fetchBilibiliApi(
     } catch {
         // The client receives a synthetic challenge response instead of the rejected body.
     }
-    logBilibili('info', 'challenge_delegated', {
-        traceId,
-        endpoint,
-        expiresAt: parsePowChallenge(challengeToken)?.expiresAt ?? null,
-    });
+    if (isBilibiliPowChallengeResponse(clientResponse)) {
+        logBilibili('info', 'challenge_delegated', {
+            traceId,
+            endpoint,
+            maxConnectionTtlSeconds: POW_REQUEST_CONTEXT_TTL_MS / 1000,
+        });
+    } else {
+        logBilibili('info', 'challenge_replay_completed', {
+            traceId,
+            endpoint,
+            status: clientResponse.status,
+        });
+    }
     return clientResponse;
 }

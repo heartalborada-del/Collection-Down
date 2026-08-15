@@ -993,7 +993,7 @@ v-if="generatedTreeData.length !== 0" :items="generatedTreeData" @select="(e: Tr
     </div>
     <USeparator v-else data-tour="detail-cards" class="pt-4" label="还没有数据哦" size="lg" />
     <DownloadModal
-:open="downloadPanelOpen" :file-metadatas="downloadFiles" :refresh-file-metadatas="refreshSelectedDownloadFiles"
+:open="downloadPanelOpen" :file-metadatas="downloadFiles" :selection-tree="generatedTreeData" :refresh-file-metadatas="refreshSelectedDownloadFiles"
       @close="() => { downloadPanelOpen = false }" />
     <OnboardingTour tour-id="detail" :steps="onboardingSteps" />
   </div>

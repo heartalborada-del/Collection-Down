@@ -7,6 +7,7 @@ import { ItemType } from '~~/types/api/enum';
 import type { DownloadMetaData } from '~~/types/api/inner/types';
 import { CollectionCardDownloadType } from '~~/types/collection';
 import { getErrorMessage } from '~/utils/apiError';
+import type { TreeItem } from '@nuxt/ui';
 
 const store = useDownloadSettingStore();
 const toast = useToast();
@@ -46,6 +47,7 @@ const onboardingSteps = [
 const props = defineProps<{
     open: boolean;
     fileMetadatas: DownloadMetaData[];
+    selectionTree?: TreeItem[];
     refreshFileMetadatas?: () => Promise<DownloadMetaData[]>;
 }>();
 
@@ -137,6 +139,12 @@ function shouldIncludeInFileList(file: DownloadMetaData): boolean {
 }
 
 const fileList = computed(() => availableFiles.value.filter(shouldIncludeInFileList));
+const selectedContentCount = computed(() => {
+    const countLeaves = (items: TreeItem[]): number => items.reduce((total, item) => {
+        return total + (item.children?.length ? countLeaves(item.children) : 1);
+    }, 0);
+    return countLeaves(props.selectionTree ?? []);
+});
 const completedCount = computed(() => fileList.value.filter(file => downloadProgress.value.get(file.filename) === 100).length);
 const failedCount = computed(() => fileList.value.filter(file => downloadProgress.value.get(file.filename) === -1).length);
 const activeCount = computed(() => fileList.value.filter((file) => {
@@ -515,30 +523,22 @@ onBeforeUnmount(() => {
               variant="outline"
               icon="i-mdi-format-list-bulleted"
               :trailing-icon="mobileFileListOpen ? 'i-mdi-chevron-up' : 'i-mdi-chevron-down'"
-              :label="`查看将要下载的内容（${fileList.length}）`"
+              :label="`查看将要下载的内容（${selectedContentCount} 项）`"
               :aria-expanded="mobileFileListOpen"
               @click="mobileFileListOpen = !mobileFileListOpen"
             />
             <div
               v-if="mobileFileListOpen"
-              class="mt-2 max-h-64 divide-y divide-default overflow-y-auto border-y border-default"
+              class="mt-2 max-h-72 overflow-y-auto border-y border-default py-2"
             >
-              <div
-                v-for="file in fileList"
-                :key="file.filename"
-                class="flex min-w-0 items-center gap-2 px-2 py-2.5"
-              >
-                <UIcon name="i-mdi-file-outline" class="size-4 shrink-0 text-muted" />
-                <div class="min-w-0 flex-1" :title="file.filename">
-                  <p class="truncate text-sm font-medium">{{ getFileDisplayName(file) }}</p>
-                  <p class="truncate text-xs text-muted">{{ file.filename }}</p>
-                </div>
-                <UBadge color="neutral" variant="outline" size="sm" class="max-w-28 shrink-0">
-                  {{ ItemType.toString(file.type) }}
-                </UBadge>
-              </div>
-              <p v-if="fileList.length === 0" class="px-2 py-4 text-center text-sm text-muted">
-                当前格式设置下没有可下载文件
+              <UTree
+                v-if="selectionTree?.length"
+                :items="selectionTree"
+                class="px-1"
+                @select="event => event.preventDefault()"
+              />
+              <p v-else class="px-2 py-4 text-center text-sm text-muted">
+                还没有选择要下载的内容
               </p>
             </div>
           </section>

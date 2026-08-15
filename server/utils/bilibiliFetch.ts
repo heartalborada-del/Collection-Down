@@ -152,18 +152,19 @@ function cachePowRequestContext(
     token: string,
     apiUrl: string | URL,
     client: BilibiliTcpClient,
+    ttlMs: number,
     fingerprintCookie?: string,
 ): string {
     prunePowRequestContexts();
     const id = crypto.randomUUID();
-    const timeout = setTimeout(() => discardPowRequestContext(id), POW_REQUEST_CONTEXT_TTL_MS);
+    const timeout = setTimeout(() => discardPowRequestContext(id), ttlMs);
     if (typeof timeout === 'object' && 'unref' in timeout) timeout.unref();
     pendingPowRequests.set(id, {
         apiUrl: new URL(apiUrl).toString(),
         client,
         fingerprintCookie,
         token,
-        expiresAt: Date.now() + POW_REQUEST_CONTEXT_TTL_MS,
+        expiresAt: Date.now() + ttlMs,
         timeout,
     });
     return id;
@@ -399,8 +400,12 @@ function createClientPowResponse(
 ): Response | undefined {
     const challenge = parsePowChallenge(token);
     if (!challenge) return undefined;
-    client.holdForFinalRequest(POW_REQUEST_CONTEXT_TTL_MS);
-    const id = cachePowRequestContext(token, apiUrl, client, fingerprintCookie);
+    const connectionTtlMs = Math.max(
+        1,
+        Math.min(POW_REQUEST_CONTEXT_TTL_MS, challenge.expiresAt - Date.now()),
+    );
+    client.holdForFinalRequest(connectionTtlMs);
+    const id = cachePowRequestContext(token, apiUrl, client, connectionTtlMs, fingerprintCookie);
     return Response.json(
         new ApiResponse<BilibiliPowChallenge>(
             BILIBILI_POW_REQUIRED_CODE,
@@ -427,7 +432,7 @@ async function createCachedPowResponse(
     const client = new BilibiliTcpClient();
     try {
         const apiResponse = await client.fetch(apiUrl, { ...init, headers });
-        await apiResponse.arrayBuffer();
+        // BilibiliTcpClient resolves only after its parser has buffered the complete response.
         const token = extractSecurityToken(apiResponse);
         logBilibili(token ? 'info' : 'warn', 'challenge_connection_created', {
             traceId,
@@ -686,7 +691,7 @@ export async function fetchBilibiliApi(
     logBilibili('info', 'challenge_delegated', {
         traceId,
         endpoint,
-        connectionTtlSeconds: POW_REQUEST_CONTEXT_TTL_MS / 1000,
+        maxConnectionTtlSeconds: POW_REQUEST_CONTEXT_TTL_MS / 1000,
     });
     return clientResponse;
 }

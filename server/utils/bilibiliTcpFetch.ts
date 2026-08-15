@@ -297,6 +297,7 @@ export class BilibiliTcpClient {
             servername: TLS_SERVER_NAME,
             rejectUnauthorized: true,
         });
+        socket.setNoDelay(true);
         socket.setKeepAlive(true, 30_000);
         socket.setTimeout(CONNECTION_TIMEOUT_MS, () => {
             socket.destroy(new Error('Bilibili TLS request timed out'));
@@ -437,7 +438,9 @@ export class BilibiliTcpClient {
             if (!location || !shouldRedirect(parsed.status) || redirectMode === 'manual') {
                 const responseBody = parsed.status === 204 || parsed.status === 304
                     ? null
-                    : Uint8Array.from(parsed.body);
+                    : parsed.body.buffer instanceof ArrayBuffer
+                        ? new Uint8Array(parsed.body.buffer, parsed.body.byteOffset, parsed.body.byteLength)
+                        : Uint8Array.from(parsed.body);
                 const response = new Response(responseBody, {
                     status: parsed.status,
                     statusText: parsed.statusText,

@@ -6,6 +6,12 @@ export default defineNuxtConfig({
     ui: {
         fonts: false,
     },
+    icon: {
+        provider: 'none',
+        clientBundle: {
+            scan: true,
+        },
+    },
     runtimeConfig: {
         public: {
             GithubRawEndpoint: process.env.GITHUB_RAW_ENDPOINT || 'https://raw.githubusercontent.com',

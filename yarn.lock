@@ -1077,6 +1077,20 @@
   resolved "https://registry.npmmirror.com/@humanwhocodes/retry/-/retry-0.4.3.tgz"
   integrity sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==
 
+"@iconify-json/ic@^1.2.4":
+  version "1.2.4"
+  resolved "https://registry.griseo.top/@iconify-json/ic/-/ic-1.2.4.tgz#bf7bfe6accbbf2bee6e1ba50ae2645efa41a7208"
+  integrity sha512-pzPMmrZrBQuwT7nmtrYdkttun8KalRGgZPIL1Ny9KpF2zjRGIUPN+npTfuD3lrgO/OnSwAoJWuekQwBpt/Cqrw==
+  dependencies:
+    "@iconify/types" "*"
+
+"@iconify-json/lucide@^1.2.123":
+  version "1.2.123"
+  resolved "https://registry.griseo.top/@iconify-json/lucide/-/lucide-1.2.123.tgz#f8a3fc63f8fcb2f39bd1eb41c47da7677fb700c6"
+  integrity sha512-0CozmpKXEOEEhltrfT2zt+/t1hez67Y+hM2VJWoIcBKdBrb83VYuKf+b5A0QU9HfQm+RNn2GjFWlTOwi+Ss6IA==
+  dependencies:
+    "@iconify/types" "*"
+
 "@iconify-json/material-symbols@^1.2.87":
   version "1.2.87"
   resolved "https://registry.npmmirror.com/@iconify-json/material-symbols/-/material-symbols-1.2.87.tgz#8c64c4a4dd4c8f5491d359f4934eaba63f45abdc"

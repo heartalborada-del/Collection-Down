@@ -166,6 +166,10 @@ function getSourceLabel(source: DownloadSource): string {
 }
 
 function getPackageKey(pkg: DetailedData): string {
+  if (pkg.type === PackageType.Theme) {
+    const id = hasValidId(pkg.id) ? pkg.id : 0
+    return `${pkg.type}:${id}:name:${getSafeName(pkg.name)}`
+  }
   return hasValidId(pkg.id)
     ? `${pkg.type}:${pkg.id}`
     : `${pkg.type}:name:${getSafeName(pkg.name)}`

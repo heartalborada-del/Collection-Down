@@ -48,3 +48,13 @@ yarn desktop:dist
 ```
 
 Desktop dependencies are isolated in `desktop/package.json` and are installed only by desktop commands. Web deployment platforms therefore do not download Electron or `electron-builder` during their root dependency installation.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=heartalborada-del%2FCollection-Down&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=heartalborada-del/Collection-Down&type=date&theme=dark&legend=top-left&sealed_token=3XTs8WvWMeimqj7u8KzdAvBptTM8HQXGwVeneCI_-hYbr3De1Z8zxym5GZ0xqAG_QKfl5svidPYGUni67Y0rurSdIax_483HSFGDBgG91_2vhJlpGII-rmx0FFRL_WdiBeyrQKmnyrJBqxi0_OGuZChG9tEflrCWmnzowagJeIhtLYSh_au0F3xKuVaD" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=heartalborada-del/Collection-Down&type=date&legend=top-left&sealed_token=3XTs8WvWMeimqj7u8KzdAvBptTM8HQXGwVeneCI_-hYbr3De1Z8zxym5GZ0xqAG_QKfl5svidPYGUni67Y0rurSdIax_483HSFGDBgG91_2vhJlpGII-rmx0FFRL_WdiBeyrQKmnyrJBqxi0_OGuZChG9tEflrCWmnzowagJeIhtLYSh_au0F3xKuVaD" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=heartalborada-del/Collection-Down&type=date&legend=top-left&sealed_token=3XTs8WvWMeimqj7u8KzdAvBptTM8HQXGwVeneCI_-hYbr3De1Z8zxym5GZ0xqAG_QKfl5svidPYGUni67Y0rurSdIax_483HSFGDBgG91_2vhJlpGII-rmx0FFRL_WdiBeyrQKmnyrJBqxi0_OGuZChG9tEflrCWmnzowagJeIhtLYSh_au0F3xKuVaD" />
+ </picture>
+</a>

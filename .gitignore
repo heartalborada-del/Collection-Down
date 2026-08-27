@@ -28,3 +28,4 @@ logs
 .env*.local
 
 .wrangler
+verification

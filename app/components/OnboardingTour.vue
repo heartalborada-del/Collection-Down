@@ -169,7 +169,7 @@ onUnmounted(() => {
               <div class="min-w-0 grow">
                 <div class="mb-1 flex items-center justify-between gap-3">
                   <h2 class="text-base font-semibold">{{ currentStep.title }}</h2>
-                  <span class="text-xs text-muted">{{ currentIndex + 1 }} / {{ steps.length }}</span>
+                  <span class="text-xs text-muted" style="text-wrap-mode: nowrap;">{{ currentIndex + 1 }} / {{ steps.length }}</span>
                 </div>
                 <p class="text-sm leading-6 text-muted">{{ currentStep.description }}</p>
               </div>

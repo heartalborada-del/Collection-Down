@@ -157,12 +157,14 @@ export class DownloadMetaData {
     name: string;
     type: ItemType;
     url: string;
+    urls: string[];
     filename: string;
 
-    constructor(data: { name: string; type: ItemType; url: string; filename: string }) {
+    constructor(data: { name: string; type: ItemType; url: string; urls?: string[]; filename: string }) {
         this.name = data.name;
         this.type = data.type;
         this.url = data.url;
+        this.urls = [...new Set([data.url, ...(data.urls ?? [])].filter(Boolean))];
         this.filename = data.filename;
     }
 }

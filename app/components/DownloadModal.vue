@@ -344,8 +344,11 @@ async function startDownload() {
                     lottieReadmeDirectories.add(directory);
                 }
             }
+            const sourceUrls = file.urls?.length ? file.urls : [file.url];
+            const proxyUrls = sourceUrls.map(url => `/api/bili/proxy?origin=${encodeURIComponent(url)}`);
             currentDownloader.addDownload({
-                Url: `/api/bili/proxy?origin=${encodeURIComponent(file.url)}`,
+                Url: proxyUrls[0]!,
+                Urls: proxyUrls,
                 FileFullDirectory: file.filename,
                 OnProgress: (loaded: number, total: number) => {
                     if (runId !== downloadRunId) return;

@@ -10,6 +10,11 @@ function positiveInteger(value: number | undefined, fallback: number): number {
     return Number.isFinite(value) && value! > 0 ? Math.max(1, Math.floor(value!)) : fallback;
 }
 
+function uniqueUrls(value: string | string[]): string[] {
+    const urls = Array.isArray(value) ? value : [value];
+    return [...new Set(urls.filter((url): url is string => typeof url === 'string' && url.length > 0))];
+}
+
 function retryCount(value: number | undefined): number {
     return Number.isFinite(value) ? Math.max(0, Math.floor(value!)) : DEFAULT_MAX_RETRIES;
 }
@@ -56,11 +61,30 @@ export class DownloadTask {
     private readonly signal = new AbortController();
     private storage: ChunkStorage | null = null;
     private taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    private readonly URLs: string[];
 
-    public constructor(private FileWriter: ZipWriter<unknown>, private FileFullDirectory: string, private URL: string, private options: DownloadTaskOptions) {}
+    public constructor(
+        private FileWriter: ZipWriter<unknown>,
+        private FileFullDirectory: string,
+        urls: string | string[],
+        private options: DownloadTaskOptions,
+    ) {
+        this.URLs = uniqueUrls(urls);
+        if (this.URLs.length === 0) {
+            throw new Error('No download URL was provided');
+        }
+    }
 
     public shutdown() {
         this.signal.abort("Task Cancelled");
+    }
+
+    private getAttemptCount(): number {
+        return Math.max(retryCount(this.options.maxRetries) + 1, this.URLs.length);
+    }
+
+    private getUrlForAttempt(attempt: number): string {
+        return this.URLs[Math.min(attempt, this.URLs.length - 1)]!;
     }
 
     private async checkSupportOPFS(): Promise<boolean> {
@@ -74,46 +98,47 @@ export class DownloadTask {
 
     // Only support same-origin due to security
     private async getFileSize(): Promise<number> {
-        let response: Response | null = null;
-        try {
-            response = await fetch(this.URL, {
-                method: 'GET',
-                signal: this.signal.signal,
-                cache: 'no-store',
-                headers: {
-                    'Range': 'bytes=0-0'
-                }
-            });
-            // Support -> 206
-            if (response.status === 206) {
-                const contentRange = response.headers.get('content-range');
-                if (contentRange) {
-                    // Content-Range pattern: bytes 0-0/123456
-                    const match = contentRange.match(/\/(\d+)$/);
-                    if (match && match[1]) {
-                        return parseInt(match[1], 10);
+        for (const url of this.URLs) {
+            let response: Response | null = null;
+            try {
+                response = await fetch(url, {
+                    method: 'GET',
+                    signal: this.signal.signal,
+                    cache: 'no-store',
+                    headers: {
+                        'Range': 'bytes=0-0'
+                    }
+                });
+                // Support -> 206
+                if (response.status === 206) {
+                    const contentRange = response.headers.get('content-range');
+                    if (contentRange) {
+                        // Content-Range pattern: bytes 0-0/123456
+                        const match = contentRange.match(/\/(\d+)$/);
+                        if (match && match[1]) {
+                            return parseInt(match[1], 10);
+                        }
+                    }
+
+                    // check backup header
+                    const backupLength = response.headers.get('X-Length-Backup');
+                    if (backupLength) {
+                        return parseInt(backupLength, 10);
                     }
                 }
-
-                // check backup header
-                const backupLength = response.headers.get('X-Length-Backup');
-                if (backupLength) {
-                    return parseInt(backupLength, 10);
+            } catch {
+                // Try the next URL returned by the API.
+            } finally {
+                // The probe body is not used. Release it so a batch cannot exhaust the browser's connections.
+                try {
+                    await response?.body?.cancel();
+                } catch {
+                    // The response may already have been closed by the runtime.
                 }
             }
-            
-            //Fallback
-            return -1;
-        } catch {
-            return -1;
-        } finally {
-            // The probe body is not used. Release it so a batch cannot exhaust the browser's connections.
-            try {
-                await response?.body?.cancel();
-            } catch {
-                // The response may already have been closed by the runtime.
-            }
         }
+
+        return -1;
     }
     
     /*
@@ -123,15 +148,15 @@ export class DownloadTask {
         const size = await this.getFileSize();
         if (size <= 0) {
             let resp: Response | null = null;
-            const maxRetries = retryCount(this.options.maxRetries);
-            for (let i = 0; i <= maxRetries; i++) {
+            const attempts = this.getAttemptCount();
+            for (let i = 0; i < attempts; i++) {
                 if (i > 0) await waitBeforeRetry(this.signal.signal, i);
                 let fetchResp: Response;
                 try {
-                    fetchResp = await fetch(this.URL, {signal: this.signal.signal});
+                    fetchResp = await fetch(this.getUrlForAttempt(i), {signal: this.signal.signal});
                 } catch (e) {
                     if (this.signal.signal.aborted) throw e;
-                    if (i === maxRetries) throw e;
+                    if (i === attempts - 1) throw e;
                     continue;
                 }
                 
@@ -139,7 +164,7 @@ export class DownloadTask {
                     if (fetchResp.status >= 400 && fetchResp.status < 500 && fetchResp.status !== 408) {
                         throw await createApiResponseError(fetchResp, '下载资源');
                     }
-                    if (i === maxRetries) throw await createApiResponseError(fetchResp, '下载资源');
+                    if (i === attempts - 1) throw await createApiResponseError(fetchResp, '下载资源');
                     continue;
                 }
                 
@@ -254,10 +279,10 @@ export class DownloadTask {
         const start = (index - 1) * chunkSize;
         const end = isLastChunk ? fileSize - 1 : index * chunkSize - 1;
         const expectedLength = end - start + 1;
-        const maxRetries = retryCount(this.options.maxRetries);
+        const attempts = this.getAttemptCount();
         let lastError: unknown = new Error(`Empty response for download chunk ${index}`);
 
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        for (let attempt = 0; attempt < attempts; attempt++) {
             if (attempt > 0) await waitBeforeRetry(this.signal.signal, attempt);
             if (this.signal.signal.aborted) {
                 throw this.signal.signal.reason ?? new Error("Task Cancelled");
@@ -265,7 +290,7 @@ export class DownloadTask {
 
             let resp: Response;
             try {
-                resp = await fetch(this.URL, {
+                resp = await fetch(this.getUrlForAttempt(attempt), {
                     signal: this.signal.signal,
                     cache: 'no-store',
                     headers: {
@@ -285,7 +310,8 @@ export class DownloadTask {
                 } catch {
                     // Ignore cleanup errors before retrying or surfacing the response error.
                 }
-                if (!retryableStatus(resp.status) || attempt === maxRetries) throw error;
+                const hasNextUrl = attempt + 1 < this.URLs.length;
+                if ((!retryableStatus(resp.status) && !hasNextUrl) || attempt === attempts - 1) throw error;
                 lastError = error;
                 continue;
             }

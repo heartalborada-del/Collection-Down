@@ -128,7 +128,7 @@ export class Downloader {
             const task = new DownloadTask(
                 this.zipWriter,
                 taskItem.FileFullDirectory,
-                taskItem.Url,
+                taskItem.Urls?.length ? taskItem.Urls : [taskItem.Url],
                 taskOpts
             );
 

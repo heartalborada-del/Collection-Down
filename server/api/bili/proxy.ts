@@ -18,7 +18,10 @@ export default defineEventHandler(async (event) => {
         if (!query || !query.origin) {
             return errorResponse(400, "Missing required origin URL");
         }
-        const targetUrl = new URL(query.origin as string);
+        let targetUrl = new URL(query.origin as string);
+        if (targetUrl.host === "upos-hz-mirrorakam.akamaized.net") {
+            targetUrl = new URL((query.origin as string).replace("upos-hz-mirrorakam.akamaized.net", "upos-sz-mirroraliov.bilivideo.com"));
+        }
         const isAllowedDomain = patterns.some(pattern => pattern.test({ hostname: targetUrl.hostname }));
         if (!isAllowedDomain) {
             return errorResponse(403, `Proxy domain is not allowed: ${targetUrl.hostname}`);

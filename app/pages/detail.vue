@@ -663,11 +663,13 @@ function buildDownloadFiles(selections: SelectedPackage[]): Array<DownloadMetaDa
           filename: getUniqueFilename(`${basePath}/static/${nameIdPrefix}_card.${GetFileExtensionFromUrl(target.img!)}`),
           name: target.name
         }))
-        if (target.video) {
+        const videoUrls = target.video?.filter(Boolean) ?? []
+        if (videoUrls.length > 0) {
           files.push(new DownloadMetaData({
-            url: target.video![0]!,
+            url: videoUrls[0]!,
+            urls: videoUrls,
             type: ItemType.AnimatedCard,
-            filename: getUniqueFilename(`${basePath}/video/${nameIdPrefix}_video.${GetFileExtensionFromUrl(target.video![0]!)}`),
+            filename: getUniqueFilename(`${basePath}/video/${nameIdPrefix}_video.${GetFileExtensionFromUrl(videoUrls[0]!)}`),
             name: target.name
           }))
         }
@@ -680,11 +682,13 @@ function buildDownloadFiles(selections: SelectedPackage[]): Array<DownloadMetaDa
               name: target.name
             }))
           }
-          if (target.watermarked.video) {
+          const watermarkedVideoUrls = target.watermarked.video?.filter(Boolean) ?? []
+          if (watermarkedVideoUrls.length > 0) {
             files.push(new DownloadMetaData({
-              url: target.watermarked.video![0]!,
+              url: watermarkedVideoUrls[0]!,
+              urls: watermarkedVideoUrls,
               type: ItemType.AnimatedCardWatermarked,
-              filename: getUniqueFilename(`${basePath}/video_watermarked/${nameIdPrefix}_video_watermarked.${GetFileExtensionFromUrl(target.watermarked.video![0]!)}`),
+              filename: getUniqueFilename(`${basePath}/video_watermarked/${nameIdPrefix}_video_watermarked.${GetFileExtensionFromUrl(watermarkedVideoUrls[0]!)}`),
               name: target.name
             }))
           }
